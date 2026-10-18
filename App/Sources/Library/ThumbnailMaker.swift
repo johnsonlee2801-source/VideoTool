@@ -44,8 +44,14 @@ enum MPVFrameGrabber {
 
         let options: [(String, String)] = [
             ("config", "no"), ("terminal", "no"), ("idle", "yes"), ("ytdl", "no"),
-            ("vo", "libmpv"), ("hwdec", "no"), ("aid", "no"), ("sid", "no"), ("osd-level", "0"),
+            // Keep the audio track (audio-only files have nothing else to load) but never
+            // open a sound device: ao=null. Found by FormatMatrixTests FM3.
+            ("vo", "libmpv"), ("hwdec", "no"), ("ao", "null"), ("sid", "no"), ("osd-level", "0"),
             ("pause", "yes"), ("keep-open", "yes"), ("start", start), ("hr-seek", "yes"),
+            // The software renderer asserts (and aborts the whole process) on rotated video
+            // (mp_image_crop, found by FormatMatrixTests with a phone-style 90° flag).
+            // Render unrotated and rotate the bitmap ourselves.
+            ("video-rotate", "no"),
         ]
         for (k, v) in options {
             let r = mpv_set_option_string(h, k, v)
@@ -96,7 +102,13 @@ enum MPVFrameGrabber {
         var dw: Int64 = 0, dh: Int64 = 0
         mpv_get_property(h, "dwidth", MPV_FORMAT_INT64, &dw)
         mpv_get_property(h, "dheight", MPV_FORMAT_INT64, &dh)
-        let probe = MediaProbe(duration: duration, width: Int(dw), height: Int(dh))
+        // With video-rotate=no mpv zeroes video-params/rotate; the container's flag is
+        // still on the track as demux-rotation.
+        var rotate: Int64 = 0
+        if mpv_get_property(h, "current-tracks/video/demux-rotation", MPV_FORMAT_INT64, &rotate) < 0 { rotate = 0 }
+        let quarterTurn = (rotate % 180 + 180) % 180 == 90
+        // Report the size as displayed (rotation applied), like the player shows it.
+        let probe = MediaProbe(duration: duration, width: Int(quarterTurn ? dh : dw), height: Int(quarterTurn ? dw : dh))
 
         guard let url else { return (probe, nil) }
         guard dw > 0, dh > 0 else { return (probe, "no video track (dwidth=\(dw), dheight=\(dh))") }
@@ -116,7 +128,7 @@ enum MPVFrameGrabber {
             _ = mpv_wait_event(h, 0.05)
         }
         guard rendered else { return (probe, "no frame rendered; mpv said: \(logs.joined(separator: " | "))") }
-        return (probe, writeJPEG(pixels, width: w, height: height, stride: stride, to: url))
+        return (probe, writeJPEG(pixels, width: w, height: height, stride: stride, rotate: Int(rotate), to: url))
     }
 
     private static func render(_ rc: OpaquePointer, into pixels: inout [UInt8], width: Int, height: Int, stride: Int) -> Bool {
@@ -140,12 +152,29 @@ enum MPVFrameGrabber {
         }
     }
 
-    private static func writeJPEG(_ pixels: [UInt8], width: Int, height: Int, stride: Int, to url: URL) -> String? {
+    /// Rotates `image` clockwise by `degrees` (0/90/180/270), as mpv's video-rotate would.
+    static func rotated(_ image: CGImage, clockwise degrees: Int) -> CGImage? {
+        let turns = ((degrees % 360) + 360) % 360 / 90
+        guard turns != 0 else { return image }
+        let swap = turns % 2 == 1
+        let (w, h) = swap ? (image.height, image.width) : (image.width, image.height)
+        guard let ctx = CGContext(data: nil, width: w, height: h, bitsPerComponent: 8, bytesPerRow: 0,
+                                  space: CGColorSpaceCreateDeviceRGB(),
+                                  bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue) else { return nil }
+        ctx.translateBy(x: CGFloat(w) / 2, y: CGFloat(h) / 2)
+        ctx.rotate(by: -CGFloat(turns) * .pi / 2)          // CoreGraphics is counter-clockwise
+        ctx.draw(image, in: CGRect(x: -CGFloat(image.width) / 2, y: -CGFloat(image.height) / 2,
+                                   width: CGFloat(image.width), height: CGFloat(image.height)))
+        return ctx.makeImage()
+    }
+
+    private static func writeJPEG(_ pixels: [UInt8], width: Int, height: Int, stride: Int, rotate: Int, to url: URL) -> String? {
         guard let provider = CGDataProvider(data: Data(pixels) as CFData),
-              let image = CGImage(width: width, height: height, bitsPerComponent: 8, bitsPerPixel: 32,
-                                  bytesPerRow: stride, space: CGColorSpaceCreateDeviceRGB(),
-                                  bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.noneSkipLast.rawValue),
-                                  provider: provider, decode: nil, shouldInterpolate: true, intent: .defaultIntent)
+              let raw = CGImage(width: width, height: height, bitsPerComponent: 8, bitsPerPixel: 32,
+                                bytesPerRow: stride, space: CGColorSpaceCreateDeviceRGB(),
+                                bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.noneSkipLast.rawValue),
+                                provider: provider, decode: nil, shouldInterpolate: true, intent: .defaultIntent),
+              let image = rotated(raw, clockwise: rotate)
         else { return "could not build CGImage" }
         try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
         try? FileManager.default.removeItem(at: url)

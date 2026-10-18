@@ -149,6 +149,30 @@ final class MPVEngine: PlayerEngine {
 
     /// Runs `body` with the handle while holding the lock, so `shutdown()`
     /// cannot destroy the handle mid-call. Does nothing after shutdown.
+    /// Reads any mpv property as a string (track lists, codec names…). nil if unavailable.
+    func property(_ name: String) -> String? {
+        withHandle { h -> String? in
+            guard let c = mpv_get_property_string(h, name) else { return nil }
+            defer { mpv_free(c) }
+            return String(cString: c)
+        } ?? nil
+    }
+
+    /// Number of video, audio and subtitle tracks in the loaded file.
+    func trackCounts() -> (video: Int, audio: Int, subtitle: Int) {
+        let n = Int(property("track-list/count") ?? "") ?? 0
+        var counts = (video: 0, audio: 0, subtitle: 0)
+        for i in 0..<n {
+            switch property("track-list/\(i)/type") {
+            case "video": if property("track-list/\(i)/albumart") != "yes" { counts.video += 1 }
+            case "audio": counts.audio += 1
+            case "sub": counts.subtitle += 1
+            default: break
+            }
+        }
+        return counts
+    }
+
     /// Locked access for collaborators (the render layer creates its render
     /// context against this handle).
     func withHandle<T>(_ body: (OpaquePointer) -> T) -> T? {
