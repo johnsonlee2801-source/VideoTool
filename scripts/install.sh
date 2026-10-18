@@ -6,7 +6,7 @@ set -e
 cd "${0:A:h:h}"
 VIDEOTOOL_CONFIGURATION=Release scripts/xcb.sh build > "${TMPDIR:-/tmp}/videotool-release-build.log" 2>&1 \
   || { tail -20 "${TMPDIR:-/tmp}/videotool-release-build.log"; exit 1; }
-DD="${VIDEOTOOL_DERIVED_DATA:-$HOME/Library/Developer/Xcode/DerivedData/VideoTool-cli}"
+DD="${VIDEOTOOL_DERIVED_DATA:-$HOME/Library/Developer/Xcode/DerivedData/VideoTool-cli.noindex}"
 BUILT="$DD/Build/Products/Release/VideoTool.app"
 DEST=/Applications/VideoTool.app
 if [ -d "$DEST" ]; then

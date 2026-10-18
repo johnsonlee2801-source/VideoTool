@@ -47,12 +47,12 @@ scripts/xcb.sh test       # run the app test suite
 ```
 
 The first build downloads MPVKit's prebuilt xcframeworks (~250 MB).
-`xcb.sh` keeps all build state in `~/Library/Developer/Xcode/DerivedData/VideoTool-cli`:
+`xcb.sh` keeps all build state in `~/Library/Developer/Xcode/DerivedData/VideoTool-cli.noindex`:
 if the checkout lives in an iCloud-synced folder (e.g. Desktop), Xcode's
 package resolver silently resolves nothing when DerivedData is inside it.
 
 The built app is at
-`~/Library/Developer/Xcode/DerivedData/VideoTool-cli/Build/Products/Debug/VideoTool.app`.
+`~/Library/Developer/Xcode/DerivedData/VideoTool-cli.noindex/Build/Products/Debug/VideoTool.app`.
 
 ## Install
 

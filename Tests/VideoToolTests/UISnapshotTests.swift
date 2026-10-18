@@ -4,7 +4,7 @@ import Testing
 
 // Renders the main screens to PNG so the UI can be reviewed without a person
 // at the screen. Output: $VIDEOTOOL_SNAPSHOT_DIR, default
-// ~/Library/Developer/Xcode/DerivedData/VideoTool-cli/snapshots/<label>/
+// ~/Library/Developer/Xcode/DerivedData/VideoTool-cli.noindex/snapshots/<label>/
 // These tests assert only that rendering works; the images are for review.
 
 private final class Marker {}
@@ -15,7 +15,7 @@ enum Snapshot {
     static var directory: URL = {
         let base = ProcessInfo.processInfo.environment["VIDEOTOOL_SNAPSHOT_DIR"].map(URL.init(fileURLWithPath:))
             ?? FileManager.default.homeDirectoryForCurrentUser
-                .appendingPathComponent("Library/Developer/Xcode/DerivedData/VideoTool-cli/snapshots")
+                .appendingPathComponent("Library/Developer/Xcode/DerivedData/VideoTool-cli.noindex/snapshots")
         let label = ProcessInfo.processInfo.environment["VIDEOTOOL_SNAPSHOT_LABEL"] ?? "current"
         let dir = base.appendingPathComponent(label)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
