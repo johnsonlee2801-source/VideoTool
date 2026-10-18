@@ -221,4 +221,64 @@ private func waitUntil(_ timeout: Double = 5, _ condition: () -> Bool) async -> 
         }
         #expect(ok == FileManager.default.fileExists(atPath: out.path))
     }
+
+    @Test("I15 probing the fixture reports its duration and size and writes a thumbnail from 10% in")
+    func probeFixture() throws {
+        let out = FileManager.default.temporaryDirectory.appendingPathComponent("probe-\(UUID().uuidString).jpg")
+        let p = try #require(MPVMediaProber().probe(source: sample, thumbnailTo: out), "\(MPVThumbnailMaker.lastFailure ?? "")")
+        #expect(abs(p.duration - 20) < 0.5)
+        #expect(p.width == 640 && p.height == 360)
+        #expect(Array(try Data(contentsOf: out).prefix(3)) == [0xFF, 0xD8, 0xFF])
+    }
+
+    @Test("I16 probing a missing file returns nil quickly") func probeMissing() {
+        let start = Date()
+        #expect(MPVMediaProber().probe(source: "/nonexistent/\(UUID()).mkv", thumbnailTo: nil) == nil)
+        #expect(Date().timeIntervalSince(start) < 5)
+    }
+
+    @Test("I17 Vision classifies a real thumbnail without error (labels depend on content)")
+    func visionRuns() throws {
+        let out = FileManager.default.temporaryDirectory.appendingPathComponent("vis-\(UUID().uuidString).jpg")
+        _ = try #require(MPVMediaProber().probe(source: sample, thumbnailTo: out))
+        let tags = VisionTagger().tags(forImageAt: out)
+        #expect(tags.count <= TagVocabulary.maxTags)
+        #expect(tags.allSatisfy { $0.1 >= Double(TagVocabulary.minConfidence) && $0.1 <= 1 })
+        #expect(VisionTagger().tags(forImageAt: URL(fileURLWithPath: "/nonexistent.jpg")).isEmpty)
+    }
+
+    @Test("I18 real library pass: real fingerprints, mpv probing and Vision; copies found as duplicates; files untouched")
+    func realLibraryPass() throws {
+        let fm = FileManager.default
+        let root = URL(fileURLWithPath: fm.temporaryDirectory.appendingPathComponent("reallib-\(UUID().uuidString)").path)
+            .resolvingSymlinksInPath()
+        try fm.createDirectory(at: root.appendingPathComponent("copies"), withIntermediateDirectories: true)
+        try fm.copyItem(atPath: sample, toPath: root.appendingPathComponent("clip.mp4").path)
+        try fm.copyItem(atPath: sample, toPath: root.appendingPathComponent("copies/clip copy.mp4").path)
+        func snapshot() throws -> [String] {
+            try (fm.subpathsOfDirectory(atPath: root.path)).sorted().map { rel in
+                let full = root.appendingPathComponent(rel).path
+                let attrs = try fm.attributesOfItem(atPath: full)
+                let isFile = (attrs[.type] as? FileAttributeType) == .typeRegular
+                let digest = isFile ? (try? FileFingerprint.compute(path: full)) ?? "?" : "dir"
+                return "\(rel)|\((attrs[.modificationDate] as? Date)?.timeIntervalSince1970 ?? 0)|\(attrs[.size] ?? 0)|\(digest)"
+            }
+        }
+        let before = try snapshot()
+        let store = try LibraryStore(path: fm.temporaryDirectory.appendingPathComponent("real-\(UUID().uuidString).sqlite").path)
+        let thumbs = fm.temporaryDirectory.appendingPathComponent("realthumbs-\(UUID().uuidString)")
+        _ = try store.addRoot(root.path)
+        let indexer = LibraryIndexer(store: store, thumbnailDirectory: thumbs)
+
+        let summary = indexer.index(root: root.path, progress: { _ in }, isCancelled: { false })
+        #expect(summary.added == 2 && summary.unreadable == 0 && summary.probeFailed == 0, "\(summary) \(MPVThumbnailMaker.lastFailure ?? "")")
+        let rows = try store.media(inRoot: root.path)
+        #expect(Set(rows.map(\.fileKey)) == ["osh:58658fd4882cf11c"])
+        #expect(rows.allSatisfy { abs($0.duration - 20) < 0.5 && $0.width == 640 && $0.height == 360 })
+        #expect(fm.fileExists(atPath: LibraryIndexer.thumbnailURL(forKey: "osh:58658fd4882cf11c", in: thumbs).path))
+        let items = rows.map { LibraryItem(record: $0, tags: (try? store.tags(for: $0.fileKey)) ?? []) }
+        #expect(LibraryGrouping.sections(items, mode: .duplicates).first?.items.count == 2)
+        #expect(try snapshot() == before, "every user file, recursively: same names, dates, sizes, content")
+        #expect(indexer.index(root: root.path, progress: { _ in }, isCancelled: { false }).unchanged == 2)
+    }
 }

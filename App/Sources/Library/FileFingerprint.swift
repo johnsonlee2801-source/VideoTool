@@ -39,6 +39,29 @@ enum FileFingerprint {
         return "osh:" + String(format: "%016llx", hash)
     }
 
+    static let checkSample = 262_144
+
+    /// Confirms that files sharing an OSHash really have the same content: SHA-256
+    /// over the size and 256 KB samples at 25 %, 50 % and 75 % (OSHash only looks
+    /// at the first and last 64 KB). Small files hash everything. Reads at most 768 KB.
+    static func contentCheck(path: String) -> String? {
+        guard let handle = FileHandle(forReadingAtPath: path) else { return nil }
+        defer { try? handle.close() }
+        guard let size = try? handle.seekToEnd() else { return nil }
+        var hasher = SHA256()
+        hasher.update(data: withUnsafeBytes(of: size.littleEndian) { Data($0) })
+        if size <= UInt64(checkSample * 3) {
+            try? handle.seek(toOffset: 0)
+            hasher.update(data: (try? handle.readToEnd()) ?? Data())
+        } else {
+            for fraction in [0.25, 0.5, 0.75] {
+                try? handle.seek(toOffset: UInt64(Double(size) * fraction))
+                hasher.update(data: (try? handle.read(upToCount: checkSample)) ?? Data())
+            }
+        }
+        return hasher.finalize().map { String(format: "%02x", $0) }.joined()
+    }
+
     /// Key for whatever mpv was asked to play: local files by content, anything
     /// that is not an existing local path by its URL string.
     static func key(forTarget target: String) -> String? {

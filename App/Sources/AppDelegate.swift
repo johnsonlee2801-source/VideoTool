@@ -3,6 +3,7 @@ import UniformTypeIdentifiers
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var playerWindow: PlayerWindowController?
+    private var libraryWindow: LibraryWindowController?
     private var launchQueue = LaunchOpenQueue()
 
     // MARK: lifecycle
@@ -107,6 +108,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         let windowItem = NSMenuItem(); main.addItem(windowItem)
         let windowMenu = NSMenu(title: "窗口")
+        windowMenu.addItem(withTitle: "视频库", action: #selector(showLibrary(_:)), keyEquivalent: "l")
+        windowMenu.addItem(.separator())
         windowMenu.addItem(withTitle: "最小化", action: #selector(NSWindow.performMiniaturize(_:)), keyEquivalent: "m")
         windowItem.submenu = windowMenu
         NSApp.windowsMenu = windowMenu
@@ -124,6 +127,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             ensureWindow()
             open(url)
         }
+    }
+
+    @objc func showLibrary(_ sender: Any?) {
+        if libraryWindow == nil {
+            guard let store = try? LibraryStore() else { return }
+            let path = SQLiteDatabase.defaultPath
+            let controller = LibraryController(
+                store: store, stars: try? BookmarkStore(),
+                // Each scan uses its own connection; if it cannot be opened, the scan reports it
+                // instead of sharing the main-thread connection (transactions would collide).
+                makeIndexer: { (try? LibraryStore(path: path)).map { LibraryIndexer(store: $0) } })
+            libraryWindow = LibraryWindowController(controller: controller) { [weak self] url in
+                self?.ensureWindow()
+                self?.open(url)
+            }
+        }
+        libraryWindow?.showWindow(nil)
+        libraryWindow?.window?.makeKeyAndOrderFront(nil)
     }
 
     @objc private func makeDefaultPlayer(_ sender: Any?) {

@@ -38,12 +38,13 @@ import Testing
         #expect(BookmarkNavigator.previous(before: 8.4, in: [10, 10.4], landedOn: 10.4) == 10)
     }
 
-    @Test("N11 law: chaining next from 0 visits every distinct star once in order; previous reverses it")
+    @Test("N11 law: chaining next from 0 visits every distinct star after 0 once in order; previous reverses it")
     func chainingLaw() {
         var rng = SystemRandomNumberGenerator()
         for _ in 0..<300 {
             let stars = (0..<Int.random(in: 1...12, using: &rng)).map { _ in (Double.random(in: 0...600, using: &rng) * 10).rounded() / 10 }
-            let distinct = Array(Set(stars)).sorted()
+            // A star exactly at the starting position is "here", not "next".
+            let distinct = Array(Set(stars)).filter { $0 > BookmarkNavigator.epsilon }.sorted()
             var visited: [Double] = []
             var landed: Double? = nil
             var pos = 0.0

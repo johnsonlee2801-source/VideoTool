@@ -10,6 +10,18 @@ protocol ThumbnailMaker {
     func makeThumbnail(source: String, at time: Double, to url: URL, completion: @escaping (Bool) -> Void)
 }
 
+struct MediaProbe: Equatable {
+    var duration: Double
+    var width: Int
+    var height: Int
+}
+
+/// Reads a video's duration and size and (optionally) writes a thumbnail.
+/// Synchronous: call it from a background queue.
+protocol MediaProber {
+    func probe(source: String, thumbnailTo url: URL?) -> MediaProbe?
+}
+
 /// Grabs one frame with a short-lived, separate libmpv instance: software
 /// decoding, rendered through libmpv's software render API into memory, then
 /// encoded to JPEG with ImageIO.
@@ -19,46 +31,29 @@ protocol ThumbnailMaker {
 ///   VideoToolbox and mpv cannot convert those GPU frames.
 /// - `--vo=image` fails because MPVKit's FFmpeg is decode-only (no JPEG/PNG encoder).
 /// A separate instance also never disturbs playback.
-final class MPVThumbnailMaker: ThumbnailMaker {
+enum MPVFrameGrabber {
     static let width = 480
     static let timeout: Double = 15
 
-    private static let queue = DispatchQueue(label: "io.github.johnsonlee2801-source.videotool.thumbnails", qos: .utility)
-    private static let failureLock = NSLock()
-    private static var _lastFailure: String?
-    /// Why the last extraction failed (for logs and tests).
-    static var lastFailure: String? {
-        failureLock.lock(); defer { failureLock.unlock() }
-        return _lastFailure
-    }
-
-    func makeThumbnail(source: String, at time: Double, to url: URL, completion: @escaping (Bool) -> Void) {
-        Self.queue.async {
-            let failure = Self.extract(source: source, time: time, to: url)
-            Self.failureLock.lock(); Self._lastFailure = failure; Self.failureLock.unlock()
-            if let failure { NSLog("thumbnail failed: %@", failure) }
-            DispatchQueue.main.async { completion(failure == nil) }
-        }
-    }
-
-    /// Returns nil on success, otherwise the reason.
-    private static func extract(source: String, time: Double, to url: URL) -> String? {
-        guard let h = mpv_create() else { return "mpv_create failed" }
+    /// `start` is anything mpv's `--start` accepts ("12.5", "10%").
+    /// Returns the probe (nil if the file could not be opened) and, if a
+    /// thumbnail was requested but not written, the reason.
+    static func grab(source: String, start: String, thumbnailTo url: URL?) -> (probe: MediaProbe?, failure: String?) {
+        guard let h = mpv_create() else { return (nil, "mpv_create failed") }
         defer { mpv_terminate_destroy(h) }
 
         let options: [(String, String)] = [
             ("config", "no"), ("terminal", "no"), ("idle", "yes"), ("ytdl", "no"),
             ("vo", "libmpv"), ("hwdec", "no"), ("aid", "no"), ("sid", "no"), ("osd-level", "0"),
-            ("pause", "yes"), ("keep-open", "yes"),
-            ("start", String(format: "%.3f", max(0, time))), ("hr-seek", "yes"),
+            ("pause", "yes"), ("keep-open", "yes"), ("start", start), ("hr-seek", "yes"),
         ]
         for (k, v) in options {
             let r = mpv_set_option_string(h, k, v)
-            if r < 0 { return "option \(k)=\(v): \(String(cString: mpv_error_string(r)))" }
+            if r < 0 { return (nil, "option \(k)=\(v): \(String(cString: mpv_error_string(r)))") }
         }
         mpv_request_log_messages(h, "warn")
         let ir = mpv_initialize(h)
-        guard ir >= 0 else { return "initialize: \(String(cString: mpv_error_string(ir)))" }
+        guard ir >= 0 else { return (nil, "initialize: \(String(cString: mpv_error_string(ir)))") }
 
         // Software render context (must be freed before mpv is destroyed).
         let apiType = strdup("sw")
@@ -69,13 +64,13 @@ final class MPVThumbnailMaker: ThumbnailMaker {
             mpv_render_param(type: MPV_RENDER_PARAM_INVALID, data: nil),
         ]
         let cr = createParams.withUnsafeMutableBufferPointer { mpv_render_context_create(&rc, h, $0.baseAddress) }
-        guard cr >= 0, let rc else { return "render context: \(String(cString: mpv_error_string(cr)))" }
+        guard cr >= 0, let rc else { return (nil, "render context: \(String(cString: mpv_error_string(cr)))") }
         defer { mpv_render_context_free(rc) }
 
         var args: [UnsafePointer<CChar>?] = [UnsafePointer(strdup("loadfile")), UnsafePointer(strdup(source)), nil]
         defer { args.forEach { free(UnsafeMutablePointer(mutating: $0)) } }
         let lr = args.withUnsafeMutableBufferPointer { mpv_command(h, $0.baseAddress) }
-        guard lr >= 0 else { return "loadfile: \(String(cString: mpv_error_string(lr)))" }
+        guard lr >= 0 else { return (nil, "loadfile: \(String(cString: mpv_error_string(lr)))") }
 
         // Wait until the file is loaded and the initial seek has finished.
         var logs: [String] = []
@@ -94,12 +89,17 @@ final class MPVThumbnailMaker: ThumbnailMaker {
             default: continue
             }
         }
-        guard restarted else { return "file did not load; mpv said: \(logs.joined(separator: " | "))" }
+        guard restarted else { return (nil, "file did not load; mpv said: \(logs.joined(separator: " | "))") }
 
+        var duration = 0.0
+        if mpv_get_property(h, "duration", MPV_FORMAT_DOUBLE, &duration) < 0 { duration = 0 }
         var dw: Int64 = 0, dh: Int64 = 0
         mpv_get_property(h, "dwidth", MPV_FORMAT_INT64, &dw)
         mpv_get_property(h, "dheight", MPV_FORMAT_INT64, &dh)
-        guard dw > 0, dh > 0 else { return "no video track (dwidth=\(dw), dheight=\(dh))" }
+        let probe = MediaProbe(duration: duration, width: Int(dw), height: Int(dh))
+
+        guard let url else { return (probe, nil) }
+        guard dw > 0, dh > 0 else { return (probe, "no video track (dwidth=\(dw), dheight=\(dh))") }
 
         let w = width
         let height = max(2, Int((Double(w) * Double(dh) / Double(dw)).rounded() / 2) * 2)
@@ -115,8 +115,8 @@ final class MPVThumbnailMaker: ThumbnailMaker {
             }
             _ = mpv_wait_event(h, 0.05)
         }
-        guard rendered else { return "no frame rendered; mpv said: \(logs.joined(separator: " | "))" }
-        return writeJPEG(pixels, width: w, height: height, stride: stride, to: url)
+        guard rendered else { return (probe, "no frame rendered; mpv said: \(logs.joined(separator: " | "))") }
+        return (probe, writeJPEG(pixels, width: w, height: height, stride: stride, to: url))
     }
 
     private static func render(_ rc: OpaquePointer, into pixels: inout [UInt8], width: Int, height: Int, stride: Int) -> Bool {
@@ -147,11 +147,49 @@ final class MPVThumbnailMaker: ThumbnailMaker {
                                   bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.noneSkipLast.rawValue),
                                   provider: provider, decode: nil, shouldInterpolate: true, intent: .defaultIntent)
         else { return "could not build CGImage" }
+        try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
         try? FileManager.default.removeItem(at: url)
         guard let dest = CGImageDestinationCreateWithURL(url as CFURL, UTType.jpeg.identifier as CFString, 1, nil) else {
             return "could not create \(url.path)"
         }
         CGImageDestinationAddImage(dest, image, [kCGImageDestinationLossyCompressionQuality: 0.85] as CFDictionary)
         return CGImageDestinationFinalize(dest) ? nil : "JPEG encoding failed"
+    }
+}
+
+/// Star thumbnails: the frame at the star's time, made on a background queue.
+final class MPVThumbnailMaker: ThumbnailMaker {
+    static var width: Int { MPVFrameGrabber.width }
+
+    private static let queue = DispatchQueue(label: "io.github.johnsonlee2801-source.videotool.thumbnails", qos: .utility)
+    private static let failureLock = NSLock()
+    private static var _lastFailure: String?
+    /// Why the last extraction failed (for logs and tests).
+    static var lastFailure: String? {
+        failureLock.lock(); defer { failureLock.unlock() }
+        return _lastFailure
+    }
+    fileprivate static func record(_ failure: String?) {
+        failureLock.lock(); _lastFailure = failure; failureLock.unlock()
+        if let failure { NSLog("thumbnail failed: %@", failure) }
+    }
+
+    func makeThumbnail(source: String, at time: Double, to url: URL, completion: @escaping (Bool) -> Void) {
+        Self.queue.async {
+            let result = MPVFrameGrabber.grab(source: source, start: String(format: "%.3f", max(0, time)), thumbnailTo: url)
+            let failure = result.probe == nil ? (result.failure ?? "open failed") : result.failure
+            Self.record(failure)
+            DispatchQueue.main.async { completion(failure == nil) }
+        }
+    }
+}
+
+/// Library probing: duration and size, plus a thumbnail from 10% into the video
+/// (skips black intros better than the first frame).
+final class MPVMediaProber: MediaProber {
+    func probe(source: String, thumbnailTo url: URL?) -> MediaProbe? {
+        let result = MPVFrameGrabber.grab(source: source, start: "10%", thumbnailTo: url)
+        if let failure = result.failure { MPVThumbnailMaker.record(failure) }
+        return result.probe
     }
 }

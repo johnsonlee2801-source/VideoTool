@@ -15,7 +15,13 @@ desktop players don't do well:
    clicks near a star jump to **2 s before** it; ⇧⌘B opens the list to add
    notes or delete. Stars follow the file's content (OpenSubtitles hash), so
    renaming or moving a video keeps them.
-3. **An auto-organised local library** (planned; indexes, never moves files).
+3. **An auto-organised local library** (⌘L). Add folders; VideoTool indexes
+   every video inside (incrementally, in the background) and groups them by
+   folder, month, length, resolution, duplicates and on-device content tags
+   (Apple Vision). It only reads your files: nothing is moved, renamed or
+   deleted. iCloud files that are not downloaded are listed but never read, and
+   an unplugged drive keeps its index. The index and thumbnails live, unencrypted,
+   in `~/Library/Application Support/VideoTool/`.
 
 一个基于 libmpv 的 macOS 播放器：按住画面加速、左右拖动连续调速；进度条星标节点、本地视频库自动归类在规划中。
 
@@ -27,7 +33,7 @@ desktop players don't do well:
       for ~50 video/audio extensions and can be set as the default player
 - [x] Step 2 — hold-and-drag speed wired to the real player
 - [x] Step 3 — starred moments (SQLite in `~/Library/Application Support/VideoTool/`)
-- [ ] Step 4 — library
+- [x] Step 4 — library
 
 ## Build
 
