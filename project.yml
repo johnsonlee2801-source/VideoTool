@@ -1,0 +1,294 @@
+# XcodeGen spec. Regenerate the project with:  scripts/regen.sh
+# App/Info.plist is generated from the x-info-properties block below by scripts/regen.sh
+# (xcodegen's own plist writer uses an atomic write the agent sandbox blocks).
+name: VideoTool
+options:
+  bundleIdPrefix: io.github.johnsonlee2801-source
+  deploymentTarget:
+    macOS: '14.0'
+  createIntermediateGroups: true
+  generateEmptyDirectories: true
+packages:
+  MPVKit:
+    url: https://github.com/mpvkit/MPVKit.git
+    revision: 98c3453e252922e3136422da3fbb2e341ed9edc8
+  VideoToolCore:
+    path: VideoToolCore
+settings:
+  base:
+    SWIFT_VERSION: '5.0'
+    SWIFT_STRICT_CONCURRENCY: minimal
+    MACOSX_DEPLOYMENT_TARGET: '14.0'
+    CODE_SIGN_STYLE: Automatic
+    ENABLE_HARDENED_RUNTIME: 'NO'
+    ENABLE_USER_SCRIPT_SANDBOXING: 'NO'
+    COMPILER_INDEX_STORE_ENABLE: 'NO'
+targets:
+  VideoTool:
+    type: application
+    platform: macOS
+    sources:
+    - path: App/Sources
+    - path: App/Resources
+      optional: true
+    dependencies:
+    - package: MPVKit
+      product: MPVKit
+    - package: VideoToolCore
+      product: VideoToolCore
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: io.github.johnsonlee2801-source.videotool
+        PRODUCT_NAME: VideoTool
+        LD_RUNPATH_SEARCH_PATHS:
+        - $(inherited)
+        - '@executable_path/../Frameworks'
+        INFOPLIST_FILE: App/Info.plist
+        GENERATE_INFOPLIST_FILE: 'NO'
+  VideoToolTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+    - path: Tests/VideoToolTests
+    - path: Tests/Fixtures
+      buildPhase: resources
+    dependencies:
+    - target: VideoTool
+    - package: VideoToolCore
+      product: VideoToolCore
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: 'YES'
+        PRODUCT_BUNDLE_IDENTIFIER: io.github.johnsonlee2801-source.videotool.tests
+schemes:
+  VideoTool:
+    build:
+      targets:
+        VideoTool: all
+        VideoToolTests:
+        - test
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+      - VideoToolTests
+x-info-properties:
+  CFBundleName: VideoTool
+  CFBundleDisplayName: VideoTool
+  CFBundleShortVersionString: 0.1.0
+  CFBundleVersion: '1'
+  LSMinimumSystemVersion: '14.0'
+  NSPrincipalClass: NSApplication
+  NSHighResolutionCapable: true
+  LSApplicationCategoryType: public.app-category.video
+  NSSupportsAutomaticTermination: false
+  NSSupportsSuddenTermination: false
+  CFBundleDocumentTypes:
+  - CFBundleTypeName: Video
+    CFBundleTypeRole: Viewer
+    LSHandlerRank: Alternate
+    LSItemContentTypes:
+    - public.movie
+    - public.video
+    - public.audiovisual-content
+    - com.apple.quicktime-movie
+    - public.mpeg-4
+    - public.avi
+    - public.mpeg
+    - public.mpeg-2-video
+    - public.3gpp
+    - public.3gpp2
+    - com.microsoft.windows-media-wmv
+    - com.microsoft.advanced-systems-format
+    - org.matroska.mkv
+    - org.webmproject.webm
+    - com.adobe.flash.video
+    - com.real.realmedia
+    - public.mpeg-2-transport-stream
+    - public.dv-movie
+    - io.github.johnsonlee2801-source.videotool.video
+    CFBundleTypeExtensions:
+    - 3g2
+    - 3gp
+    - amv
+    - asf
+    - avi
+    - divx
+    - dv
+    - f4v
+    - flv
+    - m2ts
+    - m2v
+    - m4v
+    - mk3d
+    - mkv
+    - mov
+    - mp4
+    - mpe
+    - mpeg
+    - mpg
+    - mts
+    - mxf
+    - ogm
+    - ogv
+    - qt
+    - rm
+    - rmvb
+    - ts
+    - vob
+    - webm
+    - wmv
+    - xvid
+    - yuv
+  - CFBundleTypeName: Audio
+    CFBundleTypeRole: Viewer
+    LSHandlerRank: Alternate
+    LSItemContentTypes:
+    - public.audio
+    - public.mp3
+    - public.aac-audio
+    - public.aiff-audio
+    - com.microsoft.waveform-audio
+    - com.apple.m4a-audio
+    - org.xiph.flac
+    - org.xiph.ogg-audio
+    - org.xiph.opus
+    - io.github.johnsonlee2801-source.videotool.audio
+    CFBundleTypeExtensions:
+    - aac
+    - ac3
+    - aif
+    - aiff
+    - ape
+    - caf
+    - dts
+    - eac3
+    - flac
+    - m4a
+    - m4b
+    - mka
+    - mp3
+    - oga
+    - ogg
+    - opus
+    - wav
+    - wma
+    - wv
+  UTImportedTypeDeclarations:
+  - UTTypeIdentifier: org.matroska.mkv
+    UTTypeDescription: Matroska Video
+    UTTypeConformsTo:
+    - public.movie
+    UTTypeTagSpecification:
+      public.filename-extension:
+      - mkv
+      - mk3d
+      public.mime-type:
+      - video/x-matroska
+  - UTTypeIdentifier: org.webmproject.webm
+    UTTypeDescription: WebM Video
+    UTTypeConformsTo:
+    - public.movie
+    UTTypeTagSpecification:
+      public.filename-extension:
+      - webm
+      public.mime-type:
+      - video/webm
+  - UTTypeIdentifier: com.adobe.flash.video
+    UTTypeDescription: Flash Video
+    UTTypeConformsTo:
+    - public.movie
+    UTTypeTagSpecification:
+      public.filename-extension:
+      - flv
+      - f4v
+      public.mime-type:
+      - video/x-flv
+  - UTTypeIdentifier: com.real.realmedia
+    UTTypeDescription: RealMedia
+    UTTypeConformsTo:
+    - public.movie
+    UTTypeTagSpecification:
+      public.filename-extension:
+      - rm
+      - rmvb
+      public.mime-type:
+      - application/vnd.rn-realmedia
+  - UTTypeIdentifier: public.mpeg-2-transport-stream
+    UTTypeDescription: MPEG-2 Transport Stream
+    UTTypeConformsTo:
+    - public.movie
+    UTTypeTagSpecification:
+      public.filename-extension:
+      - ts
+      - m2ts
+      - mts
+      public.mime-type:
+      - video/mp2t
+  - UTTypeIdentifier: io.github.johnsonlee2801-source.videotool.video
+    UTTypeDescription: Video File
+    UTTypeConformsTo:
+    - public.movie
+    UTTypeTagSpecification:
+      public.filename-extension:
+      - amv
+      - asf
+      - divx
+      - m2v
+      - mpe
+      - mxf
+      - ogm
+      - ogv
+      - vob
+      - xvid
+      - yuv
+      - 3g2
+  - UTTypeIdentifier: org.xiph.flac
+    UTTypeDescription: FLAC Audio
+    UTTypeConformsTo:
+    - public.audio
+    UTTypeTagSpecification:
+      public.filename-extension:
+      - flac
+      public.mime-type:
+      - audio/flac
+  - UTTypeIdentifier: org.xiph.ogg-audio
+    UTTypeDescription: Ogg Audio
+    UTTypeConformsTo:
+    - public.audio
+    UTTypeTagSpecification:
+      public.filename-extension:
+      - ogg
+      - oga
+      public.mime-type:
+      - audio/ogg
+  - UTTypeIdentifier: org.xiph.opus
+    UTTypeDescription: Opus Audio
+    UTTypeConformsTo:
+    - public.audio
+    UTTypeTagSpecification:
+      public.filename-extension:
+      - opus
+      public.mime-type:
+      - audio/opus
+  - UTTypeIdentifier: io.github.johnsonlee2801-source.videotool.audio
+    UTTypeDescription: Audio File
+    UTTypeConformsTo:
+    - public.audio
+    UTTypeTagSpecification:
+      public.filename-extension:
+      - ac3
+      - ape
+      - dts
+      - eac3
+      - mka
+      - wma
+      - wv
+      - caf
+      - m4b
+  CFBundleIdentifier: $(PRODUCT_BUNDLE_IDENTIFIER)
+  CFBundleExecutable: $(EXECUTABLE_NAME)
+  CFBundleInfoDictionaryVersion: '6.0'
+  CFBundlePackageType: $(PRODUCT_BUNDLE_PACKAGE_TYPE)
+  CFBundleDevelopmentRegion: $(DEVELOPMENT_LANGUAGE)

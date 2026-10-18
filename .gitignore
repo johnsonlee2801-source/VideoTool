@@ -1,0 +1,5 @@
+DerivedData/
+DerivedData-build.log
+.build/
+.build-direct/
+*.xcresult
