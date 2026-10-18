@@ -72,7 +72,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         let appItem = NSMenuItem(); main.addItem(appItem)
         let appMenu = NSMenu()
-        appMenu.addItem(withTitle: "关于 VideoTool", action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: "")
+        appMenu.addItem(withTitle: "关于 VideoTool", action: #selector(showAbout(_:)), keyEquivalent: "")
         appMenu.addItem(.separator())
         appMenu.addItem(withTitle: "隐藏 VideoTool", action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
         appMenu.addItem(.separator())
@@ -137,6 +137,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             ensureWindow()
             open(url)
         }
+    }
+
+    /// Standard About panel, with the third-party licences as its credits.
+    @objc func showAbout(_ sender: Any?) {
+        var options: [NSApplication.AboutPanelOptionKey: Any] = [:]
+        if let url = Bundle.main.url(forResource: "THIRD_PARTY_NOTICES", withExtension: "md"),
+           let text = try? String(contentsOf: url, encoding: .utf8) {
+            options[.credits] = NSAttributedString(string: text, attributes: [
+                .font: NSFont.monospacedSystemFont(ofSize: 10, weight: .regular),
+                .foregroundColor: NSColor.labelColor])
+        }
+        NSApp.orderFrontStandardAboutPanel(options: options)
+        NSApp.activate(ignoringOtherApps: true)
     }
 
     @objc func showLibrary(_ sender: Any?) {

@@ -86,4 +86,7 @@ each video format (one dialog at a time).
 
 ## License
 
-Not yet chosen. MPVKit (LGPL build) and mpv/FFmpeg carry their own licenses.
+VideoTool's own licence is not chosen yet. Bundled third-party libraries and
+their licences: [App/Resources/THIRD_PARTY_NOTICES.md](App/Resources/THIRD_PARTY_NOTICES.md)
+(also shown in VideoTool › 关于 VideoTool). All are LGPL or permissive; nothing
+GPL-only is shipped.
