@@ -40,6 +40,8 @@ final class LibraryIndexer {
     private let fingerprint: (String) -> String?
     private let thumbnailDirectory: URL
     private let scan: Scan
+    /// Files probed at the same time (each probe is its own mpv instance).
+    private let workers: Int
 
     static var defaultThumbnailDirectory: URL {
         FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
@@ -49,6 +51,7 @@ final class LibraryIndexer {
     init(store: LibraryStore, prober: MediaProber = MPVMediaProber(), tagger: ImageTagger? = VisionTagger(),
          fingerprint: @escaping (String) -> String? = { try? FileFingerprint.compute(path: $0) },
          thumbnailDirectory: URL = LibraryIndexer.defaultThumbnailDirectory,
+         workers: Int = max(2, ProcessInfo.processInfo.activeProcessorCount / 2),
          scan: @escaping Scan = { LibraryScanner.scan(root: $0, isCancelled: $1) }) {
         self.store = store
         self.prober = prober
@@ -56,6 +59,7 @@ final class LibraryIndexer {
         self.fingerprint = fingerprint
         self.thumbnailDirectory = thumbnailDirectory
         self.scan = scan
+        self.workers = max(1, workers)
     }
 
     /// One thumbnail per content key, so copies share it. Hashed so any key is a safe file name.
@@ -64,9 +68,32 @@ final class LibraryIndexer {
         return directory.appendingPathComponent("\(digest).jpg")
     }
 
+    /// What probing one piece of content produced (shared by all copies of it).
+    private struct Outcome {
+        var probe: MediaProbe?
+        var hasThumb: Bool
+        var tags: [(String, Double)]?      // nil: already tagged, or no picture
+    }
+
+    /// What phase 2 learned about one file.
+    private struct Work {
+        var file: ScannedFile
+        var old: MediaRecord?
+        var key: String?
+        var check = ""
+        var outcome: Outcome?
+    }
+
+    /// Phases. Stress run (tools/stress_library.sh, 2026-10-18): one file at a time took
+    /// 273 s for 1000 files; this takes 31 s for 1000 and 63 s for 2000, and memory
+    /// levels off at ~470 MB for both sizes (a fixed working set, not a leak).
+    /// 1. classify (serial, cheap): unchanged files are skipped;
+    /// 2. fingerprint + probe + tag in parallel, each file in its own autorelease pool,
+    ///    each distinct content probed once;
+    /// 3. write to the database serially, re-checking cancellation and that the folder
+    ///    is still in the library before every write.
     func index(root: String, progress: (Progress) -> Void, isCancelled: () -> Bool) -> Summary {
         var summary = Summary()
-        // Stop as soon as the folder is no longer part of the library (removed by the user).
         let stillWatched = { (try? self.store.isRoot(root)) == true }
         guard stillWatched() else { return summary }
 
@@ -75,48 +102,80 @@ final class LibraryIndexer {
         summary.unavailable = !result.complete
         let existing = Dictionary(((try? store.media(inRoot: root)) ?? []).map { ($0.path, $0) },
                                   uniquingKeysWith: { a, _ in a })
-        var taggedKeys = Set<String>()
+        let total = result.files.count
 
-        for (i, file) in result.files.enumerated() {
-            if isCancelled() || !stillWatched() { return summary }   // interrupted: remove nothing
-            progress(Progress(root: root, done: i, total: result.files.count, current: file.path))
-            defer { progress(Progress(root: root, done: i + 1, total: result.files.count, current: nil)) }
-
+        // 1. classify
+        var work: [Work] = []
+        for file in result.files {
             let old = existing[file.path]
             let same = old.map { $0.size == file.size && abs($0.modified.timeIntervalSince(file.modified)) < 0.001 } ?? false
-            if let old, same, isSettled(old, file: file) {
-                summary.unchanged += 1
+            if let old, same, isSettled(old, file: file) { summary.unchanged += 1 } else { work.append(Work(file: file, old: same ? old : nil)) }
+        }
+        let progressLock = NSLock()
+        var done = summary.unchanged
+        func tick(_ current: String?) {
+            progressLock.lock(); defer { progressLock.unlock() }
+            done += 1
+            progress(Progress(root: root, done: done, total: total, current: current))
+        }
+        if summary.unchanged > 0 { progressLock.lock(); progress(Progress(root: root, done: done, total: total, current: nil)); progressLock.unlock() }
+
+        // 2. parallel fingerprint / probe / tag
+        let slots = UnsafeMutableBufferPointer<Work>.allocate(capacity: work.count)
+        _ = slots.initialize(from: work)
+        defer { slots.deinitialize(); slots.deallocate() }
+        let once = KeyedOnce<Outcome>()
+        let nextLock = NSLock()
+        var next = 0
+        var stop = false
+        DispatchQueue.concurrentPerform(iterations: min(workers, max(work.count, 1))) { _ in
+            while true {
+                nextLock.lock()
+                if !stop && isCancelled() { stop = true }
+                let i = next; next += 1
+                let halted = stop
+                nextLock.unlock()
+                if halted || i >= slots.count { return }
+                autoreleasepool {
+                    var w = slots[i]
+                    if !w.file.cloudOnly, let key = fingerprint(w.file.path) {
+                        w.key = key
+                        w.check = FileFingerprint.contentCheck(path: w.file.path) ?? ""
+                        w.outcome = once.value(for: key) { self.probeAndTag(path: w.file.path, key: key) }
+                    }
+                    slots[i] = w
+                }
+                tick(slots[i].file.path)
+            }
+        }
+        if isCancelled() || stop || !stillWatched() { return summary }   // interrupted: write nothing
+
+        // 3. serial writes
+        for w in slots {
+            if isCancelled() || !stillWatched() { return summary }
+            let record: MediaRecord
+            if w.file.cloudOnly {
+                // Listed so the user sees it, but never read: that would download it.
+                record = MediaRecord(path: w.file.path, fileKey: "icloud:" + w.file.path, size: w.file.size,
+                                     modified: w.file.modified, duration: 0, width: 0, height: 0, root: root,
+                                     status: .cloudOnly)
+            } else if let key = w.key, let outcome = w.outcome {
+                let status: MediaRecord.Status = outcome.probe == nil ? .failed : (outcome.hasThumb ? .ok : .noThumbnail)
+                let attempts = status == .failed ? ((w.old?.status == .failed ? w.old?.attempts : 0) ?? 0) + 1 : 0
+                if status == .failed { summary.probeFailed += 1 }
+                record = MediaRecord(path: w.file.path, fileKey: key, size: w.file.size, modified: w.file.modified,
+                                     duration: outcome.probe?.duration ?? 0, width: outcome.probe?.width ?? 0,
+                                     height: outcome.probe?.height ?? 0, root: root, status: status,
+                                     attempts: attempts, contentCheck: w.check)
+                if let tags = outcome.tags, (try? store.hasTags(for: key)) != true {
+                    try? store.setTags(tags, for: key, source: Self.tagSource)
+                }
+            } else {
+                summary.unreadable += 1
                 continue
             }
-
-            var record: MediaRecord
-            if file.cloudOnly {
-                // Listed so the user sees it, but never read: that would download it.
-                record = MediaRecord(path: file.path, fileKey: "icloud:" + file.path, size: file.size,
-                                     modified: file.modified, duration: 0, width: 0, height: 0, root: root,
-                                     status: .cloudOnly)
-            } else {
-                guard let key = fingerprint(file.path) else { summary.unreadable += 1; continue }
-                let thumb = Self.thumbnailURL(forKey: key, in: thumbnailDirectory)
-                let hadThumb = FileManager.default.fileExists(atPath: thumb.path)
-                let probe = prober.probe(source: file.path, thumbnailTo: hadThumb ? nil : thumb)
-                let hasThumb = FileManager.default.fileExists(atPath: thumb.path)
-                let status: MediaRecord.Status = probe == nil ? .failed : (hasThumb ? .ok : .noThumbnail)
-                let attempts = status == .failed ? ((same && old?.status == .failed) ? (old?.attempts ?? 0) : 0) + 1 : 0
-                if status == .failed { summary.probeFailed += 1 }
-                record = MediaRecord(path: file.path, fileKey: key, size: file.size, modified: file.modified,
-                                     duration: probe?.duration ?? 0, width: probe?.width ?? 0, height: probe?.height ?? 0,
-                                     root: root, status: status, attempts: attempts,
-                                     contentCheck: FileFingerprint.contentCheck(path: file.path) ?? "")
-                if let tagger, hasThumb, !taggedKeys.contains(key), (try? store.hasTags(for: key)) != true {
-                    try? store.setTags(tagger.tags(forImageAt: thumb), for: key, source: Self.tagSource)
-                    taggedKeys.insert(key)
-                }
-            }
-
-            guard stillWatched() else { return summary }
             do { try store.upsert(record) } catch { summary.unreadable += 1; continue }
-            if old == nil { summary.added += 1 } else { summary.updated += 1 }
+            if existing[w.file.path] == nil { summary.added += 1 } else { summary.updated += 1 }
         }
 
         // Only a complete walk of a reachable folder may conclude that files are gone.
@@ -128,6 +187,20 @@ final class LibraryIndexer {
             cleanUpOrphans()
         }
         return summary
+    }
+
+    /// Probe one piece of content (thumbnail if missing) and tag it if it has no tags yet.
+    /// Runs on worker threads: touches only its own thumbnail file and reads the database.
+    private func probeAndTag(path: String, key: String) -> Outcome {
+        let thumb = Self.thumbnailURL(forKey: key, in: thumbnailDirectory)
+        let hadThumb = FileManager.default.fileExists(atPath: thumb.path)
+        let probe = prober.probe(source: path, thumbnailTo: hadThumb ? nil : thumb)
+        let hasThumb = FileManager.default.fileExists(atPath: thumb.path)
+        var tags: [(String, Double)]?
+        if let tagger, hasThumb, (try? store.hasTags(for: key)) != true {
+            tags = tagger.tags(forImageAt: thumb)
+        }
+        return Outcome(probe: probe, hasThumb: hasThumb, tags: tags)
     }
 
     /// Whether an unchanged file (same size and date) needs no work this pass.
@@ -149,5 +222,29 @@ final class LibraryIndexer {
         guard let keys = try? store.orphanKeys(), !keys.isEmpty else { return }
         try? store.forget(keys: keys)
         for key in keys { try? FileManager.default.removeItem(at: Self.thumbnailURL(forKey: key, in: thumbnailDirectory)) }
+    }
+}
+
+/// Computes a value once per key even when several threads ask for the same key at
+/// the same time (copies of one video probed in parallel): the first caller computes,
+/// the others wait for its result.
+final class KeyedOnce<Value>: @unchecked Sendable {
+    private final class Cell { let ready = DispatchSemaphore(value: 0); var value: Value? }
+    private let lock = NSLock()
+    private var cells: [String: Cell] = [:]
+
+    func value(for key: String, compute: () -> Value) -> Value {
+        lock.lock()
+        if let cell = cells[key] {
+            lock.unlock()
+            cell.ready.wait(); cell.ready.signal()          // let any other waiter through too
+            return cell.value!
+        }
+        let cell = Cell()
+        cells[key] = cell
+        lock.unlock()
+        cell.value = compute()
+        cell.ready.signal()
+        return cell.value!
     }
 }

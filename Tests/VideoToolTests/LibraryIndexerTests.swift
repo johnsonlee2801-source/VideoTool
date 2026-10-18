@@ -2,14 +2,26 @@ import Foundation
 import Testing
 @testable import VideoTool
 
-final class FakeProber: MediaProber {
-    var calls: [String] = []
+final class FakeProber: MediaProber, @unchecked Sendable {
+    private let lock = NSLock()
+    private var _calls: [String] = []
+    /// Thread-safe: the indexer probes several files at once.
+    var calls: [String] {
+        get { lock.lock(); defer { lock.unlock() }; return _calls }
+        set { lock.lock(); _calls = newValue; lock.unlock() }
+    }
+    private(set) var maxConcurrent = 0
+    private var inFlight = 0
     var result = MediaProbe(duration: 90, width: 1920, height: 1080)
     var failing: Set<String> = []
     /// Probe succeeds but no frame can be rendered (audio-only, broken video track).
     var noFrame: Set<String> = []
+    var delay: TimeInterval = 0
     func probe(source: String, thumbnailTo url: URL?) -> MediaProbe? {
-        calls.append((source as NSString).lastPathComponent)
+        lock.lock(); _calls.append((source as NSString).lastPathComponent); inFlight += 1
+        maxConcurrent = max(maxConcurrent, inFlight); lock.unlock()
+        defer { lock.lock(); inFlight -= 1; lock.unlock() }
+        if delay > 0 { Thread.sleep(forTimeInterval: delay) }
         if failing.contains((source as NSString).lastPathComponent) { return nil }
         if noFrame.contains((source as NSString).lastPathComponent) { return result }
         if let url {
@@ -20,9 +32,11 @@ final class FakeProber: MediaProber {
     }
 }
 
-final class FakeTagger: ImageTagger {
-    var calls = 0
-    func tags(forImageAt url: URL) -> [(String, Double)] { calls += 1; return [("户外", 0.9)] }
+final class FakeTagger: ImageTagger, @unchecked Sendable {
+    private let lock = NSLock()
+    private var _calls = 0
+    var calls: Int { get { lock.lock(); defer { lock.unlock() }; return _calls } set { lock.lock(); _calls = newValue; lock.unlock() } }
+    func tags(forImageAt url: URL) -> [(String, Double)] { lock.lock(); _calls += 1; lock.unlock(); return [("户外", 0.9)] }
 }
 
 private final class Rig {
@@ -32,14 +46,17 @@ private final class Rig {
     let tagger = FakeTagger()
     let thumbs = FileManager.default.temporaryDirectory.appendingPathComponent("libthumbs-\(UUID().uuidString)")
     var failFingerprint: Set<String> = []
-    var fingerprintCalls: [String] = []
+    private let fpLock = NSLock()
+    private var _fingerprintCalls: [String] = []
+    var fingerprintCalls: [String] { fpLock.lock(); defer { fpLock.unlock() }; return _fingerprintCalls.sorted() }
+    var workers = 4
     var cloudOnly: Set<String> = []
     lazy var indexer = LibraryIndexer(store: store, prober: prober, tagger: tagger,
                                       fingerprint: { [unowned self] p in
-                                          self.fingerprintCalls.append((p as NSString).lastPathComponent)
+                                          self.fpLock.lock(); self._fingerprintCalls.append((p as NSString).lastPathComponent); self.fpLock.unlock()
                                           return self.failFingerprint.contains((p as NSString).lastPathComponent) ? nil : try? FileFingerprint.compute(path: p)
                                       },
-                                      thumbnailDirectory: thumbs,
+                                      thumbnailDirectory: thumbs, workers: workers,
                                       scan: { [unowned self] root, cancelled in
                                           var r = LibraryScanner.scan(root: root, isCancelled: cancelled)
                                           for i in r.files.indices where self.cloudOnly.contains((r.files[i].path as NSString).lastPathComponent) {
@@ -277,5 +294,35 @@ private final class Rig {
         }, isCancelled: { false })
         #expect(try r.store.media(inRoot: nil).isEmpty)
         #expect(try r.store.roots().isEmpty)
+    }
+
+    @Test("X19 files are probed in parallel, and the result is identical to a one-at-a-time pass")
+    func parallelMatchesSerial() throws {
+        func run(workers: Int) throws -> (rows: [MediaRecord], maxConcurrent: Int) {
+            let r = try Rig()
+            r.workers = workers
+            r.prober.delay = 0.02
+            for i in 0..<16 { try r.file("d\(i % 3)/v\(i).mp4", seed: UInt8(i)) }
+            try r.file("copy/v0.mp4", seed: 0)              // a duplicate of v0
+            _ = r.run()
+            let rows = try r.store.media(inRoot: r.root).map { rec -> MediaRecord in
+                var x = rec; x.path = String(x.path.dropFirst(r.root.count)); x.root = ""
+                x.modified = .distantPast              // the two rigs write their files at different times
+                return x
+            }
+            return (rows, r.prober.maxConcurrent)
+        }
+        let serial = try run(workers: 1), parallel = try run(workers: 4)
+        #expect(serial.maxConcurrent == 1)
+        #expect(parallel.maxConcurrent > 1, "no parallelism happened")
+        #expect(parallel.rows == serial.rows)
+    }
+
+    @Test("X20 copies of the same content are probed once, not once per copy") func probeOncePerKey() throws {
+        let r = try Rig()
+        for name in ["a.mp4", "b/a copy.mp4", "c/a copy 2.mp4"] { try r.file(name, seed: 7) }
+        _ = r.run()
+        #expect(r.prober.calls.count == 1)
+        #expect(try r.store.media(inRoot: r.root).count == 3)
     }
 }
