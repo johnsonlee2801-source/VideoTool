@@ -12,6 +12,7 @@
 		06CA8242F4539A878A5DF608 /* LibraryScanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5AF5CA00B0DEB3E1C5647FE4 /* LibraryScanner.swift */; };
 		0756527CFB690D4A9C707D46 /* ThumbnailMaker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39A6466577A5AA9499AC49B0 /* ThumbnailMaker.swift */; };
 		0B6C75C27F2C5429EF3562D9 /* LibraryController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9DB2A07C382F54E46DA97C4D /* LibraryController.swift */; };
+		0E9C53CF4A39BC17ED63A845 /* AppIcon.icns in Resources */ = {isa = PBXBuildFile; fileRef = FD7058E5EA349B4A99772109 /* AppIcon.icns */; };
 		14ED3E439B4C007E372CE357 /* DefaultAppRegistrarTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD9EDCD083A4F4954A878E0B /* DefaultAppRegistrarTests.swift */; };
 		15F6771095554F9CFAF5E20D /* TagVocabularyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 859C5540FC0CBDE0B0FD1ECE /* TagVocabularyTests.swift */; };
 		18CE622F8FBC8D9DA56A9B33 /* LibraryIndexerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CF17ADFB8495A84F690909A /* LibraryIndexerTests.swift */; };
@@ -148,6 +149,7 @@
 		F54E8D4D94C725C2958F3645 /* MediaTypesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaTypesTests.swift; sourceTree = "<group>"; };
 		F619607BC85E3B9090AB02A0 /* KeyRouterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyRouterTests.swift; sourceTree = "<group>"; };
 		F7ACD2C66A72859449C656AF /* LaunchOpenQueueTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchOpenQueueTests.swift; sourceTree = "<group>"; };
+		FD7058E5EA349B4A99772109 /* AppIcon.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = AppIcon.icns; sourceTree = "<group>"; };
 		FD9EDCD083A4F4954A878E0B /* DefaultAppRegistrarTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DefaultAppRegistrarTests.swift; sourceTree = "<group>"; };
 		FDA64A01C77419858EB73B33 /* BookmarkController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookmarkController.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -292,6 +294,7 @@
 		91147E7A38B4BD03CD21F241 /* App */ = {
 			isa = PBXGroup;
 			children = (
+				A3745753E871D3BF4AD1BB54 /* Resources */,
 				8C9588508D4611DAEB83FC14 /* Sources */,
 			);
 			path = App;
@@ -303,6 +306,14 @@
 				A54AE367692353E902A11DA2 /* testsrc-20s.mp4 */,
 			);
 			path = Fixtures;
+			sourceTree = "<group>";
+		};
+		A3745753E871D3BF4AD1BB54 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				FD7058E5EA349B4A99772109 /* AppIcon.icns */,
+			);
+			path = Resources;
 			sourceTree = "<group>";
 		};
 		A91849887D699939250687B6 /* Products */ = {
@@ -361,6 +372,7 @@
 			buildConfigurationList = D8B14F8EB9C9D52FDA00647E /* Build configuration list for PBXNativeTarget "VideoTool" */;
 			buildPhases = (
 				F38EACB1177EA9F60B0893F9 /* Sources */,
+				B371722B03F339344886DE78 /* Resources */,
 				E394486647F04CDF83496247 /* Frameworks */,
 			);
 			buildRules = (
@@ -386,11 +398,9 @@
 				LastUpgradeCheck = 1430;
 				TargetAttributes = {
 					30B414D8137DC5C66A41CECE = {
-						DevelopmentTeam = ;
 						ProvisioningStyle = Automatic;
 					};
 					457461B1A6782F99A725361A = {
-						DevelopmentTeam = ;
 						ProvisioningStyle = Automatic;
 					};
 				};
@@ -425,6 +435,14 @@
 			buildActionMask = 2147483647;
 			files = (
 				5CBF81E1E0CD273303CE7D0E /* testsrc-20s.mp4 in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B371722B03F339344886DE78 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				0E9C53CF4A39BC17ED63A845 /* AppIcon.icns in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -528,7 +546,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = io.github.johnsonlee2801-source.videotool;
+				PRODUCT_BUNDLE_IDENTIFIER = "io.github.johnsonlee2801-source.videotool";
 				PRODUCT_NAME = VideoTool;
 				SDKROOT = macosx;
 			};
@@ -545,7 +563,7 @@
 					"@executable_path/../Frameworks",
 					"@loader_path/../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = io.github.johnsonlee2801-source.videotool.tests;
+				PRODUCT_BUNDLE_IDENTIFIER = "io.github.johnsonlee2801-source.videotool.tests";
 				SDKROOT = macosx;
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/VideoTool.app/Contents/MacOS/VideoTool";
 			};
@@ -588,7 +606,6 @@
 				COMPILER_INDEX_STORE_ENABLE = NO;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				DEVELOPMENT_TEAM = ;
 				ENABLE_HARDENED_RUNTIME = NO;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -624,7 +641,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = io.github.johnsonlee2801-source.videotool;
+				PRODUCT_BUNDLE_IDENTIFIER = "io.github.johnsonlee2801-source.videotool";
 				PRODUCT_NAME = VideoTool;
 				SDKROOT = macosx;
 			};
@@ -641,7 +658,7 @@
 					"@executable_path/../Frameworks",
 					"@loader_path/../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = io.github.johnsonlee2801-source.videotool.tests;
+				PRODUCT_BUNDLE_IDENTIFIER = "io.github.johnsonlee2801-source.videotool.tests";
 				SDKROOT = macosx;
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/VideoTool.app/Contents/MacOS/VideoTool";
 			};
@@ -684,7 +701,6 @@
 				COMPILER_INDEX_STORE_ENABLE = NO;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = dwarf;
-				DEVELOPMENT_TEAM = ;
 				ENABLE_HARDENED_RUNTIME = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;

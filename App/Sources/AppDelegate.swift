@@ -15,6 +15,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // `VideoTool --register-defaults`: make VideoTool the default player for every
+        // media type it handles, print the result, and quit (used by scripts/install.sh).
+        if CommandLine.arguments.contains("--register-defaults") {
+            DefaultAppRegistrar.makeDefault { summary in
+                print(summary.message)
+                NSApp.terminate(nil)
+            }
+            return
+        }
         let cliFiles = CommandLine.arguments.dropFirst()
             .map { URL(fileURLWithPath: $0) }
             .filter { FileManager.default.fileExists(atPath: $0.path) }

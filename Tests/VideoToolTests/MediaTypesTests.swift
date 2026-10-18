@@ -76,4 +76,11 @@ import UniformTypeIdentifiers
         }
         #expect(unrouted.isEmpty, "Launch Services would not route: \(unrouted)")
     }
+
+    @Test("default-player registration covers video types only (mp3/flac keep their app)") func videoOnlyDefaults() {
+        let ids = Set(MediaTypes.videoUTTypes.map(\.identifier))
+        #expect(ids.contains("public.mpeg-4") && ids.contains("com.apple.quicktime-movie"))
+        #expect(!ids.contains("public.mp3") && !ids.contains("public.audio"))
+        #expect(MediaTypes.videoUTTypes.allSatisfy { $0.conforms(to: .movie) || $0.conforms(to: .video) || $0.conforms(to: .audiovisualContent) })
+    }
 }

@@ -21,6 +21,19 @@ enum MediaTypes {
         allExtensions.contains(url.pathExtension.lowercased())
     }
 
+    /// Video types only: what "make VideoTool the default player" takes over
+    /// (audio keeps whatever app the user already uses for it).
+    static var videoUTTypes: [UTType] {
+        var seen = Set<String>()
+        // Most common first: the user confirms each one, so the important ones come early.
+        let common = ["mp4", "mov", "mkv", "m4v", "avi", "webm", "wmv", "flv", "ts", "mts", "m2ts", "mpg", "3gp", "rmvb"]
+        let rest = videoExtensions.filter { !common.contains($0) }
+        return (common + rest).compactMap { UTType(filenameExtension: $0) }
+            .filter { $0.conforms(to: .movie) || $0.conforms(to: .video) || $0.conforms(to: .audiovisualContent) }
+            .filter { !$0.conforms(to: .audio) || $0.conforms(to: .movie) }
+            .filter { seen.insert($0.identifier).inserted }
+    }
+
     /// Types for the open panel and for "set as default". Known system types
     /// first, then whatever the system maps our extensions to.
     static var utTypes: [UTType] {

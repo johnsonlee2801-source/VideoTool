@@ -61,5 +61,11 @@ goals, layout, build and test commands. `CLAUDE.md` only imports this file.
 - Swift Testing: xcodebuild's "Executed 0 tests" is the XCTest counter; the real
   result is the `Test run with N tests` line. Exit code 65 = test failure.
 - `/opt/homebrew/bin/sample` shadows the system profiler; use `/usr/bin/sample`.
+- Default apps: on current macOS only NSWorkspace.setDefaultApplication works and it
+  asks the user to confirm each type. LSSetDefaultRoleHandlerForContentType returns
+  success but changes nothing. Never try to switch defaults unattended.
+- Before any push: `scripts/check-secrets.sh && scripts/check-secrets.sh --history`
+  (the pre-push hook from `scripts/install-hooks.sh` runs both). Personal patterns
+  live in `.git/info/secret-patterns`, never in the repo.
 - The prototype's mpv writes `prototype/mpv-config/watch_later/` (local video
   paths) and `prototype/last-run.log`; both are gitignored, keep it that way.

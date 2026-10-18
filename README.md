@@ -54,6 +54,15 @@ package resolver silently resolves nothing when DerivedData is inside it.
 The built app is at
 `~/Library/Developer/Xcode/DerivedData/VideoTool-cli/Build/Products/Debug/VideoTool.app`.
 
+## Install
+
+```zsh
+scripts/install.sh      # Release build → /Applications/VideoTool.app
+```
+
+Then in VideoTool choose 文件 › 设为默认视频播放器… — macOS asks you to confirm
+each video format (one dialog at a time).
+
 ## Tests
 
 | Suite | Command | What it covers |

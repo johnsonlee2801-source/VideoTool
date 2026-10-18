@@ -13,8 +13,9 @@ action=${1:-build}
 mkdir -p "$DD/Results"
 stamp=$(date +%Y%m%d-%H%M%S)-$$          # pid suffix: unique even within one second
 arch=${VIDEOTOOL_ARCH:-$(uname -m)}
+config=${VIDEOTOOL_CONFIGURATION:-Debug}
 exec xcodebuild \
-  -project VideoTool.xcodeproj -scheme VideoTool -destination "platform=macOS,arch=$arch" \
+  -project VideoTool.xcodeproj -scheme VideoTool -configuration "$config" -destination "platform=macOS,arch=$arch" \
   -derivedDataPath "$DD" \
   -clonedSourcePackagesDirPath "$DD/SourcePackages" \
   -packageCachePath "$DD/PackageCache" \

@@ -8,37 +8,43 @@ enum DefaultAppRegistrar {
         var total: Int
         var failures: [String]
         var message: String {
-            if failures.isEmpty { return "已把 \(total) 种媒体类型的默认打开方式设为 VideoTool。" }
+            if failures.isEmpty { return "已把 \(total) 种视频格式的默认打开方式设为 VideoTool。" }
             return "成功 \(total - failures.count) 种，失败 \(failures.count) 种：\n" + failures.prefix(8).joined(separator: "\n")
         }
     }
 
+    /// NSWorkspace asks the user to confirm each change. On current macOS this is the
+    /// only way that works: LSSetDefaultRoleHandlerForContentType reports success
+    /// but changes nothing (verified on the user's Mac, 2026-10-18), so defaults can
+    /// never be switched unattended.
     static let systemSetter: Setter = { appURL, type, done in
         NSWorkspace.shared.setDefaultApplication(at: appURL, toOpen: type) { done($0) }
     }
 
-    /// Asks Launch Services to route every media type to this app. Each type is
-    /// a separate request whose completion may arrive on any queue; results are
-    /// collected on one serial queue and the summary is delivered on main.
-    static func makeDefault(types: [UTType] = MediaTypes.utTypes,
+    /// Routes the given types to this app, one request at a time: macOS shows a
+    /// confirmation per type, and the next appears only after the previous one is
+    /// answered (never a pile of dialogs). Completions may arrive on any queue;
+    /// results are collected on one serial queue and the summary arrives on main.
+    static func makeDefault(types: [UTType] = MediaTypes.videoUTTypes,
                             appURL: URL = Bundle.main.bundleURL,
                             setter: @escaping Setter = systemSetter,
                             completion: @escaping (Summary) -> Void) {
         let collector = DispatchQueue(label: "io.github.johnsonlee2801-source.videotool.default-app")
         var failures: [String] = []
-        let group = DispatchGroup()
-        for type in types {
-            group.enter()
+        func step(_ index: Int) {
+            guard index < types.count else {
+                let summary = Summary(total: types.count, failures: failures.sorted())
+                DispatchQueue.main.async { completion(summary) }
+                return
+            }
+            let type = types[index]
             setter(appURL, type) { error in
                 collector.async {
                     if let error { failures.append("\(type.identifier): \(error.localizedDescription)") }
-                    group.leave()
+                    step(index + 1)
                 }
             }
         }
-        group.notify(queue: collector) {
-            let summary = Summary(total: types.count, failures: failures.sorted())
-            DispatchQueue.main.async { completion(summary) }
-        }
+        collector.async { step(0) }
     }
 }

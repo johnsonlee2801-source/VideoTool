@@ -41,4 +41,25 @@ private struct Boom: Error {}
         let partial = DefaultAppRegistrar.Summary(total: 3, failures: ["public.movie: x"])
         #expect(partial.message.contains("失败 1"))
     }
+
+    @Test("D4 requests go one at a time: the next starts only after the previous completes") func sequential() async {
+        var inFlight = 0, maxInFlight = 0
+        let lock = NSLock()
+        let _: DefaultAppRegistrar.Summary = await withCheckedContinuation { cont in
+            DefaultAppRegistrar.makeDefault(types: MediaTypes.videoUTTypes, appURL: URL(fileURLWithPath: "/x.app"),
+                                            setter: { _, _, done in
+                                                lock.lock(); inFlight += 1; maxInFlight = max(maxInFlight, inFlight); lock.unlock()
+                                                DispatchQueue.global().asyncAfter(deadline: .now() + 0.002) {
+                                                    lock.lock(); inFlight -= 1; lock.unlock()
+                                                    done(nil)
+                                                }
+                                            }, completion: { cont.resume(returning: $0) })
+        }
+        #expect(maxInFlight == 1)
+    }
+
+    @Test("D5 the most common formats are asked first") func order() {
+        let first = MediaTypes.videoUTTypes.prefix(3).map(\.identifier)
+        #expect(first == ["public.mpeg-4", "com.apple.quicktime-movie", "org.matroska.mkv"])
+    }
 }
