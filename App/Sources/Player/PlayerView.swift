@@ -88,8 +88,13 @@ final class PlayerView: NSView {
     }
 
     private func droppedMediaURLs(_ sender: NSDraggingInfo) -> [URL] {
-        let objects = sender.draggingPasteboard.readObjects(forClasses: [NSURL.self],
-                                                            options: [.urlReadingFileURLsOnly: true]) as? [URL] ?? []
+        Self.mediaURLs(on: sender.draggingPasteboard)
+    }
+
+    /// The playable files on a drag pasteboard (web links and other files are ignored).
+    static func mediaURLs(on pasteboard: NSPasteboard) -> [URL] {
+        let objects = pasteboard.readObjects(forClasses: [NSURL.self],
+                                             options: [.urlReadingFileURLsOnly: true]) as? [URL] ?? []
         return objects.filter(MediaTypes.isMedia)
     }
 }

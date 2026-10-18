@@ -4,7 +4,7 @@ import UniformTypeIdentifiers
 final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenuItemValidation {
     private let session: PlaybackSession?
     private var engine: MPVEngine? { session?.engine }
-    private let playerView: PlayerView?
+    let playerView: PlayerView?          // internal for the event-glue tests
     private let resumeStore = ResumePositionStore()
     private lazy var resumeTracker = ResumeTracker(storedPosition: { [resumeStore] path in
         resumeStore.position(for: URL(fileURLWithPath: path))
@@ -442,17 +442,23 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
 
     private func installKeyMonitor() {
         keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            guard let self, event.window === self.window else { return event }
-            let gestureActive = self.playerView?.gesture.isActive ?? false
-            // Any key press while the button is down ends the gesture without a tap.
-            if gestureActive { self.playerView?.gesture.cancel() }
-            let editingText = self.window?.firstResponder is NSText      // typing a star note
-            switch KeyRouter.decide(KeyRouter.input(from: event), gestureActive: gestureActive,
-                                    isEditingText: editingText) {
-            case .perform(let command): self.perform(command); return nil
-            case .cancelGestureOnly: return nil
-            case .cancelGestureAndPassThrough, .passThrough: return event
-            }
+            self?.handleKeyDown(event) ?? event
+        }
+    }
+
+    /// The key monitor's body: returns nil if the key was used, else the event to pass on.
+    /// Internal so tests can feed it synthesized events.
+    func handleKeyDown(_ event: NSEvent) -> NSEvent? {
+        guard event.window === window else { return event }
+        let gestureActive = playerView?.gesture.isActive ?? false
+        // Any key press while the button is down ends the gesture without a tap.
+        if gestureActive { playerView?.gesture.cancel() }
+        let editingText = window?.firstResponder is NSText      // typing a star note
+        switch KeyRouter.decide(KeyRouter.input(from: event), gestureActive: gestureActive,
+                                isEditingText: editingText) {
+        case .perform(let command): perform(command); return nil
+        case .cancelGestureOnly: return nil
+        case .cancelGestureAndPassThrough, .passThrough: return event
         }
     }
 
