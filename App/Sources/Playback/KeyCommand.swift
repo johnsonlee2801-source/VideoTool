@@ -10,6 +10,7 @@ enum PlayerCommand: Equatable {
     case cycleAudio
     case speedDelta(Double)
     case resetSpeed
+    case setSpeed(Double)      // a fixed speed from the speed menu
     case toggleBookmark
     case previousBookmark
     case nextBookmark

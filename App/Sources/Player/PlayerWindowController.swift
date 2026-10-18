@@ -25,6 +25,9 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         return s
     }()
     private let speedChip = NSButton(title: "", target: nil, action: nil)
+    private let speedStore = PreferredSpeedStore()
+    /// The speed the user chose (menu, [ ], ⌫); a hold only borrows the player for a while.
+    var preferredSpeed: Double { speedStore.speed }
     private var isScrubbing = false
     private var keyMonitor: Any?
     private var currentURL: URL?
@@ -65,6 +68,7 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         window.delegate = self
         buildContent()
         wireEngine()
+        engine?.setSpeed(speedStore.speed)          // start at the speed chosen last time
         wireBookmarks()
         installKeyMonitor()
     }
@@ -115,10 +119,12 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         speedChip.layer?.backgroundColor = Theme.accent.withAlphaComponent(0.18).cgColor
         speedChip.contentTintColor = Theme.accent
         speedChip.font = Theme.digits(12, .heavy)
-        speedChip.toolTip = "点一下恢复 1.0×"
+        speedChip.toolTip = "选择播放速度"
+        showSpeed(speedStore.speed)                                  // before the player reports in
+        speedChip.setContentHuggingPriority(.required, for: .horizontal)
+        speedChip.widthAnchor.constraint(greaterThanOrEqualToConstant: 48).isActive = true
         speedChip.target = self
-        speedChip.action = #selector(resetSpeed(_:))
-        speedChip.isHidden = true
+        speedChip.action = #selector(showSpeedMenu(_:))
         slider.target = self
         slider.action = #selector(sliderMoved(_:))
         slider.isContinuous = true
@@ -294,13 +300,11 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         durationLabel.stringValue = TimeFormatting.string(state.duration)
         slider.isEnabled = state.duration > 0
         if markers.duration != state.duration { markers.duration = state.duration }
-        let fast = abs(state.speed - 1.0) > 0.001
-        speedChip.isHidden = !fast
-        if fast { speedChip.title = String(format: "%.1f×", state.speed) }
+        showSpeed(state.speed)
 
         let name = currentURL?.lastPathComponent ?? ""
         let title = state.mediaTitle.isEmpty ? name : state.mediaTitle
-        let speed = abs(state.speed - 1.0) > 0.001 ? String(format: "  ·  %.1f×", state.speed) : ""
+        let speed = abs(state.speed - 1.0) > 0.001 ? "  ·  " + PlaybackSpeed.label(state.speed) : ""
         window.title = title.isEmpty ? "VideoTool" : title + speed
         playerView?.showsPlaceholder = state.isIdle
 
@@ -368,9 +372,34 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     @objc func togglePause(_ sender: Any?) { engine?.togglePause() }
     @objc func seekBack(_ sender: Any?) { engine?.seek(by: -5) }
     @objc func seekForward(_ sender: Any?) { engine?.seek(by: 5) }
-    @objc func speedUp(_ sender: Any?) { engine.map { $0.setSpeed($0.state.speed + 0.1) } }
-    @objc func speedDown(_ sender: Any?) { engine.map { $0.setSpeed($0.state.speed - 0.1) } }
-    @objc func resetSpeed(_ sender: Any?) { engine?.setSpeed(1.0) }
+    @objc func speedUp(_ sender: Any?) { perform(.speedDelta(0.1)) }
+    @objc func speedDown(_ sender: Any?) { perform(.speedDelta(-0.1)) }
+    @objc func resetSpeed(_ sender: Any?) { perform(.resetSpeed) }
+
+    /// From the speed label or Play › 播放速度: the item carries its speed.
+    @objc func chooseSpeedPreset(_ sender: NSMenuItem) {
+        if let speed = sender.representedObject as? Double { perform(.setSpeed(speed)) }
+    }
+
+    @objc private func showSpeedMenu(_ sender: NSButton) {
+        let menu = PlaybackSpeed.menu(current: preferredSpeed, target: self, action: #selector(chooseSpeedPreset(_:)))
+        menu.popUp(positioning: nil, at: NSPoint(x: 0, y: sender.bounds.height + 4), in: sender)
+    }
+
+    /// The speed label is always shown; highlighted only when not at normal speed.
+    private func showSpeed(_ speed: Double) {
+        let fast = abs(speed - 1.0) > 0.001
+        speedChip.title = PlaybackSpeed.label(speed)
+        speedChip.contentTintColor = fast ? Theme.accent : Theme.textSecondary
+        speedChip.layer?.backgroundColor = (fast ? Theme.accent.withAlphaComponent(0.18) : Theme.bg2).cgColor
+    }
+
+    /// Sets and remembers a chosen speed (not used by the hold gesture).
+    private func choose(speed: Double) {
+        let s = PlaybackSpeed.normalized(speed)
+        speedStore.speed = s
+        engine?.setSpeed(s)
+    }
     @objc func cycleSubtitle(_ sender: Any?) { engine?.cycleSubtitle() }
     @objc func cycleAudio(_ sender: Any?) { engine?.cycleAudio() }
     @objc func toggleMute(_ sender: Any?) { engine?.toggleMute() }
@@ -401,8 +430,10 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         case .toggleFullscreen: window?.toggleFullScreen(nil)
         case .cycleSubtitle: engine.cycleSubtitle()
         case .cycleAudio: engine.cycleAudio()
-        case .speedDelta(let d): engine.setSpeed(engine.state.speed + d)
-        case .resetSpeed: engine.setSpeed(1.0)
+        // Steps start from the chosen speed (the player's own speed updates asynchronously).
+        case .speedDelta(let d): choose(speed: preferredSpeed + d)
+        case .resetSpeed: choose(speed: 1.0)
+        case .setSpeed(let s): choose(speed: s)
         case .toggleBookmark: toggleBookmark(nil)
         case .previousBookmark: previousBookmark(nil)
         case .nextBookmark: nextBookmark(nil)
@@ -444,6 +475,9 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         switch item.action {
         case #selector(toggleBookmark(_:)), #selector(nextBookmark(_:)), #selector(previousBookmark(_:)):
             return bookmarks?.isReady == true
+        case #selector(chooseSpeedPreset(_:)):
+            item.state = (item.representedObject as? Double).map { abs($0 - preferredSpeed) < 0.001 } == true ? .on : .off
+            return engine != nil
         case #selector(toggleBookmarkList(_:)):
             item.state = listPanel.isHidden ? .off : .on
             return bookmarks != nil

@@ -122,6 +122,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         playMenu.addItem(withTitle: "加速 0.1×", action: #selector(PlayerWindowController.speedUp(_:)), keyEquivalent: "]")
         playMenu.addItem(withTitle: "减速 0.1×", action: #selector(PlayerWindowController.speedDown(_:)), keyEquivalent: "[")
         playMenu.addItem(withTitle: "恢复 1.0×", action: #selector(PlayerWindowController.resetSpeed(_:)), keyEquivalent: "\u{8}")
+        let speedItem = playMenu.addItem(withTitle: "播放速度", action: nil, keyEquivalent: "")
+        speedItem.submenu = PlaybackSpeed.menu(current: 1.0, target: nil,
+                                               action: #selector(PlayerWindowController.chooseSpeedPreset(_:)))
         playMenu.addItem(.separator())
         // B and ⌥←/⌥→ are handled by the player's key monitor; shown here for discoverability.
         playMenu.addItem(withTitle: "打星标 / 撤销   B", action: #selector(PlayerWindowController.toggleBookmark(_:)), keyEquivalent: "")

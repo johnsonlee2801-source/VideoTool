@@ -376,4 +376,58 @@ private func machine(_ options: SpeedGestureOptions = D, speed: Double = 1.0, pa
             m.mouseDown(at: 1); m.cancel(); #expect(!m.isPressed)
         }
     }
+
+    // MARK: plan A (decision 2026-10-19): the hold starts above the chosen speed
+
+    @Test("A1 hold start = current speed + 0.5, never below 2.0, capped at 6.0") func a1() {
+        let o = SpeedGestureOptions.defaults
+        for (base, start) in [(1.0, 2.0), (0.75, 2.0), (1.5, 2.0), (2.0, 2.5), (2.5, 3.0), (3.0, 3.5), (5.8, 6.0), (6.0, 6.0)] {
+            #expect(near(o.holdStart(from: base), start), "base \(base)")
+        }
+    }
+    @Test("A2 a hold from 2.0x starts at 2.5x and release returns to 2.0x") func a2() {
+        let (m, f) = machine(speed: 2.0, x: 1000)
+        m.mouseDown(at: 0); m.tick(at: 0.3)
+        #expect(near(f.speed, 2.5))
+        m.mouseUp(at: 0.5)
+        #expect(near(f.speed, 2.0))
+    }
+    @Test("A3 dragging continues from the raised start: +20pt after the deadzone is +0.1") func a3() {
+        let (m, f) = machine(speed: 2.0, x: 1000)
+        m.mouseDown(at: 0); m.tick(at: 0.3)
+        f.mouseX = 1028; m.tick(at: 0.4)
+        #expect(near(f.speed, 2.6))
+        f.mouseX = 1000 - 28; m.tick(at: 0.5)
+        #expect(near(f.speed, 2.4))
+    }
+    @Test("A4 from 1.0x nothing changes: the hold still starts at 2.0x") func a4() {
+        let (m, f) = machine(speed: 1.0, x: 1000)
+        m.mouseDown(at: 0); m.tick(at: 0.3)
+        #expect(near(f.speed, 2.0))
+    }
+    @Test("A5 above the boost point the drag goes straight to the fast slope (10pt per 0.1)") func a5() {
+        let o = SpeedGestureOptions.defaults
+        #expect(near(SpeedCurve.speed(forDrag: 0, options: o, origin: 3.5), 3.5))
+        #expect(near(SpeedCurve.speed(forDrag: 18, options: o, origin: 3.5), 3.6))
+        #expect(near(SpeedCurve.speed(forDrag: -28, options: o, origin: 3.5), 3.4))
+        #expect(near(SpeedCurve.speed(forDrag: 5000, options: o, origin: 3.5), 6.0))
+    }
+    @Test("A6 from 2.5x the slow stage runs to 3.0 then turns fast, with no jump") func a6() {
+        let o = SpeedGestureOptions.defaults
+        #expect(near(SpeedCurve.speed(forDrag: 18, options: o, origin: 3.0), 3.1))
+        #expect(near(SpeedCurve.speed(forDrag: 108, options: o, origin: 2.5), 3.0))
+        #expect(near(SpeedCurve.speed(forDrag: 118, options: o, origin: 2.5), 3.1))
+    }
+    @Test("A7 the curve with the default origin is the old curve") func a7() {
+        let o = SpeedGestureOptions.defaults
+        for dx in stride(from: -600.0, through: 800, by: 7) {
+            #expect(near(SpeedCurve.speed(forDrag: dx, options: o, origin: o.holdSpeed), SpeedCurve.speed(forDrag: dx, options: o)))
+        }
+    }
+    @Test("A8 holdStep is validated: negative or non-finite falls back to 0.5") func a8() {
+        var o = SpeedGestureOptions(); o.holdStep = -1
+        #expect(near(o.validated().holdStep, 0.5))
+        o.holdStep = .nan
+        #expect(near(o.validated().holdStep, 0.5))
+    }
 }
