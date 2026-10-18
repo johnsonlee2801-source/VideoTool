@@ -21,6 +21,13 @@ goals, layout, build and test commands. `CLAUDE.md` only imports this file.
 - A key pressed while the gesture is active (button down, before or during the
   hold) only cancels it; Space does not also pause (`KeyRouter.plainKeyCancelsOnly`).
 - The library feature will index and classify, never move user files.
+- Starred moments (step 3, decided 2026-10-18): press **B** to star the current
+  time without pausing or prompting. B while the speed gesture is active follows
+  the general rule: it only cancels the speed-up and does NOT star. Jumping to a
+  star lands **2 s before** it. Proposed but not yet confirmed: yellow star
+  markers with hover time/note/thumbnail, click snapping, ⌥←/⌥→ for prev/next,
+  double-B at the same spot undoes, identity by OSHash (size + first/last 64 KB),
+  SQLite storage, an optional end time reserved for future clipping.
 
 ## Pitfalls already paid for
 
