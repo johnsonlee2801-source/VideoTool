@@ -6,7 +6,7 @@ import SQLite3
 /// each store opens its own connection, and every open migrates to the latest
 /// schema, so the order in which stores open never matters.
 final class SQLiteDatabase {
-    static let currentSchemaVersion: Int32 = 3
+    static let currentSchemaVersion: Int32 = 4
 
     enum Failure: Error, CustomStringConvertible {
         case sqlite(String)
@@ -127,6 +127,12 @@ final class SQLiteDatabase {
         PRAGMA user_version = 3;
         """
 
+    /// Library folders can be "this layer only" (broad folders such as Downloads).
+    private static let version4 = """
+        ALTER TABLE library_roots ADD COLUMN recursive INTEGER NOT NULL DEFAULT 1;
+        PRAGMA user_version = 4;
+        """
+
     private func migrate() throws {
         try exec("BEGIN IMMEDIATE")
         do {
@@ -134,6 +140,7 @@ final class SQLiteDatabase {
             if v < 1 { try exec(Self.version1) }
             if v < 2 { try exec(Self.version2) }
             if v < 3 { try exec(Self.version3) }
+            if v < 4 { try exec(Self.version4) }
             try exec("COMMIT")
         } catch {
             try? exec("ROLLBACK")

@@ -24,6 +24,17 @@ struct MediaRecord: Equatable {
     var contentCheck = ""
 }
 
+/// A library folder. `recursive` false: only the videos directly in it ("this layer only").
+struct LibraryRoot: Equatable {
+    var path: String
+    var recursive: Bool
+
+    /// Whether `folder` is this library folder or, for a whole folder, inside it.
+    func covers(_ folder: String) -> Bool {
+        folder == path || (recursive && folder.hasPrefix(path == "/" ? "/" : path + "/"))
+    }
+}
+
 enum AddRootResult: Equatable {
     case added
     /// Already inside (or equal to) a library folder; nothing changed.
@@ -49,19 +60,26 @@ final class LibraryStore {
         return p
     }
 
-    /// Adds a folder. A folder inside an existing one is refused (its videos are
-    /// already indexed); a parent of existing folders absorbs them, keeping their rows.
+    /// Adds a folder. A folder already covered by a library folder is refused (its
+    /// videos are already indexed). A whole folder absorbs library folders inside it,
+    /// keeping their rows, and upgrades itself if it was "this layer only".
+    /// A "this layer only" folder absorbs nothing: its sub-folders stay separate.
     @discardableResult
-    func addRoot(_ path: String) throws -> AddRootResult {
+    func addRoot(_ path: String, recursive: Bool = true) throws -> AddRootResult {
         let new = Self.normalized(path)
-        let existing = try roots()
-        if let parent = existing.first(where: { new == $0 || new.hasPrefix($0 + "/") }) {
-            return .alreadyCovered(by: parent)
+        let existing = try rootEntries()
+        if let same = existing.first(where: { $0.path == new }), same.recursive || !recursive {
+            return .alreadyCovered(by: same.path)
         }
-        let children = existing.filter { $0.hasPrefix(new + "/") }
+        if let parent = existing.first(where: { $0.path != new && $0.covers(new) }) {
+            return .alreadyCovered(by: parent.path)
+        }
+        let children = recursive ? existing.map(\.path).filter { $0.hasPrefix(new + "/") } : []
         try db.transaction {
-            try db.run("INSERT OR IGNORE INTO library_roots (path, added_at) VALUES (?, ?)",
-                       [.text(new), .real(Date().timeIntervalSince1970)])
+            try db.run("""
+                INSERT INTO library_roots (path, added_at, recursive) VALUES (?, ?, ?)
+                ON CONFLICT(path) DO UPDATE SET recursive = excluded.recursive
+                """, [.text(new), .real(Date().timeIntervalSince1970), .int(recursive ? 1 : 0)])
             for child in children {
                 try db.run("UPDATE media SET root = ? WHERE root = ?", [.text(new), .text(child)])
                 try db.run("DELETE FROM library_roots WHERE path = ?", [.text(child)])
@@ -78,10 +96,21 @@ final class LibraryStore {
 
     func schemaVersion() throws -> Int32 { try db.schemaVersion() }
 
-    func roots() throws -> [String] {
-        var out: [String] = []
-        try db.query("SELECT path FROM library_roots ORDER BY path", []) { out.append($0.text(0)) }
+    func roots() throws -> [String] { try rootEntries().map(\.path) }
+
+    func rootEntries() throws -> [LibraryRoot] {
+        var out: [LibraryRoot] = []
+        try db.query("SELECT path, recursive FROM library_roots ORDER BY path", []) {
+            out.append(LibraryRoot(path: $0.text(0), recursive: $0.int(1) != 0))
+        }
         return out
+    }
+
+    /// false only for a "this layer only" folder (unknown folders count as whole).
+    func isRecursive(_ root: String) throws -> Bool {
+        var recursive = true
+        try db.query("SELECT recursive FROM library_roots WHERE path = ?", [.text(root)]) { recursive = $0.int(0) != 0 }
+        return recursive
     }
 
     /// Stops watching a folder and forgets its videos (the files themselves are untouched).

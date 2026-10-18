@@ -52,13 +52,16 @@ final class LibraryIndexer {
          fingerprint: @escaping (String) -> String? = { try? FileFingerprint.compute(path: $0) },
          thumbnailDirectory: URL = LibraryIndexer.defaultThumbnailDirectory,
          workers: Int = max(2, ProcessInfo.processInfo.activeProcessorCount / 2),
-         scan: @escaping Scan = { LibraryScanner.scan(root: $0, isCancelled: $1) }) {
+         scan: Scan? = nil) {
         self.store = store
         self.prober = prober
         self.tagger = tagger
         self.fingerprint = fingerprint
         self.thumbnailDirectory = thumbnailDirectory
-        self.scan = scan
+        // Default: walk the folder as deep as the library folder says (whole or top layer).
+        self.scan = scan ?? { root, cancelled in
+            LibraryScanner.scan(root: root, recursive: (try? store.isRecursive(root)) ?? true, isCancelled: cancelled)
+        }
         self.workers = max(1, workers)
     }
 

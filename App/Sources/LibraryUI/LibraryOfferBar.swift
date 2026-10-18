@@ -9,7 +9,7 @@ final class LibraryOfferBar: NSView {
     static let offerSeconds: TimeInterval = 15
     static let confirmSeconds: TimeInterval = 6
 
-    var onAdd: ((String) -> Void)?
+    var onAdd: ((LibraryOffer.Proposal) -> Void)?
     var onDecline: ((String) -> Void)?
     var onNeverAsk: (() -> Void)?
     var onOpenLibrary: (() -> Void)?
@@ -20,7 +20,7 @@ final class LibraryOfferBar: NSView {
     private let declineButton = NSButton(title: "不加", target: nil, action: nil)
     private let neverButton = NSButton(title: "不再询问", target: nil, action: nil)
     private let openButton = NSButton(title: "打开视频库", target: nil, action: nil)
-    private var folder: String?
+    private var proposal: LibraryOffer.Proposal?
     private var hideTimer: Timer?
 
     var message: String { label.stringValue }
@@ -65,10 +65,13 @@ final class LibraryOfferBar: NSView {
 
     required init?(coder: NSCoder) { fatalError("not supported") }
 
-    func offer(_ folder: String) {
-        self.folder = folder
-        label.stringValue = "把「\(Self.name(folder))」加入视频库？自动整理里面的视频"
-        label.toolTip = folder
+    func offer(_ proposal: LibraryOffer.Proposal) {
+        self.proposal = proposal
+        let name = Self.name(proposal.path)
+        label.stringValue = proposal.wholeFolder
+            ? "把「\(name)」加入视频库？自动整理里面的视频"
+            : "把「\(name)」里的视频加入视频库？只整理这一层，不含子文件夹"
+        label.toolTip = proposal.path
         show([label, addButton, declineButton, neverButton], for: Self.offerSeconds)
     }
 
@@ -76,19 +79,19 @@ final class LibraryOfferBar: NSView {
         hideTimer?.invalidate()
         hideTimer = nil
         isHidden = true
-        folder = nil
+        proposal = nil
     }
 
     /// Same as clicking the button (tests use this).
     func press(_ action: Action) {
         switch action {
         case .add:
-            guard let folder else { return }
-            onAdd?(folder)
-            label.stringValue = "已加入「\(Self.name(folder))」，正在后台整理"
+            guard let proposal else { return }
+            onAdd?(proposal)
+            label.stringValue = "已加入「\(Self.name(proposal.path))」，正在后台整理"
             show([label, openButton], for: Self.confirmSeconds)
         case .decline:
-            if let folder { onDecline?(folder) }
+            if let proposal { onDecline?(proposal.path) }
             hide()
         case .neverAsk:
             onNeverAsk?()

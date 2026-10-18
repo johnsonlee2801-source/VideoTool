@@ -80,7 +80,7 @@ enum Snapshot {
         w.window?.setContentSize(NSSize(width: 1100, height: 660))
         w.stageForSnapshot(frame: Snapshot.frame(at: 6), bookmarks: [], duration: 1500, position: 30,
                            showList: false, previewFirst: false, hud: nil)
-        w.libraryOffer.offer("/Volumes/Media/北海道旅行 2026")
+        w.libraryOffer.offer(.init(path: "/Volumes/Media/北海道旅行 2026", wholeFolder: true))
         try Snapshot.write(try #require(w.window?.contentView), "P4-player-library-offer")
         w.libraryOffer.press(.add)
         try Snapshot.write(try #require(w.window?.contentView), "P4b-player-library-added")

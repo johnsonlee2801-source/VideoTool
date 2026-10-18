@@ -257,7 +257,8 @@ final class LibraryWindowController: NSWindowController, NSWindowDelegate,
             return Self.sidebarCell(icon: Self.symbol(for: m), label: label, indent: 12,
                                     tint: selected ? Theme.accent : Theme.textSecondary)
         case .root(let p):
-            label.stringValue = (p as NSString).lastPathComponent
+            let shallow = controller.rootEntries.contains { $0.path == p && !$0.recursive }
+            label.stringValue = (p as NSString).lastPathComponent + (shallow ? " · 仅这一层" : "")
             label.font = .systemFont(ofSize: 13, weight: .semibold)
             label.textColor = Theme.textSecondary
             label.toolTip = p

@@ -24,6 +24,8 @@ final class LibraryController {
     private let main: Executor
 
     private(set) var roots: [String] = []
+    /// Library folders with their "whole / this layer only" flag.
+    private(set) var rootEntries: [LibraryRoot] = []
     private(set) var items: [LibraryItem] = []
     private(set) var isIndexing = false
     private(set) var progress: LibraryIndexer.Progress?
@@ -64,10 +66,10 @@ final class LibraryController {
 
     // MARK: folders
 
-    func addRoot(_ path: String) {
+    func addRoot(_ path: String, recursive: Bool = true) {
         notice = nil
         let target = LibraryStore.normalized(path)
-        switch (try? store.addRoot(target)) ?? .added {
+        switch (try? store.addRoot(target, recursive: recursive)) ?? .added {
         case .alreadyCovered(let parent):
             notice = "「\((target as NSString).lastPathComponent)」已在视频库的「\((parent as NSString).lastPathComponent)」里，不用重复添加。"
             onChange?()
@@ -82,6 +84,12 @@ final class LibraryController {
     }
 
     func rescanAll() { enqueue(roots) }
+
+    /// Picks up new or changed videos in one library folder (incremental).
+    func rescan(_ root: String) {
+        guard roots.contains(root) else { return }
+        enqueue([root])
+    }
 
     /// Stops watching a folder. Its videos leave the library; the files stay where they are.
     /// A scan already running for it stops at its next file (the indexer re-checks the folder).
@@ -100,7 +108,8 @@ final class LibraryController {
     // MARK: data
 
     func reload() {
-        roots = (try? store.roots()) ?? []
+        rootEntries = (try? store.rootEntries()) ?? []
+        roots = rootEntries.map(\.path)
         let tags = (try? store.allTags()) ?? [:]
         let counts: [String: Int] = (try? stars?.counts()) ?? [:]
         items = ((try? store.media(inRoot: nil)) ?? []).map {

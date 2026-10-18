@@ -17,9 +17,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private let offerPreferences = LibraryOfferPreferences()
     private lazy var libraryOffer = LibraryOfferCoordinator(
         preferences: offerPreferences,
-        roots: { [weak self] in self?.libraryController?.roots ?? [] },
-        show: { [weak self] folder in self?.playerWindow?.libraryOffer.offer(folder) },
-        add: { [weak self] folder in self?.libraryController?.addRoot(folder) })
+        roots: { [weak self] in self?.libraryController?.rootEntries ?? [] },
+        show: { [weak self] proposal in self?.playerWindow?.libraryOffer.offer(proposal) },
+        add: { [weak self] proposal in self?.libraryController?.addRoot(proposal.path, recursive: proposal.wholeFolder) },
+        refresh: { [weak self] root in self?.libraryController?.rescan(root) })
     private var launchQueue = LaunchOpenQueue()
 
     // MARK: lifecycle

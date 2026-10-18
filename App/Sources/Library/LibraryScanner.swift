@@ -20,7 +20,8 @@ enum LibraryScanner {
     /// Recursive, skipping hidden items and packages (.app, .photoslibrary…) and
     /// not following symbolic links. Audio files are not part of the video library.
     /// Paths keep the root exactly as given. Sorted by path.
-    static func scan(root: String, isCancelled: () -> Bool = { false }) -> ScanResult {
+    /// `recursive` false: only the videos directly in `root`.
+    static func scan(root: String, recursive: Bool = true, isCancelled: () -> Bool = { false }) -> ScanResult {
         var isDir: ObjCBool = false
         guard FileManager.default.fileExists(atPath: root, isDirectory: &isDir), isDir.boolValue else {
             return ScanResult(files: [], complete: false)
@@ -30,7 +31,8 @@ enum LibraryScanner {
                                       .isUbiquitousItemKey, .ubiquitousItemDownloadingStatusKey]
         var hadError = false
         guard let walker = FileManager.default.enumerator(at: rootURL, includingPropertiesForKeys: keys,
-                                                          options: [.skipsHiddenFiles, .skipsPackageDescendants],
+                                                          options: recursive ? [.skipsHiddenFiles, .skipsPackageDescendants]
+                                                              : [.skipsHiddenFiles, .skipsPackageDescendants, .skipsSubdirectoryDescendants],
                                                           errorHandler: { _, _ in hadError = true; return true })
         else { return ScanResult(files: [], complete: false) }
 
