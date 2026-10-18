@@ -1,0 +1,54 @@
+{
+  "schemaVersion": 2,
+  "enabled": true,
+  "enforceOnTaskCompleted": false,
+  "blockCommitWithoutFreshGate": false,
+  "staleGateAction": "deny",
+  "gateFreshnessMinutes": 120,
+  "smartStaleness": true,
+  "bypassEnv": "TDD_GUARD_BYPASS",
+  "preflightCommand": "",
+  "lanes": [
+    {
+      "name": "core",
+      "description": "VideoToolCore pure gesture logic (Swift Testing) built with plain swiftc; works inside the agent sandbox.",
+      "command": "VideoToolCore/scripts/test-direct.sh",
+      "probeCommand": "test -x VideoToolCore/scripts/test-direct.sh && ls VideoToolCore/Tests/VideoToolCoreTests/*.swift",
+      "gateOn": ["commit"],
+      "coverage": "none",
+      "timeoutMs": 300000
+    },
+    {
+      "name": "unit",
+      "description": "App tests without real libmpv (macOS). Run outside the sandbox (DerivedData in ~/Library). Exit 65 = test failure.",
+      "command": "scripts/xcb.sh test -skip-testing:VideoToolTests/MPVIntegrationTests; rc=$?; if [ $rc -eq 65 ]; then exit 1; fi; exit $rc",
+      "probeCommand": "test -d VideoTool.xcodeproj && ls Tests/VideoToolTests/*.swift",
+      "gateOn": ["commit"],
+      "coverage": "none",
+      "timeoutMs": 900000
+    },
+    {
+      "name": "integration",
+      "description": "Tests against real libmpv (MPVIntegrationTests) with the bundled fixture video.",
+      "command": "scripts/xcb.sh test -only-testing:VideoToolTests/MPVIntegrationTests; rc=$?; if [ $rc -eq 65 ]; then exit 1; fi; exit $rc",
+      "probeCommand": "ls Tests/VideoToolTests/MPVIntegrationTests.swift Tests/Fixtures/testsrc-20s.mp4",
+      "gateOn": ["commit"],
+      "coverage": "none",
+      "timeoutMs": 900000
+    },
+    {
+      "name": "prototype",
+      "description": "mpv Lua gesture prototype unit tests (luajit, fake mp module).",
+      "command": "prototype/tests/run.sh",
+      "probeCommand": "command -v luajit && ls prototype/tests/test_*.lua",
+      "gateOn": ["commit"],
+      "coverage": "none",
+      "timeoutMs": 120000
+    }
+  ],
+  "coverageThresholds": { "lines": 0, "functions": 0, "branches": 0, "statements": 0 },
+  "coverageMode": "absolute",
+  "requireMutation": false,
+  "mutationCommand": "",
+  "mutationGateOn": ["push"]
+}
