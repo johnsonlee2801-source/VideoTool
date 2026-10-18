@@ -26,31 +26,6 @@ final class MPVEngine: PlayerEngine {
     var onStateChange: ((PlayerState) -> Void)?
     var onEvent: ((PlayerEvent) -> Void)?
 
-    private enum Prop: UInt64, CaseIterable {
-        case timePos = 1, duration, pause, speed, volume, mute, mediaTitle, eofReached, idleActive, path
-        var name: String {
-            switch self {
-            case .timePos: return "time-pos"
-            case .duration: return "duration"
-            case .pause: return "pause"
-            case .speed: return "speed"
-            case .volume: return "volume"
-            case .mute: return "mute"
-            case .mediaTitle: return "media-title"
-            case .eofReached: return "eof-reached"
-            case .idleActive: return "idle-active"
-            case .path: return "path"
-            }
-        }
-        var format: mpv_format {
-            switch self {
-            case .timePos, .duration, .speed, .volume: return MPV_FORMAT_DOUBLE
-            case .pause, .mute, .eofReached, .idleActive: return MPV_FORMAT_FLAG
-            case .mediaTitle, .path: return MPV_FORMAT_STRING
-            }
-        }
-    }
-
     init() throws {
         guard let h = mpv_create() else { throw MPVError.createFailed }
         // A failing initializer never runs deinit, so destroy the handle here.
@@ -79,7 +54,7 @@ final class MPVEngine: PlayerEngine {
         let r = mpv_initialize(h)
         if r < 0 { throw MPVError.api(r, "mpv_initialize") }
 
-        for p in Prop.allCases {
+        for p in MPVProperty.allCases {
             let r = mpv_observe_property(h, p.rawValue, p.name, p.format)
             if r < 0 { throw MPVError.api(r, "observe \(p.name)") }
         }
@@ -217,7 +192,7 @@ final class MPVEngine: PlayerEngine {
     private func handleEvent(_ e: mpv_event, _ h: OpaquePointer) {
         switch e.event_id {
         case MPV_EVENT_PROPERTY_CHANGE:
-            guard let data = e.data, let prop = Prop(rawValue: e.reply_userdata) else { return }
+            guard let data = e.data, let prop = MPVProperty(rawValue: e.reply_userdata) else { return }
             let p = data.assumingMemoryBound(to: mpv_event_property.self).pointee
             applyProperty(prop, p)
         case MPV_EVENT_FILE_LOADED:
@@ -242,60 +217,12 @@ final class MPVEngine: PlayerEngine {
         }
     }
 
-    private func applyProperty(_ prop: Prop, _ p: mpv_event_property) {
-        var change: ((inout PlayerState) -> Void)?
-        switch p.format {
-        case MPV_FORMAT_DOUBLE:
-            guard let d = p.data else { return }
-            let v = d.assumingMemoryBound(to: Double.self).pointee
-            switch prop {
-            case .timePos: change = { $0.timePos = v }
-            case .duration: change = { $0.duration = v }
-            case .speed: change = { $0.speed = v }
-            case .volume: change = { $0.volume = v }
-            default: break
-            }
-        case MPV_FORMAT_FLAG:
-            guard let d = p.data else { return }
-            let v = d.assumingMemoryBound(to: Int32.self).pointee != 0
-            switch prop {
-            case .pause: change = { $0.isPaused = v }
-            case .mute: change = { $0.isMuted = v }
-            case .eofReached: change = { $0.eofReached = v }
-            case .idleActive: change = { $0.isIdle = v }
-            default: break
-            }
-        case MPV_FORMAT_STRING:
-            guard let d = p.data, let cstr = d.assumingMemoryBound(to: UnsafePointer<CChar>?.self).pointee else {
-                if prop == .path { change = { $0.path = nil } }
-                break
-            }
-            let v = String(cString: cstr)
-            switch prop {
-            case .mediaTitle: change = { $0.mediaTitle = v }
-            case .path: change = { $0.path = v }
-            default: break
-            }
-        case MPV_FORMAT_NONE:
-            // Property became unavailable (e.g. duration/time-pos after stop).
-            switch prop {
-            case .timePos: change = { $0.timePos = 0 }
-            case .duration: change = { $0.duration = 0 }
-            case .path: change = { $0.path = nil }
-            case .mediaTitle: change = { $0.mediaTitle = "" }
-            case .eofReached: change = { $0.eofReached = false }   // defensive: mpv normally sends an explicit false
-            case .idleActive: change = { $0.isIdle = true }
-            default: break
-            }
-        default:
-            break
-        }
-        guard let change else { return }
+    private func applyProperty(_ prop: MPVProperty, _ p: mpv_event_property) {
+        guard let value = MPVValue(p) else { return }       // copy now: mpv reuses the event memory
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
             var s = self.state
-            change(&s)
-            self.state = s
+            if s.apply(prop, value) { self.state = s }
         }
     }
 

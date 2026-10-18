@@ -81,6 +81,7 @@
 		BDE106F17B6D8CC0A8A46676 /* PlayerEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06DE48CDE77AD6E91BC682B8 /* PlayerEngine.swift */; };
 		C5B804752E0E09A6F768402A /* hfr_60fps.mp4 in Resources */ = {isa = PBXBuildFile; fileRef = D847EF4D7823E96BBD60E9ED /* hfr_60fps.mp4 */; };
 		C709699D6A0B635813188CF3 /* KeyRouterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F619607BC85E3B9090AB02A0 /* KeyRouterTests.swift */; };
+		C8811153B7AE898032FA3FC0 /* MPVProperty.swift in Sources */ = {isa = PBXBuildFile; fileRef = 13C202256F6BF430A7B4DA9A /* MPVProperty.swift */; };
 		CA46BE1F8E49D47E6706E50F /* wmv2_mp3.wmv in Resources */ = {isa = PBXBuildFile; fileRef = 04316FCBEC49A2FC9C2E43A1 /* wmv2_mp3.wmv */; };
 		CABB6125D9FCA82F63D9660F /* mpeg2_ac3.ts in Resources */ = {isa = PBXBuildFile; fileRef = B036BF10A599FDC6133A4C9F /* mpeg2_ac3.ts */; };
 		CD3C382E58D7FD93814D62E6 /* ThemeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4FA3F19592A03CFEB276043C /* ThemeTests.swift */; };
@@ -98,6 +99,7 @@
 		F34C43476C69AF60AEC24C9A /* h263_aac.3gp in Resources */ = {isa = PBXBuildFile; fileRef = 00D782A5B864FC2B88E2D803 /* h263_aac.3gp */; };
 		F3D534443C0FB71BABAC90F2 /* TimeFormattingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E204FEE3947F3589ECCA356F /* TimeFormattingTests.swift */; };
 		F3DAAE7A83F2B8CD12E10CFB /* PlaybackSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2D28FD5CC60CBD96D3267EB /* PlaybackSession.swift */; };
+		F5E1BF9A4BA4CD9434DF53D8 /* MPVPropertyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8207DA45A4B60B7E754383D /* MPVPropertyTests.swift */; };
 		F7A7815265095A0941A829EF /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4972D1B8FF63C366A16D203 /* AppDelegate.swift */; };
 		FB8C61A77881DCA9820A0BB5 /* BookmarkControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE041B0D788D7BFEF4C306C0 /* BookmarkControllerTests.swift */; };
 /* End PBXBuildFile section */
@@ -120,6 +122,7 @@
 		0727811E303EBF80B1A340A9 /* THIRD_PARTY_NOTICES.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = THIRD_PARTY_NOTICES.md; sourceTree = "<group>"; };
 		09924CCA63820CA2D04218F2 /* ScrubPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScrubPolicy.swift; sourceTree = "<group>"; };
 		0A29CD1028EF85CA1041CB81 /* LibraryIndexer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryIndexer.swift; sourceTree = "<group>"; };
+		13C202256F6BF430A7B4DA9A /* MPVProperty.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MPVProperty.swift; sourceTree = "<group>"; };
 		151F6822C2CE8E65A903F782 /* VideoToolTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = VideoToolTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		1A5F7F7F083B682DD70EF423 /* KeyCommandMapTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyCommandMapTests.swift; sourceTree = "<group>"; };
 		1CE867E1C625BDF0D89BCDCF /* ScrubPolicyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScrubPolicyTests.swift; sourceTree = "<group>"; };
@@ -194,6 +197,7 @@
 		E09C1C2CD89F41D9E6A87AF2 /* vp9_opus.webm */ = {isa = PBXFileReference; path = vp9_opus.webm; sourceTree = "<group>"; };
 		E204FEE3947F3589ECCA356F /* TimeFormattingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimeFormattingTests.swift; sourceTree = "<group>"; };
 		E4972D1B8FF63C366A16D203 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		E8207DA45A4B60B7E754383D /* MPVPropertyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MPVPropertyTests.swift; sourceTree = "<group>"; };
 		EB12B302C8920B27139DD060 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		EDE7DED60CE07C528268436B /* mpeg4_mp3.avi */ = {isa = PBXFileReference; lastKnownFileType = video.avi; path = mpeg4_mp3.avi; sourceTree = "<group>"; };
 		EEBBE5076C043949C4A15B3F /* TimeFormatting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimeFormatting.swift; sourceTree = "<group>"; };
@@ -236,6 +240,7 @@
 				A6536BEAF650DA3F5892B1C4 /* BookmarkMarkersView.swift */,
 				9FBC591C36C783AC91203D6E /* EmptyStateView.swift */,
 				95991B41CDA3C8B1BE5D4BBE /* MPVEngine.swift */,
+				13C202256F6BF430A7B4DA9A /* MPVProperty.swift */,
 				030FC46F33BC36B8BA3DB525 /* MPVRenderLayer.swift */,
 				D2D28FD5CC60CBD96D3267EB /* PlaybackSession.swift */,
 				06DE48CDE77AD6E91BC682B8 /* PlayerEngine.swift */,
@@ -268,6 +273,7 @@
 				5DF2D81EBDDBD897F3AE5766 /* LibraryWindowTests.swift */,
 				F54E8D4D94C725C2958F3645 /* MediaTypesTests.swift */,
 				A8193AA0A360D44DA60859B7 /* MPVIntegrationTests.swift */,
+				E8207DA45A4B60B7E754383D /* MPVPropertyTests.swift */,
 				658B07ED93AB18EC7D871641 /* PlayerEventGlueTests.swift */,
 				25E8E392F7F2DE6CB617AC32 /* ResumePositionStoreTests.swift */,
 				B7E68677006CA2B874AAF591 /* ResumeTrackerTests.swift */,
@@ -581,6 +587,7 @@
 				6C937F592935EEAD9CC65DC0 /* LibraryStoreTests.swift in Sources */,
 				EA29CB187F08E739747EEBA4 /* LibraryWindowTests.swift in Sources */,
 				862F874451AB26C9E9C84FBE /* MPVIntegrationTests.swift in Sources */,
+				F5E1BF9A4BA4CD9434DF53D8 /* MPVPropertyTests.swift in Sources */,
 				1D3784F2929998F957136E4F /* MediaTypesTests.swift in Sources */,
 				DEB21E5B7AF01CB616CFEB66 /* PlayerEventGlueTests.swift in Sources */,
 				47DD60BFD1FB7F91D3954386 /* ResumePositionStoreTests.swift in Sources */,
@@ -619,6 +626,7 @@
 				21A6B6DD49D1E2882BC9F404 /* LibraryStore.swift in Sources */,
 				CE10692474A3253352386102 /* LibraryWindowController.swift in Sources */,
 				3DDA5CA4ABCF2FE183601A3B /* MPVEngine.swift in Sources */,
+				C8811153B7AE898032FA3FC0 /* MPVProperty.swift in Sources */,
 				1BB2DF717EDC8426547B02CF /* MPVRenderLayer.swift in Sources */,
 				4256FE7F7532930ADF54B944 /* MediaTypes.swift in Sources */,
 				F3DAAE7A83F2B8CD12E10CFB /* PlaybackSession.swift in Sources */,
