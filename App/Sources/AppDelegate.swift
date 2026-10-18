@@ -152,6 +152,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         windowItem.submenu = windowMenu
         NSApp.windowsMenu = windowMenu
 
+        let helpItem = NSMenuItem(); main.addItem(helpItem)
+        let helpMenu = NSMenu(title: "帮助")
+        helpMenu.addItem(withTitle: "发送反馈…", action: #selector(sendFeedback(_:)), keyEquivalent: "")
+        helpItem.submenu = helpMenu
+        NSApp.helpMenu = helpMenu
+
         NSApp.mainMenu = main
     }
 
@@ -201,6 +207,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         if item.action == #selector(toggleLibraryOffer(_:)) { item.state = offerPreferences.neverAsk ? .off : .on }
         return true
     }
+
+    @objc private func sendFeedback(_ sender: Any?) { Feedback.open() }
 
     @objc private func makeDefaultPlayer(_ sender: Any?) {
         DefaultAppRegistrar.makeDefault { summary in
