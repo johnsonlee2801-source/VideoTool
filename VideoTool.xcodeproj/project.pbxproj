@@ -33,6 +33,7 @@
 		2FC1DD461281E9623A83D50E /* ThirdPartyNoticesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41E55A2EA84BFB68C96AA19B /* ThirdPartyNoticesTests.swift */; };
 		34FA9A0BC97BC4DA49180F10 /* FormatMatrixTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4198BEAD2FC07815A7909776 /* FormatMatrixTests.swift */; };
 		39DC9A52773556B62A92F122 /* VideoToolCore in Frameworks */ = {isa = PBXBuildFile; productRef = EBD26228FCD03C21AB58E80D /* VideoToolCore */; };
+		3A0214AF327F2D1FCD56B139 /* BookmarkMarkersViewTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 35A675DD65131807384C7730 /* BookmarkMarkersViewTests.swift */; };
 		3DD574156441A7A99C93886B /* PlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7A72EFBCB21D284BBDC7E9B /* PlayerView.swift */; };
 		3DDA5CA4ABCF2FE183601A3B /* MPVEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95991B41CDA3C8B1BE5D4BBE /* MPVEngine.swift */; };
 		412BDC51D6E2769135A32798 /* SpeedGestureControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1EFDCD4A835428F58D2C4362 /* SpeedGestureControllerTests.swift */; };
@@ -132,6 +133,7 @@
 		25E8E392F7F2DE6CB617AC32 /* ResumePositionStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResumePositionStoreTests.swift; sourceTree = "<group>"; };
 		2910C06D719C807379F3C5BA /* truncated.mp4 */ = {isa = PBXFileReference; path = truncated.mp4; sourceTree = "<group>"; };
 		2C1766CCA9FB4FB4E004881A /* FileFingerprint.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileFingerprint.swift; sourceTree = "<group>"; };
+		35A675DD65131807384C7730 /* BookmarkMarkersViewTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookmarkMarkersViewTests.swift; sourceTree = "<group>"; };
 		369C19B838A66B1CCAB0A9D5 /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
 		39A6466577A5AA9499AC49B0 /* ThumbnailMaker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThumbnailMaker.swift; sourceTree = "<group>"; };
 		3CF17ADFB8495A84F690909A /* LibraryIndexerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryIndexerTests.swift; sourceTree = "<group>"; };
@@ -257,6 +259,7 @@
 			isa = PBXGroup;
 			children = (
 				CE041B0D788D7BFEF4C306C0 /* BookmarkControllerTests.swift */,
+				35A675DD65131807384C7730 /* BookmarkMarkersViewTests.swift */,
 				CB30483F2E3CB42090D1C8AE /* BookmarkNavigatorTests.swift */,
 				409E2C1446CEF554A3887225 /* BookmarkStoreTests.swift */,
 				FD9EDCD083A4F4954A878E0B /* DefaultAppRegistrarTests.swift */,
@@ -572,6 +575,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				FB8C61A77881DCA9820A0BB5 /* BookmarkControllerTests.swift in Sources */,
+				3A0214AF327F2D1FCD56B139 /* BookmarkMarkersViewTests.swift in Sources */,
 				B346B132AA0B69515EE20EAA /* BookmarkNavigatorTests.swift in Sources */,
 				A4AF6D86026236892F3C5D03 /* BookmarkStoreTests.swift in Sources */,
 				14ED3E439B4C007E372CE357 /* DefaultAppRegistrarTests.swift in Sources */,

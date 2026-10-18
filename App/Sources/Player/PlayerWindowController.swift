@@ -215,6 +215,7 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         listPanel.onDelete = { [weak bookmarks] id in bookmarks?.delete(id) }
         bookmarks.onThumbnailReady = { [weak self] id in self?.refreshPreview(ifShowing: id) }
         markers.onHover = { [weak self] b, x in self?.showPreview(b, atMarkerX: x) }
+        markers.onClick = { [weak bookmarks] b in bookmarks?.jump(to: b) }
         listPanel.show([])
     }
 

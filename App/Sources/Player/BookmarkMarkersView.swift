@@ -1,7 +1,8 @@
 import AppKit
 
-/// Draws yellow stars over the progress slider and reports hovering. It never
-/// takes clicks (clicks go to the slider, which snaps to nearby stars).
+/// Draws yellow stars just above the progress slider, reports hovering, and takes
+/// clicks that land on a star. Every other click falls through to the slider
+/// (which also snaps to nearby stars).
 final class BookmarkMarkersView: NSView {
     static let hoverRadius: CGFloat = 7
 
@@ -10,12 +11,37 @@ final class BookmarkMarkersView: NSView {
     var bookmarks: [Bookmark] = [] { didSet { needsDisplay = true } }
     /// Called with the hovered star (or nil) and its x in this view's coordinates.
     var onHover: ((Bookmark?, CGFloat) -> Void)?
+    /// A star was clicked (for a cluster, its earliest star).
+    var onClick: ((Bookmark) -> Void)?
 
     private var hovered: UUID?
     private var tracking: NSTrackingArea?
 
     override var isFlipped: Bool { true }
-    override func hitTest(_ point: NSPoint) -> NSView? { nil }
+
+    /// Stars are drawn this far above the slider's centre line.
+    static let starLift: CGFloat = 10
+    var starCenterY: CGFloat { bounds.midY - Self.starLift }
+
+    /// Only a star takes the click; `point` is in the superview's coordinates.
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        guard !isHidden, let superview else { return nil }
+        let p = convert(point, from: superview)
+        return abs(p.y - starCenterY) <= Self.starLift - 1 && star(atX: p.x) != nil ? self : nil
+    }
+
+    override func mouseDown(with event: NSEvent) {
+        let p = convert(event.locationInWindow, from: nil)
+        if let b = star(atX: p.x)?.bookmark { onClick?(b) }
+    }
+
+    /// The star (cluster) nearest to `x`, within the hover radius.
+    private func star(atX x: CGFloat) -> (bookmark: Bookmark, x: CGFloat)? {
+        visibleClusters()
+            .map { ($0.bookmarks[0], $0.x) }
+            .filter { abs($0.1 - x) <= Self.hoverRadius }
+            .min { abs($0.1 - x) < abs($1.1 - x) }
+    }
 
     /// Usable track of the slider, in this view's coordinates.
     func track() -> (minX: Double, width: Double) {
@@ -57,7 +83,7 @@ final class BookmarkMarkersView: NSView {
             }
             let size = star.size()
             let starWidth = NSAttributedString(string: "★", attributes: [.font: NSFont.systemFont(ofSize: isHovered ? 16 : 12, weight: .black)]).size().width
-            star.draw(at: NSPoint(x: cluster.x - starWidth / 2, y: bounds.midY - size.height / 2 - 10))
+            star.draw(at: NSPoint(x: cluster.x - starWidth / 2, y: starCenterY - size.height / 2))
         }
     }
 
@@ -71,11 +97,7 @@ final class BookmarkMarkersView: NSView {
     }
 
     override func mouseMoved(with event: NSEvent) {
-        let p = convert(event.locationInWindow, from: nil)
-        let hit = visibleClusters()
-            .map { ($0.bookmarks[0], $0.x) }
-            .filter { abs($0.1 - p.x) <= Self.hoverRadius }
-            .min { abs($0.1 - p.x) < abs($1.1 - p.x) }
+        let hit = star(atX: convert(event.locationInWindow, from: nil).x)
         if hit?.0.id != hovered {
             hovered = hit?.0.id
             needsDisplay = true
