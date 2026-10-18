@@ -41,8 +41,11 @@ import Testing
     @Test("N11 law: chaining next from 0 visits every distinct star after 0 once in order; previous reverses it")
     func chainingLaw() {
         var rng = SystemRandomNumberGenerator()
-        for _ in 0..<300 {
-            let stars = (0..<Int.random(in: 1...12, using: &rng)).map { _ in (Double.random(in: 0...600, using: &rng) * 10).rounded() / 10 }
+        // Fixed cases first: a star exactly at 0:00 (found by a random run 2026-10-18).
+        let fixed: [[Double]] = [[403.9, 485.9, 516.2, 0.0, 15.2, 219.6, 534.3, 197.6], [0.0], [0.0, 30]]
+        for stars in fixed + (0..<300).map({ _ in
+            (0..<Int.random(in: 1...12, using: &rng)).map { _ in (Double.random(in: 0...600, using: &rng) * 10).rounded() / 10 }
+        }) {
             // A star exactly at the starting position is "here", not "next".
             let distinct = Array(Set(stars)).filter { $0 > BookmarkNavigator.epsilon }.sorted()
             var visited: [Double] = []
@@ -56,7 +59,8 @@ import Testing
             while let s = BookmarkNavigator.previous(before: pos, in: stars, landedOn: landed), back.count <= distinct.count {
                 back.append(s); landed = s; pos = BookmarkNavigator.jumpTarget(s)
             }
-            #expect(back == Array(distinct.reversed().dropFirst()), "\(stars)")
+            // Going back also reaches a star at the very start (0:00), which "next" treats as "here".
+            #expect(back == Array(Array(Set(stars)).sorted().reversed().dropFirst()), "\(stars)")
         }
     }
 

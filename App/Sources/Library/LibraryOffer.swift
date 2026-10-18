@@ -57,7 +57,7 @@ final class LibraryOfferPreferences {
     static let neverAskKey = "videotool.library-offer.never-ask"
     private let defaults: UserDefaults
 
-    init(defaults: UserDefaults = .standard) { self.defaults = defaults }
+    init(defaults: UserDefaults = AppData.defaults) { self.defaults = defaults }
 
     var declined: Set<String> { Set(defaults.stringArray(forKey: Self.declinedKey) ?? []) }
     func decline(_ folder: String) {

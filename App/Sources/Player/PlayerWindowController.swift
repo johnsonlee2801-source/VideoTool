@@ -60,7 +60,7 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         window.titlebarAppearsTransparent = true
         window.appearance = NSAppearance(named: .darkAqua)
         window.center()
-        window.setFrameAutosaveName("VideoTool.PlayerWindow")
+        if !AppData.isTestRun { window.setFrameAutosaveName("VideoTool.PlayerWindow") }   // tests resize windows
         super.init(window: window)
         window.delegate = self
         buildContent()

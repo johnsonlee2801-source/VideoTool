@@ -56,8 +56,7 @@ final class BookmarkController {
     }
 
     static var defaultThumbnailDirectory: URL {
-        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("VideoTool/Thumbnails", isDirectory: true)
+        AppData.directory.appendingPathComponent("Thumbnails", isDirectory: true)
     }
 
     var isReady: Bool { fileKey != nil }

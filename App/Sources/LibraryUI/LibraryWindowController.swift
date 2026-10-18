@@ -40,7 +40,7 @@ final class LibraryWindowController: NSWindowController, NSWindowDelegate,
         window.backgroundColor = Theme.bg0
         window.titlebarAppearsTransparent = true
         window.minSize = NSSize(width: 720, height: 420)
-        window.setFrameAutosaveName("VideoTool.LibraryWindow")
+        if !AppData.isTestRun { window.setFrameAutosaveName("VideoTool.LibraryWindow") }   // tests resize windows
         window.center()
         super.init(window: window)
         window.delegate = self

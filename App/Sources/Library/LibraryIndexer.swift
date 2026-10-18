@@ -44,8 +44,7 @@ final class LibraryIndexer {
     private let workers: Int
 
     static var defaultThumbnailDirectory: URL {
-        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("VideoTool/LibraryThumbnails", isDirectory: true)
+        AppData.directory.appendingPathComponent("LibraryThumbnails", isDirectory: true)
     }
 
     init(store: LibraryStore, prober: MediaProber = MPVMediaProber(), tagger: ImageTagger? = VisionTagger(),

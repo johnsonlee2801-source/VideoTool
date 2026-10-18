@@ -25,8 +25,7 @@ final class SQLiteDatabase {
     }
 
     static var defaultPath: String {
-        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-        return base.appendingPathComponent("VideoTool/library.sqlite").path
+        AppData.directory.appendingPathComponent("library.sqlite").path
     }
 
     private var db: OpaquePointer?

@@ -11,7 +11,7 @@ final class ResumePositionStore {
     private let key: String
     private let now: () -> Date
 
-    init(defaults: UserDefaults = .standard, key: String = ResumePositionStore.defaultKey, now: @escaping () -> Date = Date.init) {
+    init(defaults: UserDefaults = AppData.defaults, key: String = ResumePositionStore.defaultKey, now: @escaping () -> Date = Date.init) {
         self.defaults = defaults
         self.key = key
         self.now = now
