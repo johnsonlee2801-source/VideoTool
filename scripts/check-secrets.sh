@@ -1,7 +1,7 @@
 #!/bin/zsh
 # Refuses to let secrets or personal data reach the (future public) repo.
 #   scripts/check-secrets.sh            scan tracked files (working tree)
-#   scripts/check-secrets.sh --history  scan every commit reachable from any ref
+#   scripts/check-secrets.sh --history  scan every commit on local branches and tags
 # Generic patterns live here. Personal identifiers (names, emails, local paths,
 # team IDs) go one per line in .git/info/secret-patterns, which is never pushed.
 # Exit 1 on any finding. Installed as a pre-push hook by scripts/install-hooks.sh.
@@ -32,7 +32,7 @@ found=0
 report() { print -u2 "✗ $1"; found=1; }
 
 if [[ "${1:-}" == "--history" ]]; then
-  for c in $(git rev-list --all); do
+  for c in $(git rev-list --branches --tags); do   # what can be pushed (not remote-tracking refs)
     git ls-tree -r --name-only "$c" | grep -E "$forbidden" | while read -r f; do report "commit ${c:0:7}: forbidden file $f"; done
     hits=$(git grep -I -n -E -e "$pattern" "$c" -- . ":(exclude)$self" 2>/dev/null | head -5)
     [[ -n "$hits" ]] && report "commit ${c:0:7}:\n$hits"
