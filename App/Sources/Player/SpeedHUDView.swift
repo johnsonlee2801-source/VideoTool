@@ -77,8 +77,13 @@ final class SpeedHUDView: NSView, SpeedHUD {
     }
 
     func flash(speed: Double) {
+        flash(text: String(format: "▶ %.1f×", speed))
+    }
+
+    /// Brief centred message, e.g. "★ 12:34" after starring.
+    func flash(text: String) {
         flashWork?.cancel()
-        label.stringValue = String(format: "▶ %.1f×", speed)
+        label.stringValue = text
         bar.isHidden = true
         isHidden = false
         let work = DispatchWorkItem { [weak self] in self?.isHidden = true }

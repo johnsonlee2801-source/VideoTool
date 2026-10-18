@@ -24,10 +24,13 @@ goals, layout, build and test commands. `CLAUDE.md` only imports this file.
 - Starred moments (step 3, decided 2026-10-18): press **B** to star the current
   time without pausing or prompting. B while the speed gesture is active follows
   the general rule: it only cancels the speed-up and does NOT star. Jumping to a
-  star lands **2 s before** it. Proposed but not yet confirmed: yellow star
-  markers with hover time/note/thumbnail, click snapping, ⌥←/⌥→ for prev/next,
-  double-B at the same spot undoes, identity by OSHash (size + first/last 64 KB),
-  SQLite storage, an optional end time reserved for future clipping.
+  star lands **2 s before** it. Built as proposed: yellow star markers with
+  hover time/note/thumbnail, click snapping, ⌥←/⌥→ for prev/next, double-B at
+  the same spot undoes (distance scales with playback speed), identity by
+  OSHash, SQLite storage, `endTime` reserved for clipping.
+- Thumbnails come from a separate software-rendering libmpv instance
+  (`MPVThumbnailMaker`): the main player's frames are VideoToolbox and MPVKit's
+  FFmpeg has no image encoders.
 
 ## Pitfalls already paid for
 

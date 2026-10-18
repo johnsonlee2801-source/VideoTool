@@ -45,4 +45,21 @@ import Testing
         #expect(KeyRouter.input(from: event(3, "F")) == KeyInput(key: "f"))
         #expect(KeyRouter.input(from: event(12, "q", .command)) == KeyInput(key: "q", command: true))
     }
+
+    @Test("K6 decision 2026-10-18: B while the speed gesture is active only cancels; it does not star")
+    func bDuringGesture() {
+        #expect(KeyRouter.decide(key("b"), gestureActive: true) == .cancelGestureOnly)
+        #expect(KeyRouter.decide(key("b"), gestureActive: false) == .perform(.toggleBookmark))
+    }
+    @Test("K7 idle ⌥→ performs next-star (option chords for stars are not passed to the menu bar)")
+    func optionArrowsIdle() {
+        #expect(KeyRouter.decide(KeyInput(key: KeyInput.right, option: true), gestureActive: false) == .perform(.nextBookmark))
+    }
+
+    @Test("K8 while typing in a text field (e.g. a star note) every key goes to the field")
+    func editingText() {
+        #expect(KeyRouter.decide(key("b"), gestureActive: false, isEditingText: true) == .passThrough)
+        #expect(KeyRouter.decide(key(KeyInput.space), gestureActive: false, isEditingText: true) == .passThrough)
+        #expect(KeyRouter.decide(KeyInput(key: KeyInput.left, option: true), gestureActive: false, isEditingText: true) == .passThrough)
+    }
 }

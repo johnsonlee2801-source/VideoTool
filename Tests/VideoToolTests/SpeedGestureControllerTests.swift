@@ -18,7 +18,8 @@ final class FakeEngine: PlayerEngine {
     func stop() {}
     func setPaused(_ paused: Bool) { setPausedCalls.append(paused); state.isPaused = paused }
     func togglePause() { togglePauseCount += 1; state.isPaused.toggle() }
-    func seek(to seconds: Double) {}
+    var seeks: [Double] = []
+    func seek(to seconds: Double) { seeks.append(seconds) }
     func seek(by delta: Double) {}
     func scrub(to seconds: Double) {}
     func setSpeed(_ speed: Double) { setSpeedCalls.append(speed); state.speed = speed }

@@ -38,4 +38,11 @@ import Testing
         #expect(cmd(KeyInput.escape) == nil)
         #expect(cmd("") == nil)
     }
+
+    @Test("B stars the current moment; ⌥← / ⌥→ jump between stars") func bookmarkKeys() {
+        #expect(cmd("b") == .toggleBookmark)
+        #expect(cmd(KeyInput.left, option: true) == .previousBookmark)
+        #expect(cmd(KeyInput.right, option: true) == .nextBookmark)
+        #expect(cmd("b", option: true) == nil)
+    }
 }

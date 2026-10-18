@@ -68,7 +68,10 @@ final class PlayerView: NSView {
 
     // MARK: mouse -> gesture
 
-    override func mouseDown(with event: NSEvent) { gesture.mouseDown() }
+    override func mouseDown(with event: NSEvent) {
+        window?.makeFirstResponder(self)      // ends a note edit; keys go back to the player
+        gesture.mouseDown()
+    }
     override func mouseDragged(with event: NSEvent) { /* position is polled by the gesture tick */ }
     override func mouseUp(with event: NSEvent) { gesture.mouseUp() }
 

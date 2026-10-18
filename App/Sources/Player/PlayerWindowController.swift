@@ -1,7 +1,7 @@
 import AppKit
 import UniformTypeIdentifiers
 
-final class PlayerWindowController: NSWindowController, NSWindowDelegate {
+final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenuItemValidation {
     private let session: PlaybackSession?
     private var engine: MPVEngine? { session?.engine }
     private let playerView: PlayerView?
@@ -20,10 +20,25 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate {
     private var keyMonitor: Any?
     private var currentURL: URL?
 
+    // Step 3: starred moments
+    private let bookmarks: BookmarkController?
+    private let markers = BookmarkMarkersView()
+    private let preview = BookmarkPreviewView()
+    private let listPanel = BookmarkListView()
+    private var listWidth: NSLayoutConstraint?
+    private let starButton = NSButton(title: "", target: nil, action: nil)
+    private let listButton = NSButton(title: "", target: nil, action: nil)
+    /// Pixels around a star in which a click on the bar snaps to it.
+    private static let snapRadius: CGFloat = 6
+    static let listPanelWidth: CGFloat = 280
+
     init() {
         let session = try? PlaybackSession()
         self.session = session
         self.playerView = session.map { PlayerView(session: $0) }
+        self.bookmarks = session.flatMap { s in
+            (try? BookmarkStore()).map { BookmarkController(store: $0, engine: s.engine) }
+        }
 
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1280, height: 720 + 40),
                               styleMask: [.titled, .closable, .miniaturizable, .resizable],
@@ -38,6 +53,7 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate {
         window.delegate = self
         buildContent()
         wireEngine()
+        wireBookmarks()
         installKeyMonitor()
     }
 
@@ -73,7 +89,20 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate {
         slider.isContinuous = true
         slider.controlSize = .small
 
-        let stack = NSStackView(views: [playButton, timeLabel, slider, durationLabel])
+        for (button, symbol, tip, action) in [
+            (starButton, "star", "打星标（B）", #selector(toggleBookmark(_:))),
+            (listButton, "list.star", "星标列表（⇧⌘B）", #selector(toggleBookmarkList(_:))),
+        ] {
+            button.isBordered = false
+            button.image = NSImage(systemSymbolName: symbol, accessibilityDescription: tip)
+            button.contentTintColor = .white
+            button.toolTip = tip
+            button.target = self
+            button.action = action
+            button.widthAnchor.constraint(equalToConstant: 24).isActive = true
+        }
+
+        let stack = NSStackView(views: [playButton, timeLabel, slider, durationLabel, starButton, listButton])
         stack.orientation = .horizontal
         stack.spacing = 10
         stack.edgeInsets = NSEdgeInsets(top: 0, left: 12, bottom: 0, right: 12)
@@ -91,12 +120,36 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate {
             playButton.widthAnchor.constraint(equalToConstant: 28),
         ]
 
+        // Star markers sit exactly over the slider; the preview floats above the bar.
+        markers.slider = slider
+        markers.translatesAutoresizingMaskIntoConstraints = false
+        controlBar.addSubview(markers)
+        preview.translatesAutoresizingMaskIntoConstraints = true
+        constraints += [
+            markers.leadingAnchor.constraint(equalTo: slider.leadingAnchor),
+            markers.trailingAnchor.constraint(equalTo: slider.trailingAnchor),
+            markers.topAnchor.constraint(equalTo: controlBar.topAnchor),
+            markers.bottomAnchor.constraint(equalTo: controlBar.bottomAnchor),
+        ]
+
+        listPanel.translatesAutoresizingMaskIntoConstraints = false
+        listPanel.isHidden = true
+        content.addSubview(listPanel)
+        let width = listPanel.widthAnchor.constraint(equalToConstant: 0)
+        listWidth = width
+        constraints += [
+            width,
+            listPanel.trailingAnchor.constraint(equalTo: content.trailingAnchor),
+            listPanel.topAnchor.constraint(equalTo: content.topAnchor),
+            listPanel.bottomAnchor.constraint(equalTo: controlBar.topAnchor),
+        ]
+
         if let playerView {
             playerView.translatesAutoresizingMaskIntoConstraints = false
             content.addSubview(playerView, positioned: .below, relativeTo: controlBar)
             constraints += [
                 playerView.leadingAnchor.constraint(equalTo: content.leadingAnchor),
-                playerView.trailingAnchor.constraint(equalTo: content.trailingAnchor),
+                playerView.trailingAnchor.constraint(equalTo: listPanel.leadingAnchor),
                 playerView.topAnchor.constraint(equalTo: content.topAnchor),
                 playerView.bottomAnchor.constraint(equalTo: controlBar.topAnchor),
             ]
@@ -113,6 +166,68 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate {
                             error.centerYAnchor.constraint(equalTo: content.centerYAnchor)]
         }
         NSLayoutConstraint.activate(constraints)
+        content.addSubview(preview)            // last: floats above everything, never takes clicks
+    }
+
+    // MARK: stars
+
+    private func wireBookmarks() {
+        guard let bookmarks else { starButton.isEnabled = false; listButton.isEnabled = false; return }
+        bookmarks.onChange = { [weak self] list in
+            self?.markers.bookmarks = list
+            self?.listPanel.show(list)
+        }
+        bookmarks.onError = { error in NSLog("bookmarks: %@", "\(error)") }
+        listPanel.onJump = { [weak bookmarks] b in bookmarks?.jump(to: b) }
+        listPanel.onNoteChange = { [weak bookmarks] id, note in bookmarks?.updateNote(id, note) }
+        listPanel.onDelete = { [weak bookmarks] id in bookmarks?.delete(id) }
+        bookmarks.onThumbnailReady = { [weak self] id in self?.refreshPreview(ifShowing: id) }
+        markers.onHover = { [weak self] b, x in self?.showPreview(b, atMarkerX: x) }
+        listPanel.show([])
+    }
+
+    private var previewing: (bookmark: Bookmark, x: CGFloat)?
+
+    private func refreshPreview(ifShowing id: UUID) {
+        guard let p = previewing, p.bookmark.id == id else { return }
+        showPreview(p.bookmark, atMarkerX: p.x)
+    }
+
+    private func showPreview(_ b: Bookmark?, atMarkerX x: CGFloat) {
+        guard let b, let content = window?.contentView else { previewing = nil; preview.hide(); return }
+        previewing = (b, x)
+        let anchor = content.convert(NSPoint(x: x, y: markers.bounds.minY), from: markers)
+        var frame = preview.frame
+        frame.origin.x = min(max(anchor.x - frame.width / 2, 6), content.bounds.width - frame.width - 6)
+        frame.origin.y = controlBar.frame.maxY + 6
+        preview.frame = frame
+        preview.show(b, thumbnail: bookmarks?.thumbnailURL(for: b))
+    }
+
+    @objc func toggleBookmark(_ sender: Any?) {
+        guard let bookmarks else { return }
+        switch bookmarks.toggleAtCurrentTime() {
+        case .added(let b)?: playerView?.hud.flash(text: "★ " + TimeFormatting.string(b.time))
+        case .undone?: playerView?.hud.flash(text: "已撤销星标")
+        case .notReady?: playerView?.hud.flash(text: "正在识别文件…")
+        case .unavailable?: playerView?.hud.flash(text: "此文件无法打星标")
+        case nil: break
+        }
+    }
+
+    @objc func nextBookmark(_ sender: Any?) {
+        if bookmarks?.jumpToNext() == false { playerView?.hud.flash(text: "后面没有星标了") }
+    }
+
+    @objc func previousBookmark(_ sender: Any?) {
+        if bookmarks?.jumpToPrevious() == false { playerView?.hud.flash(text: "前面没有星标了") }
+    }
+
+    @objc func toggleBookmarkList(_ sender: Any?) {
+        let show = listPanel.isHidden
+        listPanel.isHidden = !show
+        listWidth?.constant = show ? Self.listPanelWidth : 0
+        listButton.contentTintColor = show ? .systemYellow : .white
     }
 
     // MARK: engine wiring
@@ -134,6 +249,7 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate {
         timeLabel.stringValue = TimeFormatting.string(state.timePos)
         durationLabel.stringValue = TimeFormatting.string(state.duration)
         slider.isEnabled = state.duration > 0
+        if markers.duration != state.duration { markers.duration = state.duration }
 
         let name = currentURL?.lastPathComponent ?? ""
         let title = state.mediaTitle.isEmpty ? name : state.mediaTitle
@@ -158,6 +274,7 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate {
         switch event {
         case .fileLoaded(let path, let duration):
             resumeTracker.fileLoaded(path: path, duration: duration).forEach(apply)
+            bookmarks?.open(path: path)         // identifies the file off the main thread
             engine.setPaused(false)
         case .endFile:
             // With keep-open, natural EOF does not end the file; eofReached in
@@ -173,6 +290,8 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate {
     func open(_ url: URL) {
         guard let engine else { return }
         saveResumeNow()
+        bookmarks?.fileClosed()
+        preview.hide()
         currentURL = url
         NSDocumentController.shared.noteNewRecentDocumentURL(url)
         engine.load(url)
@@ -216,7 +335,11 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate {
             engine.scrub(to: sender.doubleValue)          // keyframe seek while dragging
         } else {
             isScrubbing = false
-            engine.seek(to: sender.doubleValue)           // exact seek for the final position
+            // A click near a star lands 2 s before it (user decision 2026-10-18).
+            let width = max(markers.track().width, 1)     // same geometry the stars are drawn with
+            let tolerance = Double(Self.snapRadius) * engine.state.duration / width
+            let target = bookmarks?.seekTarget(forClickAt: sender.doubleValue, tolerance: tolerance) ?? sender.doubleValue
+            engine.seek(to: target)                       // exact seek for the final position
         }
     }
 
@@ -232,6 +355,23 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate {
         case .cycleAudio: engine.cycleAudio()
         case .speedDelta(let d): engine.setSpeed(engine.state.speed + d)
         case .resetSpeed: engine.setSpeed(1.0)
+        case .toggleBookmark: toggleBookmark(nil)
+        case .previousBookmark: previousBookmark(nil)
+        case .nextBookmark: nextBookmark(nil)
+        }
+    }
+
+    // MARK: menu validation
+
+    func validateMenuItem(_ item: NSMenuItem) -> Bool {
+        switch item.action {
+        case #selector(toggleBookmark(_:)), #selector(nextBookmark(_:)), #selector(previousBookmark(_:)):
+            return bookmarks?.isReady == true
+        case #selector(toggleBookmarkList(_:)):
+            item.state = listPanel.isHidden ? .off : .on
+            return bookmarks != nil
+        default:
+            return true
         }
     }
 
@@ -243,7 +383,9 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate {
             let gestureActive = self.playerView?.gesture.isActive ?? false
             // Any key press while the button is down ends the gesture without a tap.
             if gestureActive { self.playerView?.gesture.cancel() }
-            switch KeyRouter.decide(KeyRouter.input(from: event), gestureActive: gestureActive) {
+            let editingText = self.window?.firstResponder is NSText      // typing a star note
+            switch KeyRouter.decide(KeyRouter.input(from: event), gestureActive: gestureActive,
+                                    isEditingText: editingText) {
             case .perform(let command): self.perform(command); return nil
             case .cancelGestureOnly: return nil
             case .cancelGestureAndPassThrough, .passThrough: return event

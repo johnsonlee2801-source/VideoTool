@@ -87,6 +87,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         playMenu.addItem(withTitle: "减速 0.1×", action: #selector(PlayerWindowController.speedDown(_:)), keyEquivalent: "[")
         playMenu.addItem(withTitle: "恢复 1.0×", action: #selector(PlayerWindowController.resetSpeed(_:)), keyEquivalent: "\u{8}")
         playMenu.addItem(.separator())
+        // B and ⌥←/⌥→ are handled by the player's key monitor; shown here for discoverability.
+        playMenu.addItem(withTitle: "打星标 / 撤销   B", action: #selector(PlayerWindowController.toggleBookmark(_:)), keyEquivalent: "")
+        playMenu.addItem(withTitle: "上一个星标   ⌥←", action: #selector(PlayerWindowController.previousBookmark(_:)), keyEquivalent: "")
+        playMenu.addItem(withTitle: "下一个星标   ⌥→", action: #selector(PlayerWindowController.nextBookmark(_:)), keyEquivalent: "")
+        let list = playMenu.addItem(withTitle: "星标列表", action: #selector(PlayerWindowController.toggleBookmarkList(_:)), keyEquivalent: "b")
+        list.keyEquivalentModifierMask = [.command, .shift]
+        playMenu.addItem(.separator())
         playMenu.addItem(withTitle: "切换字幕轨", action: #selector(PlayerWindowController.cycleSubtitle(_:)), keyEquivalent: "s")
         playMenu.addItem(withTitle: "切换音轨", action: #selector(PlayerWindowController.cycleAudio(_:)), keyEquivalent: "a")
         playMenu.addItem(withTitle: "静音", action: #selector(PlayerWindowController.toggleMute(_:)), keyEquivalent: "m")

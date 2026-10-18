@@ -16,8 +16,10 @@ enum KeyDecision: Equatable {
 enum KeyRouter {
     static let plainKeyCancelsOnly = true
 
-    static func decide(_ input: KeyInput?, gestureActive: Bool,
+    static func decide(_ input: KeyInput?, gestureActive: Bool, isEditingText: Bool = false,
                        plainKeyCancelsOnly: Bool = KeyRouter.plainKeyCancelsOnly) -> KeyDecision {
+        // Typing a star note: the text field owns every key.
+        if isEditingText { return .passThrough }
         let isChord = input.map { $0.command || $0.control || $0.option } ?? true
         if gestureActive {
             if isChord { return .cancelGestureAndPassThrough }

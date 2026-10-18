@@ -9,7 +9,12 @@ desktop players don't do well:
    then +0.1× per 10 pt up to 6×) or left to slow down (to 0.5×). Release
    restores the previous speed. A short click still toggles pause; any key
    pressed while holding just cancels the speed-up.
-2. **Starred moments** on the timeline (planned).
+2. **Starred moments** on the timeline. Press **B** to star the current
+   moment (no pause, no dialog); press it again right away to undo. Stars show
+   as yellow marks on the progress bar with a thumbnail on hover; ⌥← / ⌥→ and
+   clicks near a star jump to **2 s before** it; ⇧⌘B opens the list to add
+   notes or delete. Stars follow the file's content (OpenSubtitles hash), so
+   renaming or moving a video keeps them.
 3. **An auto-organised local library** (planned; indexes, never moves files).
 
 一个基于 libmpv 的 macOS 播放器：按住画面加速、左右拖动连续调速；进度条星标节点、本地视频库自动归类在规划中。
@@ -21,7 +26,7 @@ desktop players don't do well:
       open / drag-drop / ⌘O, resume position, keyboard shortcuts, registers
       for ~50 video/audio extensions and can be set as the default player
 - [x] Step 2 — hold-and-drag speed wired to the real player
-- [ ] Step 3 — starred moments
+- [x] Step 3 — starred moments (SQLite in `~/Library/Application Support/VideoTool/`)
 - [ ] Step 4 — library
 
 ## Build
@@ -48,7 +53,7 @@ The built app is at
 | Suite | Command | What it covers |
 |---|---|---|
 | Core | `VideoToolCore/scripts/test-direct.sh` (or `swift test` in `VideoToolCore/`) | speed curve, option validation, hold/drag state machine |
-| App unit | `scripts/xcb.sh test -skip-testing:VideoToolTests/MPVIntegrationTests` | media types vs Info.plist, key routing, resume tracking, launch opening, gesture controller |
+| App unit | `scripts/xcb.sh test -skip-testing:VideoToolTests/MPVIntegrationTests` | media types vs Info.plist, key routing, resume tracking, launch opening, gesture controller, stars (fingerprint, store, navigation, controller) |
 | Integration | `scripts/xcb.sh test -only-testing:VideoToolTests/MPVIntegrationTests` | real libmpv: render context, playback, speed, pause, EOF, shutdown races, resume end-to-end |
 | Prototype | `prototype/tests/run.sh` (needs `luajit`), `prototype/tests/live.sh` (needs `mpv`) | the original Lua gesture and its mpv adapter |
 

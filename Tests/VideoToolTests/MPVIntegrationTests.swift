@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import Testing
 @testable import VideoTool
@@ -170,5 +171,54 @@ private func waitUntil(_ timeout: Double = 5, _ condition: () -> Bool) async -> 
                 "\(saved)")
         #expect(!saved.contains { if case .save(_, let pos) = $0 { return pos < 7 } else { return false } }, "stale pre-seek save: \(saved)")
         session.shutdown()
+    }
+
+    @Test("I11 thumbnails come from a separate software-decoding mpv, so they work even when playback uses VideoToolbox")
+    func thumbnailExtraction() async throws {
+        let out = FileManager.default.temporaryDirectory.appendingPathComponent("thumb-\(UUID().uuidString).jpg")
+        let ok: Bool = await withCheckedContinuation { cont in
+            MPVThumbnailMaker().makeThumbnail(source: sample, at: 5, to: out) { cont.resume(returning: $0) }
+        }
+        #expect(ok, "\(MPVThumbnailMaker.lastFailure ?? "")")
+        guard ok else { return }
+        let data = try Data(contentsOf: out)
+        #expect(Array(data.prefix(3)) == [0xFF, 0xD8, 0xFF], "JPEG magic")
+        #expect(data.count > 1000)
+        let image = try #require(NSImage(contentsOf: out))
+        #expect(image.size.width <= CGFloat(MPVThumbnailMaker.width) + 1, "scaled down: \(image.size)")
+    }
+
+    @Test("I12 a thumbnail request for a missing file reports failure instead of hanging")
+    func thumbnailMissingFile() async {
+        let out = FileManager.default.temporaryDirectory.appendingPathComponent("thumb-\(UUID().uuidString).jpg")
+        let ok: Bool = await withCheckedContinuation { cont in
+            MPVThumbnailMaker().makeThumbnail(source: "/nonexistent/\(UUID()).mp4", at: 1, to: out) { cont.resume(returning: $0) }
+        }
+        #expect(!ok)
+        #expect(!FileManager.default.fileExists(atPath: out.path))
+    }
+
+    @Test("I13 glue end to end: the real fixture opened through BookmarkController gets its content key and stars persist")
+    func bookmarksEndToEnd() async throws {
+        let session = try PlaybackSession()
+        let db = FileManager.default.temporaryDirectory.appendingPathComponent("e2e-\(UUID().uuidString).sqlite").path
+        let controller = BookmarkController(store: try BookmarkStore(path: db), engine: session.engine, thumbnails: nil)
+        controller.open(path: sample)
+        #expect(await waitUntil { controller.fileKey != nil })
+        #expect(controller.fileKey == "osh:58658fd4882cf11c")
+        _ = controller.toggleAtCurrentTime()
+        let again = BookmarkController(store: try BookmarkStore(path: db), engine: session.engine, thumbnails: nil)
+        again.open(path: sample)
+        #expect(await waitUntil { again.bookmarks.count == 1 })
+        session.shutdown()
+    }
+
+    @Test("I14 a star at the very end of the video still yields a thumbnail or fails cleanly")
+    func thumbnailAtEnd() async {
+        let out = FileManager.default.temporaryDirectory.appendingPathComponent("thumb-\(UUID().uuidString).jpg")
+        let ok: Bool = await withCheckedContinuation { cont in
+            MPVThumbnailMaker().makeThumbnail(source: sample, at: 20.0, to: out) { cont.resume(returning: $0) }
+        }
+        #expect(ok == FileManager.default.fileExists(atPath: out.path))
     }
 }

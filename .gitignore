@@ -3,3 +3,4 @@ DerivedData-build.log
 .build/
 .build-direct/
 *.xcresult
+.DS_Store
