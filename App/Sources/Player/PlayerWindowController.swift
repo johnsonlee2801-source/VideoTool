@@ -15,7 +15,12 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     private let playButton = NSButton(title: "", target: nil, action: nil)
     private let timeLabel = NSTextField(labelWithString: "0:00")
     private let durationLabel = NSTextField(labelWithString: "0:00")
-    private let slider = NSSlider(value: 0, minValue: 0, maxValue: 1, target: nil, action: nil)
+    private let slider: NSSlider = {
+        let s = NSSlider(value: 0, minValue: 0, maxValue: 1, target: nil, action: nil)
+        s.cell = PlayerSliderCell()
+        return s
+    }()
+    private let speedChip = NSButton(title: "", target: nil, action: nil)
     private var isScrubbing = false
     private var keyMonitor: Any?
     private var currentURL: URL?
@@ -30,7 +35,8 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     private let listButton = NSButton(title: "", target: nil, action: nil)
     /// Pixels around a star in which a click on the bar snaps to it.
     private static let snapRadius: CGFloat = 6
-    static let listPanelWidth: CGFloat = 280
+    static let listPanelWidth: CGFloat = 300
+    static let controlBarHeight: CGFloat = 52
 
     init() {
         let session = try? PlaybackSession()
@@ -40,13 +46,15 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
             (try? BookmarkStore()).map { BookmarkController(store: $0, engine: s.engine) }
         }
 
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1280, height: 720 + 40),
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1280, height: 720 + Self.controlBarHeight),
                               styleMask: [.titled, .closable, .miniaturizable, .resizable],
                               backing: .buffered, defer: false)
         window.title = "VideoTool"
-        window.minSize = NSSize(width: 480, height: 270 + 40)
+        window.minSize = NSSize(width: 520, height: 270 + Self.controlBarHeight)
         window.collectionBehavior.insert(.fullScreenPrimary)
-        window.backgroundColor = .black
+        window.backgroundColor = Theme.bg0
+        window.titlebarAppearsTransparent = true
+        window.appearance = NSAppearance(named: .darkAqua)
         window.center()
         window.setFrameAutosaveName("VideoTool.PlayerWindow")
         super.init(window: window)
@@ -65,25 +73,48 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         guard let window else { return }
         let content = NSView()
         content.wantsLayer = true
-        content.layer?.backgroundColor = NSColor.black.cgColor
+        content.layer?.backgroundColor = Theme.bg0.cgColor
         window.contentView = content
 
         controlBar.wantsLayer = true
-        controlBar.layer?.backgroundColor = NSColor(white: 0.12, alpha: 1).cgColor
+        controlBar.layer?.backgroundColor = Theme.bg1.cgColor
+        let hairline = NSView()
+        hairline.wantsLayer = true
+        hairline.layer?.backgroundColor = Theme.stroke.cgColor
+        hairline.translatesAutoresizingMaskIntoConstraints = false
+        controlBar.addSubview(hairline)
+        NSLayoutConstraint.activate([
+            hairline.topAnchor.constraint(equalTo: controlBar.topAnchor),
+            hairline.leadingAnchor.constraint(equalTo: controlBar.leadingAnchor),
+            hairline.trailingAnchor.constraint(equalTo: controlBar.trailingAnchor),
+            hairline.heightAnchor.constraint(equalToConstant: 1),
+        ])
         controlBar.translatesAutoresizingMaskIntoConstraints = false
         content.addSubview(controlBar)
 
         playButton.bezelStyle = .texturedRounded
         playButton.isBordered = false
         playButton.image = NSImage(systemSymbolName: "play.fill", accessibilityDescription: "播放")
-        playButton.contentTintColor = .white
+        playButton.symbolConfiguration = .init(pointSize: 17, weight: .black)
+        playButton.contentTintColor = Theme.textPrimary
         playButton.target = self
         playButton.action = #selector(togglePause(_:))
 
-        for label in [timeLabel, durationLabel] {
-            label.font = .monospacedDigitSystemFont(ofSize: 12, weight: .regular)
-            label.textColor = NSColor.white.withAlphaComponent(0.85)
-        }
+        timeLabel.font = Theme.digits(13, .bold)
+        timeLabel.textColor = Theme.textPrimary
+        durationLabel.font = Theme.digits(13, .semibold)
+        durationLabel.textColor = Theme.textSecondary
+
+        speedChip.isBordered = false
+        speedChip.wantsLayer = true
+        speedChip.layer?.cornerRadius = Theme.radiusSmall
+        speedChip.layer?.backgroundColor = Theme.accent.withAlphaComponent(0.18).cgColor
+        speedChip.contentTintColor = Theme.accent
+        speedChip.font = Theme.digits(12, .heavy)
+        speedChip.toolTip = "点一下恢复 1.0×"
+        speedChip.target = self
+        speedChip.action = #selector(resetSpeed(_:))
+        speedChip.isHidden = true
         slider.target = self
         slider.action = #selector(sliderMoved(_:))
         slider.isContinuous = true
@@ -95,17 +126,18 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         ] {
             button.isBordered = false
             button.image = NSImage(systemSymbolName: symbol, accessibilityDescription: tip)
-            button.contentTintColor = .white
+            button.symbolConfiguration = .init(pointSize: 15, weight: .bold)
+            button.contentTintColor = Theme.textPrimary
             button.toolTip = tip
             button.target = self
             button.action = action
             button.widthAnchor.constraint(equalToConstant: 24).isActive = true
         }
 
-        let stack = NSStackView(views: [playButton, timeLabel, slider, durationLabel, starButton, listButton])
+        let stack = NSStackView(views: [playButton, timeLabel, slider, durationLabel, speedChip, starButton, listButton])
         stack.orientation = .horizontal
-        stack.spacing = 10
-        stack.edgeInsets = NSEdgeInsets(top: 0, left: 12, bottom: 0, right: 12)
+        stack.spacing = 12
+        stack.edgeInsets = NSEdgeInsets(top: 0, left: 16, bottom: 0, right: 16)
         stack.translatesAutoresizingMaskIntoConstraints = false
         controlBar.addSubview(stack)
 
@@ -113,7 +145,7 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
             controlBar.leadingAnchor.constraint(equalTo: content.leadingAnchor),
             controlBar.trailingAnchor.constraint(equalTo: content.trailingAnchor),
             controlBar.bottomAnchor.constraint(equalTo: content.bottomAnchor),
-            controlBar.heightAnchor.constraint(equalToConstant: 40),
+            controlBar.heightAnchor.constraint(equalToConstant: Self.controlBarHeight),
             stack.leadingAnchor.constraint(equalTo: controlBar.leadingAnchor),
             stack.trailingAnchor.constraint(equalTo: controlBar.trailingAnchor),
             stack.centerYAnchor.constraint(equalTo: controlBar.centerYAnchor),
@@ -227,7 +259,7 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         let show = listPanel.isHidden
         listPanel.isHidden = !show
         listWidth?.constant = show ? Self.listPanelWidth : 0
-        listButton.contentTintColor = show ? .systemYellow : .white
+        listButton.contentTintColor = show ? Theme.accent : Theme.textPrimary
     }
 
     // MARK: engine wiring
@@ -250,6 +282,9 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         durationLabel.stringValue = TimeFormatting.string(state.duration)
         slider.isEnabled = state.duration > 0
         if markers.duration != state.duration { markers.duration = state.duration }
+        let fast = abs(state.speed - 1.0) > 0.001
+        speedChip.isHidden = !fast
+        if fast { speedChip.title = String(format: "%.1f×", state.speed) }
 
         let name = currentURL?.lastPathComponent ?? ""
         let title = state.mediaTitle.isEmpty ? name : state.mediaTitle
@@ -330,16 +365,15 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         guard let engine else { return }
         // Only a drag is "scrubbing". A plain click, the mouse-up, or keyboard
         // changes end it, so the slider always resumes following playback.
-        if NSApp.currentEvent?.type == .leftMouseDragged {
-            isScrubbing = true
-            engine.scrub(to: sender.doubleValue)          // keyframe seek while dragging
-        } else {
-            isScrubbing = false
-            // A click near a star lands 2 s before it (user decision 2026-10-18).
-            let width = max(markers.track().width, 1)     // same geometry the stars are drawn with
-            let tolerance = Double(Self.snapRadius) * engine.state.duration / width
-            let target = bookmarks?.seekTarget(forClickAt: sender.doubleValue, tolerance: tolerance) ?? sender.doubleValue
-            engine.seek(to: target)                       // exact seek for the final position
+        // A click near a star lands 2 s before it (user decision 2026-10-18); see ScrubPolicy.
+        let decision = ScrubPolicy.decide(
+            isDrag: NSApp.currentEvent?.type == .leftMouseDragged, value: sender.doubleValue,
+            duration: engine.state.duration, trackWidth: markers.track().width, snapRadius: Double(Self.snapRadius),
+            snap: { [weak self] v, t in self?.bookmarks?.seekTarget(forClickAt: v, tolerance: t) ?? v })
+        isScrubbing = decision.isScrubbing
+        switch decision.seek {
+        case .keyframe(let t): engine.scrub(to: t)
+        case .exact(let t): engine.seek(to: t)
         }
     }
 
@@ -359,6 +393,35 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         case .previousBookmark: previousBookmark(nil)
         case .nextBookmark: nextBookmark(nil)
         }
+    }
+
+    // MARK: snapshot staging (tests only)
+
+    /// Puts the window into a representative state for UI snapshot tests:
+    /// a still frame in place of the GL video, stars, a position, optionally the list and a preview.
+    func stageForSnapshot(frame: NSImage?, bookmarks list: [Bookmark], duration: Double, position: Double,
+                          showList: Bool, previewFirst: Bool, hud: String?) {
+        if let frame, let playerView {
+            let still = NSImageView(image: frame)
+            still.imageScaling = .scaleProportionallyUpOrDown
+            still.frame = playerView.bounds
+            still.autoresizingMask = [.width, .height]
+            playerView.addSubview(still, positioned: .below, relativeTo: nil)
+            playerView.showsPlaceholder = false
+        }
+        slider.maxValue = duration
+        slider.doubleValue = position
+        slider.isEnabled = true
+        timeLabel.stringValue = TimeFormatting.string(position)
+        durationLabel.stringValue = TimeFormatting.string(duration)
+        playButton.image = NSImage(systemSymbolName: "pause.fill", accessibilityDescription: nil)
+        markers.duration = duration
+        markers.bookmarks = list
+        listPanel.show(list)
+        if showList && listPanel.isHidden { toggleBookmarkList(nil) }
+        window?.contentView?.layoutSubtreeIfNeeded()
+        if previewFirst, let b = list.first, let x = markers.x(for: b) { showPreview(b, atMarkerX: x) }
+        if let hud { playerView?.hud.show(speed: Double(hud) ?? 2.0, dx: 0) }
     }
 
     // MARK: menu validation

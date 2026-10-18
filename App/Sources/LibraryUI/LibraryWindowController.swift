@@ -15,6 +15,14 @@ final class LibraryWindowController: NSWindowController, NSWindowDelegate,
     private let searchField = NSSearchField()
     private let status = NSTextField(labelWithString: "")
     private let empty = NSTextField(wrappingLabelWithString: "")
+    private let emptyIcon = NSImageView(image: NSImage(systemSymbolName: "film.stack.fill", accessibilityDescription: nil)!)
+    private let emptyTitle = NSTextField(labelWithString: "")
+    private lazy var emptyStack: NSStackView = {
+        let s = NSStackView(views: [emptyIcon, emptyTitle, empty])
+        s.orientation = .vertical
+        s.spacing = 12
+        return s
+    }()
     private let addButton = NSButton(title: "添加文件夹…", target: nil, action: nil)
     private let rescanButton = NSButton(title: "重新扫描", target: nil, action: nil)
 
@@ -28,6 +36,9 @@ final class LibraryWindowController: NSWindowController, NSWindowDelegate,
                               styleMask: [.titled, .closable, .miniaturizable, .resizable],
                               backing: .buffered, defer: false)
         window.title = "视频库"
+        window.appearance = NSAppearance(named: .darkAqua)
+        window.backgroundColor = Theme.bg0
+        window.titlebarAppearsTransparent = true
         window.minSize = NSSize(width: 720, height: 420)
         window.setFrameAutosaveName("VideoTool.LibraryWindow")
         window.center()
@@ -45,12 +56,17 @@ final class LibraryWindowController: NSWindowController, NSWindowDelegate,
 
     private func build() {
         guard let content = window?.contentView else { return }
+        content.wantsLayer = true
+        content.layer?.backgroundColor = Theme.bg0.cgColor
 
         let col = NSTableColumn(identifier: .init("side"))
         sidebar.addTableColumn(col)
         sidebar.headerView = nil
-        sidebar.style = .sourceList
-        sidebar.rowHeight = 26
+        sidebar.style = .plain
+        sidebar.backgroundColor = Theme.bg1
+        sidebar.rowHeight = 34
+        sidebar.intercellSpacing = NSSize(width: 0, height: 2)
+        sidebar.selectionHighlightStyle = .regular
         sidebar.dataSource = self
         sidebar.delegate = self
         let sideMenu = NSMenu()
@@ -59,19 +75,22 @@ final class LibraryWindowController: NSWindowController, NSWindowDelegate,
         let sideScroll = NSScrollView()
         sideScroll.documentView = sidebar
         sideScroll.hasVerticalScroller = true
+        sideScroll.drawsBackground = true
+        sideScroll.backgroundColor = Theme.bg1
+        sideScroll.contentInsets = NSEdgeInsets(top: 8, left: 0, bottom: 8, right: 0)
 
         let layout = NSCollectionViewFlowLayout()
-        layout.itemSize = NSSize(width: 200, height: 168)
-        layout.minimumInteritemSpacing = 14
-        layout.minimumLineSpacing = 18
-        layout.sectionInset = NSEdgeInsets(top: 8, left: 16, bottom: 18, right: 16)
-        layout.headerReferenceSize = NSSize(width: 100, height: 34)
+        layout.itemSize = LibraryCardItem.layout(forWidth: 1000).itemSize
+        layout.minimumInteritemSpacing = LibraryCardItem.spacing
+        layout.minimumLineSpacing = 22
+        layout.sectionInset = NSEdgeInsets(top: 6, left: LibraryCardItem.sideInset, bottom: 26, right: LibraryCardItem.sideInset)
+        layout.headerReferenceSize = NSSize(width: 100, height: 44)
         grid.collectionViewLayout = layout
         grid.dataSource = self
         grid.delegate = self
         grid.isSelectable = true
         grid.allowsMultipleSelection = false
-        grid.backgroundColors = [NSColor(white: 0.08, alpha: 1)]
+        grid.backgroundColors = [Theme.bg0]
         grid.register(LibraryCardItem.self, forItemWithIdentifier: LibraryCardItem.id)
         grid.register(LibrarySectionHeader.self, forSupplementaryViewOfKind: NSCollectionView.elementKindSectionHeader,
                       withIdentifier: LibrarySectionHeader.id)
@@ -81,23 +100,36 @@ final class LibraryWindowController: NSWindowController, NSWindowDelegate,
         let gridScroll = NSScrollView()
         gridScroll.documentView = grid
         gridScroll.hasVerticalScroller = true
+        gridScroll.backgroundColor = Theme.bg0
 
         searchField.placeholderString = "搜索文件名或标签"
         searchField.delegate = self
+        searchField.controlSize = .large
         addButton.target = self; addButton.action = #selector(addFolder(_:))
         rescanButton.target = self; rescanButton.action = #selector(rescan(_:))
-        status.textColor = .secondaryLabelColor
-        status.font = .systemFont(ofSize: 12)
+        Self.style(addButton, primary: true, symbol: "plus")
+        Self.style(rescanButton, primary: false, symbol: "arrow.clockwise")
+        status.textColor = Theme.textSecondary
+        status.font = .systemFont(ofSize: 12, weight: .medium)
         empty.alignment = .center
-        empty.textColor = .secondaryLabelColor
-        empty.font = .systemFont(ofSize: 14)
+        empty.textColor = Theme.textSecondary
+        empty.font = .systemFont(ofSize: 14, weight: .semibold)
+        emptyIcon.symbolConfiguration = .init(pointSize: 46, weight: .bold)
+        emptyIcon.contentTintColor = Theme.accent
+        emptyTitle.font = Theme.display(24, .heavy)
+        emptyTitle.textColor = Theme.textPrimary
+        emptyTitle.alignment = .center
 
-        let bar = NSStackView(views: [addButton, rescanButton, status, NSView(), searchField])
+        let brand = NSTextField(labelWithString: "视频库")
+        brand.font = Theme.display(20, .heavy)
+        brand.textColor = Theme.textPrimary
+        let bar = NSStackView(views: [brand, addButton, rescanButton, status, NSView(), searchField])
         bar.orientation = .horizontal
-        bar.spacing = 10
-        bar.edgeInsets = NSEdgeInsets(top: 8, left: 12, bottom: 8, right: 12)
+        bar.spacing = 12
+        bar.setCustomSpacing(20, after: brand)
+        bar.edgeInsets = NSEdgeInsets(top: 10, left: 22, bottom: 12, right: 22)
 
-        for v in [bar, sideScroll, gridScroll, empty] as [NSView] {
+        for v in [bar, sideScroll, gridScroll, emptyStack] as [NSView] {
             v.translatesAutoresizingMaskIntoConstraints = false
             content.addSubview(v)
         }
@@ -105,19 +137,35 @@ final class LibraryWindowController: NSWindowController, NSWindowDelegate,
             bar.topAnchor.constraint(equalTo: content.topAnchor),
             bar.leadingAnchor.constraint(equalTo: content.leadingAnchor),
             bar.trailingAnchor.constraint(equalTo: content.trailingAnchor),
-            searchField.widthAnchor.constraint(equalToConstant: 240),
+            searchField.widthAnchor.constraint(equalToConstant: 260),
             sideScroll.topAnchor.constraint(equalTo: bar.bottomAnchor),
             sideScroll.leadingAnchor.constraint(equalTo: content.leadingAnchor),
             sideScroll.bottomAnchor.constraint(equalTo: content.bottomAnchor),
-            sideScroll.widthAnchor.constraint(equalToConstant: 210),
+            sideScroll.widthAnchor.constraint(equalToConstant: 220),
             gridScroll.topAnchor.constraint(equalTo: bar.bottomAnchor),
             gridScroll.leadingAnchor.constraint(equalTo: sideScroll.trailingAnchor),
             gridScroll.trailingAnchor.constraint(equalTo: content.trailingAnchor),
             gridScroll.bottomAnchor.constraint(equalTo: content.bottomAnchor),
-            empty.centerXAnchor.constraint(equalTo: gridScroll.centerXAnchor),
-            empty.centerYAnchor.constraint(equalTo: gridScroll.centerYAnchor),
-            empty.widthAnchor.constraint(equalToConstant: 360),
+            emptyStack.centerXAnchor.constraint(equalTo: gridScroll.centerXAnchor),
+            emptyStack.centerYAnchor.constraint(equalTo: gridScroll.centerYAnchor),
+            empty.widthAnchor.constraint(equalToConstant: 380),
         ])
+    }
+
+    static func style(_ button: NSButton, primary: Bool, symbol: String) {
+        button.isBordered = false
+        button.wantsLayer = true
+        button.layer?.cornerRadius = Theme.radiusSmall + 2
+        button.layer?.backgroundColor = (primary ? Theme.accent : Theme.bg2).cgColor
+        button.image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)
+        button.symbolConfiguration = .init(pointSize: 12, weight: .heavy)
+        button.imagePosition = .imageLeading
+        button.contentTintColor = primary ? .white : Theme.textPrimary
+        button.attributedTitle = NSAttributedString(string: " " + button.title, attributes: [
+            .font: NSFont.systemFont(ofSize: 13, weight: .bold),
+            .foregroundColor: primary ? NSColor.white : Theme.textPrimary])
+        button.heightAnchor.constraint(equalToConstant: 30).isActive = true
+        button.widthAnchor.constraint(greaterThanOrEqualToConstant: primary ? 118 : 96).isActive = true
     }
 
     // MARK: refresh
@@ -139,14 +187,21 @@ final class LibraryWindowController: NSWindowController, NSWindowDelegate,
         refreshStatus()
         rescanButton.isEnabled = !controller.roots.isEmpty && !controller.isIndexing
         if controller.roots.isEmpty {
-            empty.stringValue = "还没有视频文件夹。\n点「添加文件夹…」选一个放视频的文件夹，VideoTool 会自动整理（只建索引，不会移动你的文件）。"
+            emptyTitle.stringValue = "把视频文件夹交给我"
+            emptyIcon.image = NSImage(systemSymbolName: "film.stack.fill", accessibilityDescription: nil)
+            empty.stringValue = "点左上角「添加文件夹…」，VideoTool 会按文件夹、日期、时长、清晰度和画面内容自动整理。\n只建索引，不会移动你的文件。"
         } else if sections.isEmpty {
-            empty.stringValue = controller.isIndexing ? "正在扫描…" :
-                (controller.mode == .duplicates && controller.search.isEmpty ? "没有发现重复文件。" : "没有符合条件的视频。")
+            emptyIcon.image = NSImage(systemSymbolName: controller.isIndexing ? "hourglass" : "sparkle.magnifyingglass",
+                                      accessibilityDescription: nil)
+            emptyTitle.stringValue = controller.isIndexing ? "正在扫描…" :
+                (controller.mode == .duplicates && controller.search.isEmpty ? "没有重复文件" : "没有符合条件的视频")
+            empty.stringValue = controller.isIndexing ? "视频多的话需要一会儿，可以先去看片。" :
+                (controller.mode == .duplicates && controller.search.isEmpty ? "两份内容完全一样的视频会出现在这里。" : "换个关键词试试。")
         } else {
+            emptyTitle.stringValue = ""
             empty.stringValue = ""
         }
-        empty.isHidden = empty.stringValue.isEmpty
+        emptyStack.isHidden = empty.stringValue.isEmpty
     }
 
     // MARK: actions
@@ -179,6 +234,7 @@ final class LibraryWindowController: NSWindowController, NSWindowDelegate,
         if let item = item(at: IndexPath(item: index, section: section)) { open(item) }
     }
     var emptyMessageForTesting: String { empty.stringValue }
+    func setModeForSnapshot(_ mode: LibraryGroupingMode) { controller.mode = mode }
 
     // MARK: sidebar
 
@@ -186,19 +242,64 @@ final class LibraryWindowController: NSWindowController, NSWindowDelegate,
 
     func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
         let label = NSTextField(labelWithString: "")
+        label.lineBreakMode = .byTruncatingMiddle
+        let selected = tableView.selectedRow == row
         switch sidebarRows[row] {
         case .header(let t):
-            label.stringValue = t
-            label.font = .systemFont(ofSize: 11, weight: .semibold)
-            label.textColor = .secondaryLabelColor
+            label.stringValue = t.uppercased()
+            label.font = .systemFont(ofSize: 11, weight: .heavy)
+            label.textColor = Theme.textTertiary
+            return Self.sidebarCell(icon: nil, label: label, indent: 16)
         case .mode(let m):
             label.stringValue = m.title
+            label.font = .systemFont(ofSize: 13, weight: selected ? .heavy : .semibold)
+            label.textColor = selected ? Theme.textPrimary : Theme.textSecondary
+            return Self.sidebarCell(icon: Self.symbol(for: m), label: label, indent: 12,
+                                    tint: selected ? Theme.accent : Theme.textSecondary)
         case .root(let p):
-            label.stringValue = "📁 " + (p as NSString).lastPathComponent
+            label.stringValue = (p as NSString).lastPathComponent
+            label.font = .systemFont(ofSize: 13, weight: .semibold)
+            label.textColor = Theme.textSecondary
             label.toolTip = p
+            return Self.sidebarCell(icon: "folder.fill", label: label, indent: 12, tint: Theme.accent2)
         }
-        label.lineBreakMode = .byTruncatingMiddle
-        return label
+    }
+
+    func tableView(_ tableView: NSTableView, rowViewForRow row: Int) -> NSTableRowView? { SidebarRowView() }
+
+    private static func symbol(for mode: LibraryGroupingMode) -> String {
+        switch mode {
+        case .all: return "square.grid.2x2.fill"
+        case .folder: return "folder.fill"
+        case .date: return "calendar"
+        case .duration: return "clock.fill"
+        case .resolution: return "tv.fill"
+        case .duplicates: return "doc.on.doc.fill"
+        case .tag: return "tag.fill"
+        }
+    }
+
+    private static func sidebarCell(icon: String?, label: NSTextField, indent: CGFloat, tint: NSColor = Theme.textSecondary) -> NSView {
+        let cell = NSView()
+        var views: [NSView] = []
+        if let icon {
+            let image = NSImageView(image: NSImage(systemSymbolName: icon, accessibilityDescription: nil)!)
+            image.symbolConfiguration = .init(pointSize: 13, weight: .bold)
+            image.contentTintColor = tint
+            image.widthAnchor.constraint(equalToConstant: 18).isActive = true
+            views.append(image)
+        }
+        views.append(label)
+        let stack = NSStackView(views: views)
+        stack.spacing = 9
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        cell.addSubview(stack)
+        NSLayoutConstraint.activate([
+            stack.leadingAnchor.constraint(equalTo: cell.leadingAnchor, constant: indent),
+            stack.trailingAnchor.constraint(lessThanOrEqualTo: cell.trailingAnchor, constant: -10),
+            stack.centerYAnchor.constraint(equalTo: cell.centerYAnchor),
+        ])
+        return cell
     }
 
     func tableView(_ tableView: NSTableView, isGroupRow row: Int) -> Bool {
@@ -212,6 +313,7 @@ final class LibraryWindowController: NSWindowController, NSWindowDelegate,
     }
 
     func tableViewSelectionDidChange(_ notification: Notification) {
+        sidebar.reloadData(forRowIndexes: IndexSet(integersIn: 0..<sidebarRows.count), columnIndexes: [0])
         let row = sidebar.selectedRow
         guard sidebarRows.indices.contains(row), case .mode(let m) = sidebarRows[row], m != controller.mode else { return }
         controller.mode = m
@@ -256,10 +358,18 @@ final class LibraryWindowController: NSWindowController, NSWindowDelegate,
     func collectionView(_ collectionView: NSCollectionView, viewForSupplementaryElementOfKind kind: NSCollectionView.SupplementaryElementKind,
                         at indexPath: IndexPath) -> NSView {
         let view = collectionView.makeSupplementaryView(ofKind: kind, withIdentifier: LibrarySectionHeader.id, for: indexPath)
-        (view as? LibrarySectionHeader)?.label.stringValue =
-            "\(sections[indexPath.section].title)  ·  \(sections[indexPath.section].items.count)"
+        (view as? LibrarySectionHeader)?.set(title: sections[indexPath.section].title,
+                                             count: sections[indexPath.section].items.count)
         return view
     }
+
+    /// Cards widen to fill each row (adaptive column count).
+    func collectionView(_ collectionView: NSCollectionView, layout collectionViewLayout: NSCollectionViewLayout,
+                        sizeForItemAt indexPath: IndexPath) -> NSSize {
+        LibraryCardItem.layout(forWidth: Double(collectionView.bounds.width)).itemSize
+    }
+
+    func windowDidResize(_ notification: Notification) { grid.collectionViewLayout?.invalidateLayout() }
 
     // MARK: window
 
@@ -271,61 +381,112 @@ final class LibraryWindowController: NSWindowController, NSWindowDelegate,
     func windowWillClose(_ notification: Notification) { controller.cancelScan() }
 }
 
-/// A thumbnail card: image, name, duration, star count and the first tags.
+/// A thumbnail card: 16:9 image with duration / resolution / star badges, the
+/// name, and up to two tag chips. Pink border on hover and selection.
 final class LibraryCardItem: NSCollectionViewItem {
     static let id = NSUserInterfaceItemIdentifier("LibraryCard")
+    static let size = NSSize(width: 228, height: 196)
+    static let minWidth = 220.0
+    static let spacing = 16.0
+    static let sideInset = 22.0
+    /// Height below the 16:9 thumbnail (name + tag row).
+    static let infoHeight = 68.0
+
+    /// Column count and card size that fill a row of `width` points edge to edge.
+    static func layout(forWidth width: Double) -> (columns: Int, itemSize: NSSize) {
+        let usable = max(width - 2 * sideInset, minWidth)
+        let columns = max(1, Int((usable + spacing) / (minWidth + spacing)))
+        let w = ((usable - Double(columns - 1) * spacing) / Double(columns)).rounded(.down)
+        return (columns, NSSize(width: w, height: (w * 9 / 16 + infoHeight).rounded()))
+    }
+
     var onDoubleClick: (() -> Void)?
 
-    private let thumb = NSImageView()
+    private let thumb = AspectFillImageView()
     private let nameLabel = NSTextField(labelWithString: "")
-    private let detail = NSTextField(labelWithString: "")
+    private let durationBadge = Theme.chip("", color: .white, background: NSColor.black.withAlphaComponent(0.72),
+                                           font: Theme.digits(11, .heavy))
+    private let resolutionBadge = Theme.chip("", color: Theme.accent2, background: NSColor.black.withAlphaComponent(0.72),
+                                             font: .systemFont(ofSize: 10, weight: .heavy))
+    private let starBadge = Theme.chip("", color: Theme.star, background: NSColor.black.withAlphaComponent(0.72),
+                                       font: Theme.digits(11, .heavy))
+    private let tagRow = NSStackView()
+    private var hovering = false { didSet { updateBorder() } }
 
     override func loadView() {
-        let v = NSView(frame: NSRect(x: 0, y: 0, width: 200, height: 168))
+        let v = NSView(frame: NSRect(origin: .zero, size: Self.size))
         v.wantsLayer = true
-        v.layer?.cornerRadius = 8
-        v.layer?.backgroundColor = NSColor(white: 0.14, alpha: 1).cgColor
-        thumb.imageScaling = .scaleProportionallyUpOrDown
-        thumb.wantsLayer = true
-        thumb.layer?.backgroundColor = NSColor.black.cgColor
-        nameLabel.font = .systemFont(ofSize: 12, weight: .medium)
-        nameLabel.textColor = .white
+        v.layer?.cornerRadius = Theme.radiusCard
+        v.layer?.backgroundColor = Theme.bg1.cgColor
+        v.layer?.masksToBounds = true
+
+
+        nameLabel.font = .systemFont(ofSize: 13, weight: .bold)
+        nameLabel.textColor = Theme.textPrimary
         nameLabel.lineBreakMode = .byTruncatingMiddle
-        detail.font = .systemFont(ofSize: 11)
-        detail.textColor = NSColor.white.withAlphaComponent(0.6)
-        detail.lineBreakMode = .byTruncatingTail
-        for s in [thumb, nameLabel, detail] as [NSView] { s.translatesAutoresizingMaskIntoConstraints = false; v.addSubview(s) }
+        tagRow.spacing = 6
+
+        for s in [thumb, nameLabel, tagRow] as [NSView] { s.translatesAutoresizingMaskIntoConstraints = false; v.addSubview(s) }
+        for b in [durationBadge, resolutionBadge, starBadge] { b.translatesAutoresizingMaskIntoConstraints = false; thumb.addSubview(b) }
         NSLayoutConstraint.activate([
             thumb.topAnchor.constraint(equalTo: v.topAnchor),
             thumb.leadingAnchor.constraint(equalTo: v.leadingAnchor),
             thumb.trailingAnchor.constraint(equalTo: v.trailingAnchor),
-            thumb.heightAnchor.constraint(equalToConstant: 112),
-            nameLabel.topAnchor.constraint(equalTo: thumb.bottomAnchor, constant: 6),
-            nameLabel.leadingAnchor.constraint(equalTo: v.leadingAnchor, constant: 8),
-            nameLabel.trailingAnchor.constraint(equalTo: v.trailingAnchor, constant: -8),
-            detail.topAnchor.constraint(equalTo: nameLabel.bottomAnchor, constant: 2),
-            detail.leadingAnchor.constraint(equalTo: v.leadingAnchor, constant: 8),
-            detail.trailingAnchor.constraint(equalTo: v.trailingAnchor, constant: -8),
+            thumb.heightAnchor.constraint(equalTo: thumb.widthAnchor, multiplier: 9.0 / 16.0),
+            durationBadge.trailingAnchor.constraint(equalTo: thumb.trailingAnchor, constant: -7),
+            durationBadge.bottomAnchor.constraint(equalTo: thumb.bottomAnchor, constant: -7),
+            resolutionBadge.leadingAnchor.constraint(equalTo: thumb.leadingAnchor, constant: 7),
+            resolutionBadge.topAnchor.constraint(equalTo: thumb.topAnchor, constant: 7),
+            starBadge.trailingAnchor.constraint(equalTo: thumb.trailingAnchor, constant: -7),
+            starBadge.topAnchor.constraint(equalTo: thumb.topAnchor, constant: 7),
+            nameLabel.topAnchor.constraint(equalTo: thumb.bottomAnchor, constant: 10),
+            nameLabel.leadingAnchor.constraint(equalTo: v.leadingAnchor, constant: 10),
+            nameLabel.trailingAnchor.constraint(equalTo: v.trailingAnchor, constant: -10),
+            tagRow.topAnchor.constraint(equalTo: nameLabel.bottomAnchor, constant: 8),
+            tagRow.leadingAnchor.constraint(equalTo: v.leadingAnchor, constant: 10),
+            tagRow.trailingAnchor.constraint(lessThanOrEqualTo: v.trailingAnchor, constant: -10),
         ])
+        v.addTrackingArea(NSTrackingArea(rect: .zero, options: [.mouseEnteredAndExited, .activeInKeyWindow, .inVisibleRect],
+                                         owner: self, userInfo: nil))
         view = v
     }
 
     func configure(_ item: LibraryItem, thumbnail: URL) {
         nameLabel.stringValue = item.name
         nameLabel.toolTip = item.record.path
-        var bits: [String] = []
-        if item.record.duration > 0 { bits.append(TimeFormatting.string(item.record.duration)) }
+        durationBadge.stringValue = item.record.duration > 0 ? TimeFormatting.string(item.record.duration) : ""
+        durationBadge.isHidden = item.record.duration <= 0
         let res = LibraryGrouping.resolutionBucket(width: item.record.width, height: item.record.height)
-        if res != .unknown { bits.append(res.title) }
-        if item.starCount > 0 { bits.append("★\(item.starCount)") }
-        bits += item.tags.prefix(2)
-        detail.stringValue = bits.joined(separator: " · ")
-        thumb.image = NSImage(contentsOf: thumbnail) ?? NSImage(systemSymbolName: "film", accessibilityDescription: nil)
+        resolutionBadge.stringValue = res == .uhd ? "4K" : res == .fullHD ? "HD" : ""
+        resolutionBadge.isHidden = resolutionBadge.stringValue.isEmpty
+        starBadge.stringValue = "★ \(item.starCount)"
+        starBadge.isHidden = item.starCount == 0
+
+        tagRow.views.forEach { $0.removeFromSuperview() }
+        var chips: [NSTextField] = item.tags.prefix(2).map { Theme.chip($0) }
+        if item.record.status == .cloudOnly { chips = [Theme.chip("iCloud 未下载", color: Theme.accent2)] }
+        if chips.isEmpty, res != .unknown { chips = [Theme.chip(res.title)] }
+        chips.forEach { tagRow.addArrangedSubview($0) }
+
+        thumb.image = NSImage(contentsOf: thumbnail)
     }
 
-    override var isSelected: Bool {
-        didSet { view.layer?.borderWidth = isSelected ? 2 : 0; view.layer?.borderColor = NSColor.systemYellow.cgColor }
+    /// Texts on the card, for tests.
+    var textsForTesting: [String] {
+        [nameLabel.stringValue, durationBadge.isHidden ? "" : durationBadge.stringValue,
+         resolutionBadge.isHidden ? "" : resolutionBadge.stringValue, starBadge.isHidden ? "" : starBadge.stringValue]
+            + tagRow.views.compactMap { ($0 as? NSTextField)?.stringValue }
     }
+
+    private func updateBorder() {
+        let on = isSelected || hovering
+        view.layer?.borderWidth = on ? 2 : 0
+        view.layer?.borderColor = Theme.accent.cgColor
+    }
+
+    override var isSelected: Bool { didSet { updateBorder() } }
+    override func mouseEntered(with event: NSEvent) { hovering = true }
+    override func mouseExited(with event: NSEvent) { hovering = false }
 
     override func mouseDown(with event: NSEvent) {
         super.mouseDown(with: event)
@@ -333,19 +494,67 @@ final class LibraryCardItem: NSCollectionViewItem {
     }
 }
 
+/// Draws its image scaled to fill (cropping the overflow), like CSS object-fit: cover.
+/// Plain drawing (not layer contents) so it also shows in snapshots.
+final class AspectFillImageView: NSView {
+    var image: NSImage? { didSet { needsDisplay = true } }
+    var placeholderSymbol = "film"
+
+    override func draw(_ dirtyRect: NSRect) {
+        Theme.bg2.setFill()
+        bounds.fill()
+        guard let image, image.size.width > 0, image.size.height > 0 else {
+            if let icon = NSImage(systemSymbolName: placeholderSymbol, accessibilityDescription: nil)?
+                .withSymbolConfiguration(.init(pointSize: 26, weight: .bold)) {
+                let tinted = NSImage(size: icon.size, flipped: false) { r in
+                    icon.draw(in: r); Theme.textTertiary.set(); r.fill(using: .sourceAtop); return true
+                }
+                tinted.draw(in: NSRect(x: bounds.midX - icon.size.width / 2, y: bounds.midY - icon.size.height / 2,
+                                       width: icon.size.width, height: icon.size.height))
+            }
+            return
+        }
+        let scale = max(bounds.width / image.size.width, bounds.height / image.size.height)
+        let size = NSSize(width: image.size.width * scale, height: image.size.height * scale)
+        image.draw(in: NSRect(x: bounds.midX - size.width / 2, y: bounds.midY - size.height / 2,
+                              width: size.width, height: size.height))
+    }
+}
+
 final class LibrarySectionHeader: NSView, NSCollectionViewElement {
     static let id = NSUserInterfaceItemIdentifier("LibraryHeader")
-    let label = NSTextField(labelWithString: "")
+    private let label = NSTextField(labelWithString: "")
+    private let count = Theme.chip("", color: Theme.accent, background: Theme.accent.withAlphaComponent(0.16),
+                                   font: Theme.digits(11, .heavy))
     override init(frame: NSRect) {
         super.init(frame: frame)
-        label.font = .systemFont(ofSize: 14, weight: .semibold)
-        label.textColor = .white
-        label.translatesAutoresizingMaskIntoConstraints = false
-        addSubview(label)
-        NSLayoutConstraint.activate([label.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 16),
-                                     label.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -6)])
+        label.font = Theme.display(18, .heavy)
+        label.textColor = Theme.textPrimary
+        let row = NSStackView(views: [label, count])
+        row.spacing = 8
+        row.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(row)
+        NSLayoutConstraint.activate([row.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 22),
+                                     row.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -10)])
     }
     required init?(coder: NSCoder) { fatalError("not supported") }
+    func set(title: String, count n: Int) {
+        label.stringValue = title
+        count.stringValue = "\(n)"
+    }
+}
+
+/// Sidebar selection: a soft pink pill instead of the system highlight.
+final class SidebarRowView: NSTableRowView {
+    override func drawSelection(in dirtyRect: NSRect) {
+        guard isSelected else { return }
+        let r = bounds.insetBy(dx: 8, dy: 1)
+        Theme.accent.withAlphaComponent(0.16).setFill()
+        NSBezierPath(roundedRect: r, xRadius: Theme.radiusSmall + 2, yRadius: Theme.radiusSmall + 2).fill()
+        Theme.accent.setFill()
+        NSBezierPath(roundedRect: NSRect(x: r.minX, y: r.minY + 7, width: 3, height: r.height - 14), xRadius: 1.5, yRadius: 1.5).fill()
+    }
+    override var isEmphasized: Bool { get { false } set {} }
 }
 
 /// Menu item that runs a closure (keeps context menus compact).

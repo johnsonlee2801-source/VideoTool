@@ -6,7 +6,7 @@ import UniformTypeIdentifiers
 final class PlayerView: NSView {
     let renderLayer: MPVRenderLayer
     let hud = SpeedHUDView()
-    private let placeholder = NSTextField(labelWithString: "拖入视频，或按 ⌘O 打开")
+    private let placeholder = EmptyStateView()
     private(set) var gesture: SpeedGestureController!
     var onFilesDropped: (([URL]) -> Void)?
 
@@ -22,9 +22,6 @@ final class PlayerView: NSView {
             return self.convert(window.mouseLocationOutsideOfEventStream, from: nil).x
         })
 
-        placeholder.font = .systemFont(ofSize: 18, weight: .medium)
-        placeholder.textColor = NSColor.white.withAlphaComponent(0.7)
-        placeholder.alignment = .center
         placeholder.translatesAutoresizingMaskIntoConstraints = false
         addSubview(placeholder)
 
@@ -32,8 +29,10 @@ final class PlayerView: NSView {
         addSubview(hud)
 
         NSLayoutConstraint.activate([
-            placeholder.centerXAnchor.constraint(equalTo: centerXAnchor),
-            placeholder.centerYAnchor.constraint(equalTo: centerYAnchor),
+            placeholder.leadingAnchor.constraint(equalTo: leadingAnchor),
+            placeholder.trailingAnchor.constraint(equalTo: trailingAnchor),
+            placeholder.topAnchor.constraint(equalTo: topAnchor),
+            placeholder.bottomAnchor.constraint(equalTo: bottomAnchor),
             hud.centerXAnchor.constraint(equalTo: centerXAnchor),
             hud.topAnchor.constraint(equalTo: topAnchor, constant: 24),
         ])

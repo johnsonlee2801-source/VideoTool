@@ -49,6 +49,17 @@ enum BookmarkNavigator {
         return .undo(newest.id)
     }
 
+    /// Groups marker positions that would overlap: consecutive markers (by x) closer
+    /// than `minGap` share a cluster. Returns indices into `xs`, clusters ordered by x.
+    static func clusters(_ xs: [Double], minGap: Double) -> [[Int]] {
+        let order = xs.indices.sorted { xs[$0] != xs[$1] ? xs[$0] < xs[$1] : $0 < $1 }
+        var out: [[Int]] = []
+        for i in order {
+            if let last = out.last?.last, xs[i] - xs[last] < minGap { out[out.count - 1].append(i) } else { out.append([i]) }
+        }
+        return out
+    }
+
     /// X position of a marker on the slider track; nil when the duration is unknown.
     static func markerX(time: Double, duration: Double, trackMinX: Double, trackWidth: Double) -> Double? {
         guard duration > 0, duration.isFinite else { return nil }

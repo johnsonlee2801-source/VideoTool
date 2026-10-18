@@ -31,19 +31,33 @@ final class BookmarkMarkersView: NSView {
             .map { CGFloat($0) }
     }
 
+    static let clusterGap: CGFloat = 12
+
+    /// Stars that would overlap are drawn as one star with a count ("★2").
+    private func visibleClusters() -> [(bookmarks: [Bookmark], x: CGFloat)] {
+        let placed = bookmarks.compactMap { b in x(for: b).map { (b, $0) } }
+        return BookmarkNavigator.clusters(placed.map { Double($0.1) }, minGap: Double(Self.clusterGap)).map { group in
+            (group.map { placed[$0].0 }, placed[group[0]].1)
+        }
+    }
+
     override func draw(_ dirtyRect: NSRect) {
-        let font = NSFont.systemFont(ofSize: 11, weight: .bold)
-        for b in bookmarks {
-            guard let x = x(for: b) else { continue }
-            let isHovered = b.id == hovered
-            let attrs: [NSAttributedString.Key: Any] = [
-                .font: isHovered ? NSFont.systemFont(ofSize: 14, weight: .bold) : font,
-                .foregroundColor: NSColor.systemYellow,
-                .shadow: { let s = NSShadow(); s.shadowColor = .black; s.shadowBlurRadius = 2; return s }(),
-            ]
-            let star = NSAttributedString(string: "★", attributes: attrs)
+        let shadow = NSShadow()
+        shadow.shadowColor = NSColor.black.withAlphaComponent(0.8)
+        shadow.shadowBlurRadius = 3
+        for cluster in visibleClusters() {
+            let isHovered = cluster.bookmarks.contains { $0.id == hovered }
+            let star = NSMutableAttributedString(string: "★", attributes: [
+                .font: NSFont.systemFont(ofSize: isHovered ? 16 : 12, weight: .black),
+                .foregroundColor: Theme.star, .shadow: shadow])
+            if cluster.bookmarks.count > 1 {
+                star.append(NSAttributedString(string: "\(cluster.bookmarks.count)", attributes: [
+                    .font: Theme.digits(9, .black), .foregroundColor: Theme.star, .shadow: shadow,
+                    .baselineOffset: 4]))
+            }
             let size = star.size()
-            star.draw(at: NSPoint(x: x - size.width / 2, y: bounds.midY - size.height / 2 - 6))
+            let starWidth = NSAttributedString(string: "★", attributes: [.font: NSFont.systemFont(ofSize: isHovered ? 16 : 12, weight: .black)]).size().width
+            star.draw(at: NSPoint(x: cluster.x - starWidth / 2, y: bounds.midY - size.height / 2 - 10))
         }
     }
 
@@ -58,8 +72,8 @@ final class BookmarkMarkersView: NSView {
 
     override func mouseMoved(with event: NSEvent) {
         let p = convert(event.locationInWindow, from: nil)
-        let hit = bookmarks
-            .compactMap { b in x(for: b).map { (b, $0) } }
+        let hit = visibleClusters()
+            .map { ($0.bookmarks[0], $0.x) }
             .filter { abs($0.1 - p.x) <= Self.hoverRadius }
             .min { abs($0.1 - p.x) < abs($1.1 - p.x) }
         if hit?.0.id != hovered {
@@ -82,17 +96,23 @@ final class BookmarkPreviewView: NSView {
     private let image = NSImageView()
     private let label = NSTextField(labelWithString: "")
 
+    static let fullSize = NSSize(width: 200, height: 146)
+    static let compactSize = NSSize(width: 200, height: 34)
+
     init() {
-        super.init(frame: NSRect(x: 0, y: 0, width: 180, height: 132))
+        super.init(frame: NSRect(origin: .zero, size: Self.fullSize))
         wantsLayer = true
-        layer?.backgroundColor = NSColor.black.withAlphaComponent(0.85).cgColor
-        layer?.cornerRadius = 8
+        layer?.backgroundColor = Theme.bg1.withAlphaComponent(0.96).cgColor
+        layer?.cornerRadius = Theme.radiusCard
+        layer?.borderWidth = 1
+        layer?.borderColor = Theme.stroke.cgColor
         isHidden = true
         image.imageScaling = .scaleProportionallyUpOrDown
-        image.frame = NSRect(x: 6, y: 30, width: 168, height: 96)
-        label.frame = NSRect(x: 6, y: 6, width: 168, height: 20)
-        label.textColor = .white
-        label.font = .systemFont(ofSize: 12, weight: .medium)
+        image.wantsLayer = true
+        image.layer?.cornerRadius = Theme.radiusSmall
+        image.layer?.masksToBounds = true
+        label.textColor = Theme.textPrimary
+        label.font = .systemFont(ofSize: 12, weight: .bold)
         label.lineBreakMode = .byTruncatingTail
         addSubview(image)
         addSubview(label)
@@ -103,9 +123,20 @@ final class BookmarkPreviewView: NSView {
 
     func show(_ b: Bookmark, thumbnail: URL?) {
         let time = TimeFormatting.string(b.time)
-        label.stringValue = b.note.isEmpty ? "★ \(time)" : "★ \(time)  \(b.note)"
+        let text = NSMutableAttributedString(string: "★ \(time)", attributes: [
+            .foregroundColor: Theme.star, .font: Theme.digits(12, .heavy)])
+        if !b.note.isEmpty {
+            text.append(NSAttributedString(string: "  \(b.note)", attributes: [
+                .foregroundColor: Theme.textPrimary, .font: NSFont.systemFont(ofSize: 12, weight: .bold)]))
+        }
+        label.attributedStringValue = text
         image.image = thumbnail.flatMap { NSImage(contentsOf: $0) }
-        image.isHidden = image.image == nil
+        let hasImage = image.image != nil
+        image.isHidden = !hasImage
+        // Without a thumbnail the card shrinks to one line instead of an empty box.
+        setFrameSize(hasImage ? Self.fullSize : Self.compactSize)
+        image.frame = NSRect(x: 6, y: 32, width: bounds.width - 12, height: bounds.height - 38)
+        label.frame = NSRect(x: 10, y: 7, width: bounds.width - 20, height: 20)
         isHidden = false
     }
 

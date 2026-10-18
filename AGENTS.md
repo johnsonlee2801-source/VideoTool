@@ -32,6 +32,17 @@ goals, layout, build and test commands. `CLAUDE.md` only imports this file.
   (`MPVThumbnailMaker`): the main player's frames are VideoToolbox and MPVKit's
   FFmpeg has no image encoders.
 
+## Visual design (2026-10-18, user asked for "sharper, younger")
+
+- All colours, radii and fonts come from `App/Sources/Theme.swift`: near-black
+  surfaces, hot-pink accent `#FF2E63` with cyan `#08D9D6`, pink→violet progress,
+  yellow stars `#FFD60A`, heavy type, 5–8 pt radii, dark appearance everywhere.
+  `ThemeTests` pin WCAG contrast; add a test before adding a new text colour.
+- Review UI changes with `scripts/xcb.sh test -only-testing:VideoToolTests/UISnapshotTests`;
+  PNGs land in `~/Library/Developer/Xcode/DerivedData/VideoTool-cli/snapshots/current/`.
+- Library cards follow video-site habits: 16:9 cover, duration badge bottom-right,
+  4K/HD top-left, star count top-right, tag chips; columns adapt to window width.
+
 ## Pitfalls already paid for
 
 - Run `xcodebuild`/`xcodegen` with `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`

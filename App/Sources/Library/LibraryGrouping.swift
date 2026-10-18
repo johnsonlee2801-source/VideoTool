@@ -110,7 +110,7 @@ enum LibraryGrouping {
 
         switch mode {
         case .all:
-            return [LibrarySection(title: "全部视频（\(filtered.count)）", items: filtered.sorted(by: byName))]
+            return [LibrarySection(title: "全部视频", items: filtered.sorted(by: byName))]
 
         case .folder:
             let groups = Dictionary(grouping: filtered) { folderTitle(path: $0.record.path, root: $0.record.root) }

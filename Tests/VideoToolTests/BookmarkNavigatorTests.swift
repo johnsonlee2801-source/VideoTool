@@ -110,4 +110,24 @@ import Testing
         #expect(BookmarkNavigator.markerX(time: 150, duration: 100, trackMinX: 10, trackWidth: 200) == 210, "clamped")
         #expect(BookmarkNavigator.markerX(time: 5, duration: 0, trackMinX: 10, trackWidth: 200) == nil)
     }
+
+    @Test("N13 markers closer than the minimum gap merge into one cluster; clusters keep order") func clusters() {
+        #expect(BookmarkNavigator.clusters([10, 100, 105, 112, 300], minGap: 10) == [[0], [1, 2, 3], [4]])
+        #expect(BookmarkNavigator.clusters([300, 10, 105], minGap: 10) == [[1], [2], [0]], "indices into the input, sorted by x")
+        #expect(BookmarkNavigator.clusters([], minGap: 10).isEmpty)
+        #expect(BookmarkNavigator.clusters([5, 5], minGap: 10) == [[0, 1]])
+    }
+
+    @Test("N14 law: clustering partitions every marker exactly once and gaps between clusters are ≥ minGap")
+    func clusterLaw() {
+        var rng = SystemRandomNumberGenerator()
+        for _ in 0..<300 {
+            let xs = (0..<Int.random(in: 0...30, using: &rng)).map { _ in Double.random(in: 0...800, using: &rng) }
+            let c = BookmarkNavigator.clusters(xs, minGap: 12)
+            #expect(c.flatMap { $0 }.sorted() == Array(xs.indices))
+            for (a, b) in zip(c, c.dropFirst()) {
+                #expect(xs[b.first!] - xs[a.last!] >= 12)
+            }
+        }
+    }
 }

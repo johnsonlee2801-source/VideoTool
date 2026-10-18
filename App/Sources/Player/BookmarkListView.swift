@@ -8,23 +8,34 @@ final class BookmarkListView: NSView, NSTableViewDataSource, NSTableViewDelegate
     var onDelete: ((UUID) -> Void)?
 
     private(set) var bookmarks: [Bookmark] = []
+    private let titleLabel = NSTextField(labelWithString: "星标")
     private let table = NSTableView()
     private let empty = NSTextField(wrappingLabelWithString: "还没有星标。\n播放时按 B 把当前时刻标上星。")
 
     init() {
         super.init(frame: .zero)
         wantsLayer = true
-        layer?.backgroundColor = NSColor(white: 0.10, alpha: 1).cgColor
+        layer?.backgroundColor = Theme.bg1.cgColor
+        let edge = NSView()
+        edge.wantsLayer = true
+        edge.layer?.backgroundColor = Theme.stroke.cgColor
+        edge.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(edge)
+        NSLayoutConstraint.activate([edge.leadingAnchor.constraint(equalTo: leadingAnchor),
+                                     edge.topAnchor.constraint(equalTo: topAnchor),
+                                     edge.bottomAnchor.constraint(equalTo: bottomAnchor),
+                                     edge.widthAnchor.constraint(equalToConstant: 1)])
 
-        let title = NSTextField(labelWithString: "★ 星标")
-        title.font = .systemFont(ofSize: 13, weight: .semibold)
-        title.textColor = .white
+        let title = titleLabel
+        title.font = Theme.display(17, .heavy)
+        title.textColor = Theme.textPrimary
 
         let column = NSTableColumn(identifier: .init("star"))
         column.resizingMask = .autoresizingMask
         table.addTableColumn(column)
         table.headerView = nil
-        table.rowHeight = 44
+        table.rowHeight = 54
+        table.intercellSpacing = NSSize(width: 0, height: 4)
         table.backgroundColor = .clear
         table.dataSource = self
         table.delegate = self
@@ -37,8 +48,8 @@ final class BookmarkListView: NSView, NSTableViewDataSource, NSTableViewDelegate
         scroll.hasVerticalScroller = true
         scroll.drawsBackground = false
 
-        empty.textColor = NSColor.white.withAlphaComponent(0.6)
-        empty.font = .systemFont(ofSize: 12)
+        empty.textColor = Theme.textSecondary
+        empty.font = .systemFont(ofSize: 13, weight: .medium)
         empty.alignment = .center
 
         for v in [title, scroll, empty] as [NSView] {
@@ -46,9 +57,9 @@ final class BookmarkListView: NSView, NSTableViewDataSource, NSTableViewDelegate
             addSubview(v)
         }
         NSLayoutConstraint.activate([
-            title.topAnchor.constraint(equalTo: topAnchor, constant: 12),
-            title.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 12),
-            scroll.topAnchor.constraint(equalTo: title.bottomAnchor, constant: 8),
+            title.topAnchor.constraint(equalTo: topAnchor, constant: 16),
+            title.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 16),
+            scroll.topAnchor.constraint(equalTo: title.bottomAnchor, constant: 10),
             scroll.leadingAnchor.constraint(equalTo: leadingAnchor),
             scroll.trailingAnchor.constraint(equalTo: trailingAnchor),
             scroll.bottomAnchor.constraint(equalTo: bottomAnchor),
@@ -67,6 +78,7 @@ final class BookmarkListView: NSView, NSTableViewDataSource, NSTableViewDelegate
     func show(_ bookmarks: [Bookmark]) {
         if isEditingNote { pending = bookmarks; return }
         self.bookmarks = bookmarks
+        titleLabel.stringValue = bookmarks.isEmpty ? "星标" : "星标  \(bookmarks.count)"
         empty.isHidden = !bookmarks.isEmpty
         table.reloadData()
     }
@@ -83,20 +95,24 @@ final class BookmarkListView: NSView, NSTableViewDataSource, NSTableViewDelegate
     func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
         let b = bookmarks[row]
         let cell = NSView()
+        cell.wantsLayer = true
+        cell.layer?.backgroundColor = Theme.bg2.cgColor
+        cell.layer?.cornerRadius = Theme.radiusCard
 
         let time = NSButton(title: "★ " + TimeFormatting.string(b.time), target: self, action: #selector(timeClicked(_:)))
         time.isBordered = false
-        time.contentTintColor = .systemYellow
-        time.font = .monospacedDigitSystemFont(ofSize: 12, weight: .semibold)
+        time.contentTintColor = Theme.star
+        time.font = Theme.digits(13, .heavy)
         time.tag = row
         time.toolTip = "跳到这里（提前 2 秒）"
 
         let note = NSTextField(string: b.note)
-        note.placeholderString = "添加备注…"
+        note.placeholderAttributedString = NSAttributedString(string: "添加备注…", attributes: [
+            .foregroundColor: Theme.textTertiary, .font: NSFont.systemFont(ofSize: 12, weight: .medium)])
         note.isBordered = false
         note.drawsBackground = false
-        note.textColor = .white
-        note.font = .systemFont(ofSize: 12)
+        note.textColor = Theme.textPrimary
+        note.font = .systemFont(ofSize: 12, weight: .semibold)
         note.focusRingType = .none
         note.delegate = self
         note.tag = row
@@ -104,7 +120,7 @@ final class BookmarkListView: NSView, NSTableViewDataSource, NSTableViewDelegate
         let trash = NSButton(image: NSImage(systemSymbolName: "trash", accessibilityDescription: "删除星标")!,
                              target: self, action: #selector(deleteClicked(_:)))
         trash.isBordered = false
-        trash.contentTintColor = NSColor.white.withAlphaComponent(0.6)
+        trash.contentTintColor = Theme.textSecondary
         trash.tag = row
 
         for v in [time, note, trash] as [NSView] {
@@ -113,8 +129,8 @@ final class BookmarkListView: NSView, NSTableViewDataSource, NSTableViewDelegate
         }
         NSLayoutConstraint.activate([
             time.leadingAnchor.constraint(equalTo: cell.leadingAnchor, constant: 10),
-            time.topAnchor.constraint(equalTo: cell.topAnchor, constant: 4),
-            note.leadingAnchor.constraint(equalTo: cell.leadingAnchor, constant: 14),
+            time.topAnchor.constraint(equalTo: cell.topAnchor, constant: 7),
+            note.leadingAnchor.constraint(equalTo: cell.leadingAnchor, constant: 12),
             note.trailingAnchor.constraint(equalTo: trash.leadingAnchor, constant: -6),
             note.topAnchor.constraint(equalTo: time.bottomAnchor, constant: 1),
             trash.trailingAnchor.constraint(equalTo: cell.trailingAnchor, constant: -10),

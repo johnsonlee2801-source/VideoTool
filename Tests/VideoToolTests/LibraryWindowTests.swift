@@ -36,9 +36,11 @@ import Testing
         let card = LibraryCardItem()
         card.loadView()
         card.configure(item, thumbnail: URL(fileURLWithPath: "/nonexistent.jpg"))
-        let texts = card.view.subviews.compactMap { ($0 as? NSTextField)?.stringValue }
+        let texts = card.textsForTesting
         #expect(texts.contains("clip.mp4"))
-        #expect(texts.contains { $0.contains("0:30") && $0.contains("1080p") && $0.contains("★2") })
+        #expect(texts.contains("0:30"))
+        #expect(texts.contains("HD"))
+        #expect(texts.contains("★ 2"))
     }
 
     @Test("W3 opening an item hands its file URL to the player") func open() throws {
@@ -55,6 +57,21 @@ import Testing
                                   background: { _ in }, main: { $0() })
         let w = LibraryWindowController(controller: c, onOpen: { _ in })
         #expect(w.emptyMessageForTesting.contains("添加文件夹"))
+        #expect(w.emptyMessageForTesting.contains("自动整理"))
         #expect(w.emptyMessageForTesting.contains("不会移动"))
+    }
+
+    @Test("W5 card width adapts to fill the row: more columns when wider, never narrower than the minimum")
+    func adaptiveColumns() {
+        let narrow = LibraryCardItem.layout(forWidth: 700)
+        let wide = LibraryCardItem.layout(forWidth: 1600)
+        #expect(wide.columns > narrow.columns)
+        for l in [narrow, wide, LibraryCardItem.layout(forWidth: 300)] {
+            #expect(l.itemSize.width >= LibraryCardItem.minWidth || l.columns == 1)
+            #expect(abs(l.itemSize.height - (l.itemSize.width * 9 / 16 + LibraryCardItem.infoHeight)) < 0.5, "16:9 thumbnail")
+        }
+        let w = 1600.0, l = LibraryCardItem.layout(forWidth: w)
+        let used = Double(l.columns) * l.itemSize.width + Double(l.columns - 1) * LibraryCardItem.spacing + 2 * LibraryCardItem.sideInset
+        #expect(abs(used - w) < 1.5, "the row is filled edge to edge: \(used) vs \(w)")
     }
 }

@@ -77,7 +77,7 @@ private let shanghai: Calendar = { var c = Calendar(identifier: .gregorian); c.t
     @Test("G9 all: a single section with a count; items sorted by name (localized)") func all() {
         let items = [item("/m/b.mp4"), item("/m/A.mp4"), item("/m/c.mp4")]
         let s = LibraryGrouping.sections(items, mode: .all)
-        #expect(s.map(\.title) == ["全部视频（3）"])
+        #expect(s.map(\.title) == ["全部视频"], "the count is shown as a badge in the header")
         #expect(s[0].items.map(\.name) == ["A.mp4", "b.mp4", "c.mp4"])
     }
 
