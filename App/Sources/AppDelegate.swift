@@ -1,9 +1,25 @@
 import AppKit
 import UniformTypeIdentifiers
 
-final class AppDelegate: NSObject, NSApplicationDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private var playerWindow: PlayerWindowController?
     private var libraryWindow: LibraryWindowController?
+    /// One library model for the window and for folders added from the player.
+    private lazy var libraryController: LibraryController? = {
+        guard let store = try? LibraryStore() else { return nil }
+        let path = SQLiteDatabase.defaultPath
+        return LibraryController(
+            store: store, stars: try? BookmarkStore(),
+            // Each scan uses its own connection; if it cannot be opened, the scan reports it
+            // instead of sharing the main-thread connection (transactions would collide).
+            makeIndexer: { (try? LibraryStore(path: path)).map { LibraryIndexer(store: $0) } })
+    }()
+    private let offerPreferences = LibraryOfferPreferences()
+    private lazy var libraryOffer = LibraryOfferCoordinator(
+        preferences: offerPreferences,
+        roots: { [weak self] in self?.libraryController?.roots ?? [] },
+        show: { [weak self] folder in self?.playerWindow?.libraryOffer.offer(folder) },
+        add: { [weak self] folder in self?.libraryController?.addRoot(folder) })
     private var launchQueue = LaunchOpenQueue()
 
     // MARK: lifecycle
@@ -57,6 +73,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             if self?.playerWindow === w { self?.playerWindow = nil }   // a later open builds a fresh window
         }
         playerWindow = w
+        w.onFileOpened = { [weak self] url in
+            if url.isFileURL { self?.libraryOffer.fileOpened(url.path) }
+        }
+        w.libraryOffer.onAdd = { [weak self] in self?.libraryOffer.accept($0) }
+        w.libraryOffer.onDecline = { [weak self] in self?.libraryOffer.decline($0) }
+        w.libraryOffer.onNeverAsk = { [weak self] in self?.libraryOffer.neverAskAgain() }
+        w.libraryOffer.onOpenLibrary = { [weak self] in self?.showLibrary(nil) }
         w.showWindow(nil)
         return w
     }
@@ -84,6 +107,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         fileMenu.addItem(withTitle: "打开…", action: #selector(openDocument(_:)), keyEquivalent: "o")
         fileMenu.addItem(.separator())
         fileMenu.addItem(withTitle: "设为默认视频播放器…", action: #selector(makeDefaultPlayer(_:)), keyEquivalent: "")
+        fileMenu.addItem(withTitle: "打开视频时询问加入视频库", action: #selector(toggleLibraryOffer(_:)), keyEquivalent: "")
         fileMenu.addItem(.separator())
         fileMenu.addItem(withTitle: "关闭", action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")
         fileItem.submenu = fileMenu
@@ -154,13 +178,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc func showLibrary(_ sender: Any?) {
         if libraryWindow == nil {
-            guard let store = try? LibraryStore() else { return }
-            let path = SQLiteDatabase.defaultPath
-            let controller = LibraryController(
-                store: store, stars: try? BookmarkStore(),
-                // Each scan uses its own connection; if it cannot be opened, the scan reports it
-                // instead of sharing the main-thread connection (transactions would collide).
-                makeIndexer: { (try? LibraryStore(path: path)).map { LibraryIndexer(store: $0) } })
+            guard let controller = libraryController else { return }
             libraryWindow = LibraryWindowController(controller: controller) { [weak self] url in
                 self?.ensureWindow()
                 self?.open(url)
@@ -168,6 +186,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         libraryWindow?.showWindow(nil)
         libraryWindow?.window?.makeKeyAndOrderFront(nil)
+    }
+
+    /// Re-enables the offer after "不再询问" (and lets the user turn it off from the menu).
+    @objc private func toggleLibraryOffer(_ sender: NSMenuItem) {
+        offerPreferences.neverAsk.toggle()
+    }
+
+    func validateMenuItem(_ item: NSMenuItem) -> Bool {
+        if item.action == #selector(toggleLibraryOffer(_:)) { item.state = offerPreferences.neverAsk ? .off : .on }
+        return true
     }
 
     @objc private func makeDefaultPlayer(_ sender: Any?) {

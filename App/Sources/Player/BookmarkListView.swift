@@ -65,7 +65,9 @@ final class BookmarkListView: NSView, NSTableViewDataSource, NSTableViewDelegate
             scroll.bottomAnchor.constraint(equalTo: bottomAnchor),
             empty.centerYAnchor.constraint(equalTo: centerYAnchor),
             empty.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 16),
-            empty.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -16),
+            // Breakable: the panel collapses to zero width when hidden.
+            { let c = empty.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -16)
+              c.priority = .defaultHigh; return c }(),
         ])
     }
 

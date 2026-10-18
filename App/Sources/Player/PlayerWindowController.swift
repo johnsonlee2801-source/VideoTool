@@ -12,6 +12,10 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     private var isShutDown = false
 
     private let controlBar = NSView()
+    /// "Add this folder to the library?" card (the app delegate decides when to offer).
+    let libraryOffer = LibraryOfferBar()
+    /// A file was opened here (menu, Finder, drop or library); used for the library offer.
+    var onFileOpened: ((URL) -> Void)?
     private let playButton = NSButton(title: "", target: nil, action: nil)
     private let timeLabel = NSTextField(labelWithString: "0:00")
     private let durationLabel = NSTextField(labelWithString: "0:00")
@@ -197,6 +201,13 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
             constraints += [error.centerXAnchor.constraint(equalTo: content.centerXAnchor),
                             error.centerYAnchor.constraint(equalTo: content.centerYAnchor)]
         }
+        libraryOffer.translatesAutoresizingMaskIntoConstraints = false
+        content.addSubview(libraryOffer)
+        constraints += [
+            libraryOffer.centerXAnchor.constraint(equalTo: content.centerXAnchor),
+            libraryOffer.bottomAnchor.constraint(equalTo: controlBar.topAnchor, constant: -16),
+            libraryOffer.widthAnchor.constraint(lessThanOrEqualTo: content.widthAnchor, constant: -40),
+        ]
         NSLayoutConstraint.activate(constraints)
         content.addSubview(preview)            // last: floats above everything, never takes clicks
     }
@@ -328,10 +339,12 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         saveResumeNow()
         bookmarks?.fileClosed()
         preview.hide()
+        libraryOffer.hide()
         currentURL = url
         NSDocumentController.shared.noteNewRecentDocumentURL(url)
         engine.load(url)
         window?.makeKeyAndOrderFront(nil)
+        onFileOpened?(url)
     }
 
     /// Idempotent: called from windowWillClose and applicationWillTerminate.

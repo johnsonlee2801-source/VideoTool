@@ -1,0 +1,132 @@
+import AppKit
+
+/// Small floating card over the video: "Add «folder» to the library?"
+/// [加入] [不加] [不再询问]; after adding, a confirmation with [打开视频库].
+/// Hides itself if left alone, so it never stays in the way of the picture.
+final class LibraryOfferBar: NSView {
+    enum Action: Int { case add, decline, neverAsk, openLibrary }
+
+    static let offerSeconds: TimeInterval = 15
+    static let confirmSeconds: TimeInterval = 6
+
+    var onAdd: ((String) -> Void)?
+    var onDecline: ((String) -> Void)?
+    var onNeverAsk: (() -> Void)?
+    var onOpenLibrary: (() -> Void)?
+
+    private let label = NSTextField(labelWithString: "")
+    private let stack = NSStackView()
+    private let addButton = NSButton(title: "加入", target: nil, action: nil)
+    private let declineButton = NSButton(title: "不加", target: nil, action: nil)
+    private let neverButton = NSButton(title: "不再询问", target: nil, action: nil)
+    private let openButton = NSButton(title: "打开视频库", target: nil, action: nil)
+    private var folder: String?
+    private var hideTimer: Timer?
+
+    var message: String { label.stringValue }
+
+    init() {
+        super.init(frame: .zero)
+        wantsLayer = true
+        layer?.backgroundColor = Theme.bg1.withAlphaComponent(0.96).cgColor
+        layer?.cornerRadius = Theme.radiusCard
+        layer?.borderWidth = 1
+        layer?.borderColor = Theme.stroke.cgColor
+        isHidden = true
+
+        label.textColor = Theme.textPrimary
+        label.font = .systemFont(ofSize: 13, weight: .bold)
+        label.lineBreakMode = .byTruncatingMiddle
+        label.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+
+        for (button, primary, symbol, action) in [(addButton, true, "plus", Action.add),
+                                                  (declineButton, false, "xmark", .decline),
+                                                  (neverButton, false, "bell.slash", .neverAsk),
+                                                  (openButton, true, "square.grid.2x2", .openLibrary)] {
+            Self.style(button, primary: primary, symbol: symbol)
+            button.tag = action.rawValue
+            button.target = self
+            button.action = #selector(buttonPressed(_:))
+            button.refusesFirstResponder = true          // keys keep going to the player
+        }
+
+        stack.orientation = .horizontal
+        stack.spacing = 8
+        stack.edgeInsets = NSEdgeInsets(top: 8, left: 14, bottom: 8, right: 8)
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(stack)
+        NSLayoutConstraint.activate([
+            stack.leadingAnchor.constraint(equalTo: leadingAnchor),
+            stack.trailingAnchor.constraint(equalTo: trailingAnchor),
+            stack.topAnchor.constraint(equalTo: topAnchor),
+            stack.bottomAnchor.constraint(equalTo: bottomAnchor),
+        ])
+    }
+
+    required init?(coder: NSCoder) { fatalError("not supported") }
+
+    func offer(_ folder: String) {
+        self.folder = folder
+        label.stringValue = "把「\(Self.name(folder))」加入视频库？自动整理里面的视频"
+        label.toolTip = folder
+        show([label, addButton, declineButton, neverButton], for: Self.offerSeconds)
+    }
+
+    func hide() {
+        hideTimer?.invalidate()
+        hideTimer = nil
+        isHidden = true
+        folder = nil
+    }
+
+    /// Same as clicking the button (tests use this).
+    func press(_ action: Action) {
+        switch action {
+        case .add:
+            guard let folder else { return }
+            onAdd?(folder)
+            label.stringValue = "已加入「\(Self.name(folder))」，正在后台整理"
+            show([label, openButton], for: Self.confirmSeconds)
+        case .decline:
+            if let folder { onDecline?(folder) }
+            hide()
+        case .neverAsk:
+            onNeverAsk?()
+            hide()
+        case .openLibrary:
+            onOpenLibrary?()
+            hide()
+        }
+    }
+
+    @objc private func buttonPressed(_ sender: NSButton) {
+        Action(rawValue: sender.tag).map(press)
+    }
+
+    private func show(_ views: [NSView], for seconds: TimeInterval) {
+        stack.setViews(views, in: .leading)
+        isHidden = false
+        hideTimer?.invalidate()
+        hideTimer = Timer.scheduledTimer(withTimeInterval: seconds, repeats: false) { [weak self] _ in self?.hide() }
+    }
+
+    /// Compact version of the library window's buttons: sized to their label.
+    private static func style(_ button: NSButton, primary: Bool, symbol: String) {
+        button.isBordered = false
+        button.wantsLayer = true
+        button.layer?.cornerRadius = Theme.radiusSmall + 1
+        button.layer?.backgroundColor = (primary ? Theme.accent : Theme.bg2).cgColor
+        button.image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)
+        button.symbolConfiguration = .init(pointSize: 11, weight: .heavy)
+        button.imagePosition = .imageLeading
+        button.imageHugsTitle = true
+        button.contentTintColor = primary ? .white : Theme.textPrimary
+        button.attributedTitle = NSAttributedString(string: " \(button.title)   ", attributes: [
+            .font: NSFont.systemFont(ofSize: 12, weight: .bold),
+            .foregroundColor: primary ? NSColor.white : Theme.textPrimary])
+        button.setContentHuggingPriority(.required, for: .horizontal)
+        button.heightAnchor.constraint(equalToConstant: 26).isActive = true
+    }
+
+    private static func name(_ folder: String) -> String { (folder as NSString).lastPathComponent }
+}

@@ -74,6 +74,18 @@ enum Snapshot {
         try Snapshot.write(try #require(w.window?.contentView), "P3-player-list")
     }
 
+    @Test("P4 player: 'add this folder to the library?' card") func playerLibraryOffer() throws {
+        let w = PlayerWindowController()
+        defer { w.shutdown() }
+        w.window?.setContentSize(NSSize(width: 1100, height: 660))
+        w.stageForSnapshot(frame: Snapshot.frame(at: 6), bookmarks: [], duration: 1500, position: 30,
+                           showList: false, previewFirst: false, hud: nil)
+        w.libraryOffer.offer("/Volumes/Media/北海道旅行 2026")
+        try Snapshot.write(try #require(w.window?.contentView), "P4-player-library-offer")
+        w.libraryOffer.press(.add)
+        try Snapshot.write(try #require(w.window?.contentView), "P4b-player-library-added")
+    }
+
     private func library(empty: Bool = false) throws -> LibraryWindowController {
         let db = FileManager.default.temporaryDirectory.appendingPathComponent("snap-\(UUID().uuidString).sqlite").path
         let store = try LibraryStore(path: db)
