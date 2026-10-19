@@ -5,7 +5,9 @@
 # with QualityTests, and prints the measurements.
 # Usage: tools/quality_check.sh       Needs ffmpeg (Homebrew); run outside the sandbox.
 # Run it with the screen on and unlocked: with the display asleep, frame and seek
-# numbers cannot be measured (the results say "screenLive": false).
+# numbers cannot be measured (the results say "screenLive": false). macOS does not
+# let the test window come to the front by itself: click it once when it appears
+# (the test waits 30 s), otherwise frames/seeks are reported as not measured.
 set -e
 cd "${0:A:h:h}"
 BASE="${TMPDIR:-/tmp}/videotool-quality"   # the test host shares this temp dir
