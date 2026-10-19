@@ -22,6 +22,8 @@ final class LibraryController {
     private let thumbnailDirectory: URL
     private let background: Executor
     private let main: Executor
+    private let history: WatchHistoryStore
+    private let seriesStore: SeriesOverrideStore
 
     private(set) var roots: [String] = []
     /// Library folders with their "whole / this layer only" flag.
@@ -48,17 +50,37 @@ final class LibraryController {
     init(store: LibraryStore, stars: BookmarkStore?, makeIndexer: @escaping () -> LibraryIndexer?,
          thumbnailDirectory: URL = LibraryIndexer.defaultThumbnailDirectory,
          background: @escaping Executor = { DispatchQueue.global(qos: .utility).async(execute: $0) },
-         main: @escaping Executor = { DispatchQueue.main.async(execute: $0) }) {
+         main: @escaping Executor = { DispatchQueue.main.async(execute: $0) },
+         history: WatchHistoryStore = WatchHistoryStore(), series: SeriesOverrideStore = SeriesOverrideStore()) {
         self.store = store
         self.stars = stars
         self.makeIndexer = makeIndexer
         self.thumbnailDirectory = thumbnailDirectory
         self.background = background
         self.main = main
+        self.history = history
+        self.seriesStore = series
         reload()
     }
 
-    var sections: [LibrarySection] { LibraryGrouping.sections(items, mode: mode, search: search) }
+    var sections: [LibrarySection] {
+        LibraryGrouping.sections(items, mode: mode, search: search, series: seriesStore.context)
+    }
+
+    // MARK: series corrections
+
+    /// What the series view currently thinks `item` is (nil: not an episode).
+    func episodeInfo(for item: LibraryItem) -> EpisodeInfo? { seriesStore.context.info(for: item) }
+
+    /// Saves a correction for this file; `renameShow` also renames every episode
+    /// detected under the same show name. nil override: back to automatic.
+    func saveSeries(_ override: SeriesOverride?, for item: LibraryItem, renameShow: Bool = false) {
+        seriesStore.set(override, for: item.record.fileKey)
+        if renameShow, let title = override?.title, let detected = EpisodeParser.parse(item.name) {
+            seriesStore.setAlias(title, forDetected: detected.title)
+        }
+        onChange?()
+    }
 
     func thumbnailURL(for item: LibraryItem) -> URL {
         LibraryIndexer.thumbnailURL(forKey: item.record.fileKey, in: thumbnailDirectory)
@@ -112,8 +134,9 @@ final class LibraryController {
         roots = rootEntries.map(\.path)
         let tags = (try? store.allTags()) ?? [:]
         let counts: [String: Int] = (try? stars?.counts()) ?? [:]
+        let watched = history.all
         items = ((try? store.media(inRoot: nil)) ?? []).map {
-            LibraryItem(record: $0, tags: tags[$0.fileKey] ?? [], starCount: counts[$0.fileKey] ?? 0)
+            LibraryItem(record: $0, tags: tags[$0.fileKey] ?? [], starCount: counts[$0.fileKey] ?? 0, watch: watched[$0.path])
         }
         onChange?()
     }

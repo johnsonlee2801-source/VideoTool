@@ -1,11 +1,12 @@
 import Foundation
 
 enum LibraryGroupingMode: String, CaseIterable {
-    case all, folder, date, duration, resolution, duplicates, tag
+    case all, series, folder, date, duration, resolution, duplicates, tag
 
     var title: String {
         switch self {
         case .all: return "全部视频"
+        case .series: return "按剧集"
         case .folder: return "按文件夹"
         case .date: return "按日期"
         case .duration: return "按时长"
@@ -20,6 +21,8 @@ struct LibraryItem: Equatable {
     var record: MediaRecord
     var tags: [String]
     var starCount: Int = 0
+    /// How far it has been watched (nil: never opened).
+    var watch: WatchEntry?
     var name: String { (record.path as NSString).lastPathComponent }
 }
 
@@ -31,6 +34,8 @@ struct LibrarySection: Equatable {
 /// Pure rules that turn library rows into the sections shown in the window.
 /// Organising is virtual: nothing is moved on disk.
 enum LibraryGrouping {
+    static let continueWatchingLimit = 12
+
     enum DurationBucket: Int, CaseIterable {
         case underOneMinute, oneToTen, tenToThirty, thirtyToSixty, overAnHour, unknown
         var title: String {
@@ -79,6 +84,47 @@ enum LibraryGrouping {
         return .sd
     }
 
+    /// Started (past the first seconds), not finished; most recently watched first.
+    static func continueWatching(_ items: [LibraryItem]) -> [LibraryItem] {
+        items.filter { $0.watch.map { !$0.isWatched && $0.position >= ResumePositionStore.minimumPosition } ?? false }
+            .sorted { $0.watch!.watchedAt > $1.watch!.watchedAt }
+            .prefix(continueWatchingLimit).map { $0 }
+    }
+
+    /// One section per show and season, episodes in order; the rest under 其他视频.
+    /// A show detected only from weak hints ("Name - 07") needs at least two episodes.
+    static func seriesSections(_ items: [LibraryItem], context: SeriesContext,
+                               byName: (LibraryItem, LibraryItem) -> Bool) -> [LibrarySection] {
+        struct Key: Hashable { var title: String; var season: Int? }
+        var groups: [Key: [(LibraryItem, EpisodeInfo)]] = [:]
+        var others: [LibraryItem] = []
+        for item in items {
+            guard let info = context.info(for: item) else { others.append(item); continue }
+            groups[Key(title: EpisodeParser.normalizedTitle(info.title), season: info.season), default: []].append((item, info))
+        }
+        var shows: [(title: String, season: Int?, items: [LibraryItem])] = []
+        for (key, members) in groups {
+            guard members.count > 1 || members.contains(where: { $0.1.strong }) else {
+                others += members.map(\.0); continue
+            }
+            let sorted = members.sorted { $0.1.episode != $1.1.episode ? $0.1.episode < $1.1.episode : byName($0.0, $1.0) }
+            // Show the spelling most episodes use (ties: the first episode's).
+            let spellings = Dictionary(grouping: sorted.map(\.1.title), by: { $0 })
+            let title = sorted.map(\.1.title).max { spellings[$0]!.count < spellings[$1]!.count } ?? sorted[0].1.title
+            shows.append((title, key.season, sorted.map(\.0)))
+        }
+        shows.sort {
+            let c = $0.title.localizedStandardCompare($1.title)
+            return c == .orderedSame ? ($0.season ?? 0) < ($1.season ?? 0) : c == .orderedAscending
+        }
+        var out = shows.map { s in
+            LibrarySection(title: [s.title, s.season.map { "第 \($0) 季" }, "\(s.items.count) 集"].compactMap { $0 }.joined(separator: " · "),
+                           items: s.items)
+        }
+        if !others.isEmpty { out.append(LibrarySection(title: "其他视频", items: others.sorted(by: byName))) }
+        return out
+    }
+
     static func folderTitle(path: String, root: String) -> String {
         let dir = (path as NSString).deletingLastPathComponent
         let base = root.hasSuffix("/") ? String(root.dropLast()) : root
@@ -96,7 +142,7 @@ enum LibraryGrouping {
     }
 
     static func sections(_ items: [LibraryItem], mode: LibraryGroupingMode, search: String = "",
-                         calendar: Calendar = .current) -> [LibrarySection] {
+                         series: SeriesContext = SeriesContext(), calendar: Calendar = .current) -> [LibrarySection] {
         let needle = search.trimmingCharacters(in: .whitespaces)
         let filtered = needle.isEmpty ? items : items.filter { item in
             item.name.localizedCaseInsensitiveContains(needle) || item.tags.contains { $0.localizedCaseInsensitiveContains(needle) }
@@ -110,7 +156,13 @@ enum LibraryGrouping {
 
         switch mode {
         case .all:
-            return [LibrarySection(title: "全部视频", items: filtered.sorted(by: byName))]
+            let all = LibrarySection(title: "全部视频", items: filtered.sorted(by: byName))
+            // Unfinished videos first, most recent first (not while searching).
+            let inProgress = needle.isEmpty ? continueWatching(filtered) : []
+            return inProgress.isEmpty ? [all] : [LibrarySection(title: "继续观看", items: inProgress), all]
+
+        case .series:
+            return seriesSections(filtered, context: series, byName: byName)
 
         case .folder:
             let groups = Dictionary(grouping: filtered) { folderTitle(path: $0.record.path, root: $0.record.root) }

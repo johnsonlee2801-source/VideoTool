@@ -6,6 +6,7 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     private var engine: MPVEngine? { session?.engine }
     let playerView: PlayerView?          // internal for the event-glue tests
     private let resumeStore = ResumePositionStore()
+    private let history = WatchHistoryStore()
     private lazy var resumeTracker = ResumeTracker(storedPosition: { [resumeStore] path in
         resumeStore.position(for: URL(fileURLWithPath: path))
     })
@@ -327,8 +328,12 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
 
     private func apply(_ action: ResumeTracker.Action) {
         switch action {
-        case .save(let path, let position): resumeStore.save(position, for: URL(fileURLWithPath: path))
-        case .clear(let path): resumeStore.clear(for: URL(fileURLWithPath: path))
+        case .save(let path, let position):
+            resumeStore.save(position, for: URL(fileURLWithPath: path))
+            history.recordProgress(path: path, position: position, duration: engine?.state.duration ?? 0)
+        case .clear(let path):
+            resumeStore.clear(for: URL(fileURLWithPath: path))
+            history.markFinished(path: path, duration: engine?.state.duration ?? 0)
         case .seek(let target): engine?.seek(to: target)
         }
     }

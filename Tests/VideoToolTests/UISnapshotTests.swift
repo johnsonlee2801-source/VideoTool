@@ -109,8 +109,16 @@ enum Snapshot {
                                    [("屏幕", 0.9), ("文字", 0.7)], []][i], for: key, source: "vision")
             }
         }
+        // Some watch progress, so covers show stripes, a tick and a 继续观看 row.
+        let history = WatchHistoryStore(defaults: UserDefaults(suiteName: "snap-\(UUID().uuidString)")!)
+        if !empty {
+            let base = "/Volumes/Media/Movies/"
+            history.recordProgress(path: base + "猫猫日常 vlog.mov", position: 300, duration: 754)
+            history.markFinished(path: base + "旅行/北海道 Day 3.mp4", duration: 1310)
+            history.recordProgress(path: base + "旅行/北海道 Day 4.mp4", position: 260, duration: 1288)
+        }
         let c = LibraryController(store: store, stars: nil, makeIndexer: { nil }, thumbnailDirectory: thumbs,
-                                  background: { _ in }, main: { $0() })
+                                  background: { _ in }, main: { $0() }, history: history)
         let w = LibraryWindowController(controller: c, onOpen: { _ in })
         w.window?.setContentSize(NSSize(width: 1180, height: 760))
         return w
@@ -125,6 +133,12 @@ enum Snapshot {
         let w = try library()
         w.setModeForSnapshot(.tag)
         try Snapshot.write(try #require(w.window?.contentView), "L2-library-tags")
+    }
+
+    @Test("L4 library: by series") func librarySeries() throws {
+        let w = try library()
+        w.setModeForSnapshot(.series)
+        try Snapshot.write(try #require(w.window?.contentView), "L4-library-series")
     }
 
     @Test("L3 library: empty") func libraryEmpty() throws {

@@ -271,6 +271,7 @@ final class LibraryWindowController: NSWindowController, NSWindowDelegate,
     private static func symbol(for mode: LibraryGroupingMode) -> String {
         switch mode {
         case .all: return "square.grid.2x2.fill"
+        case .series: return "play.rectangle.on.rectangle.fill"
         case .folder: return "folder.fill"
         case .date: return "calendar"
         case .duration: return "clock.fill"
@@ -333,9 +334,22 @@ final class LibraryWindowController: NSWindowController, NSWindowDelegate,
             let point = grid.convert(grid.window?.mouseLocationOutsideOfEventStream ?? .zero, from: nil)
             guard let ip = grid.indexPathForItem(at: point), let item = item(at: ip) else { return }
             menu.addItem(ClosureMenuItem("在播放器中打开") { [weak self] in self?.open(item) })
+            menu.addItem(ClosureMenuItem("修改剧集信息…") { [weak self] in self?.editSeries(item) })
             menu.addItem(ClosureMenuItem("在 Finder 中显示") {
                 NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: item.record.path)])
             })
+        }
+    }
+
+    /// Correct how a file is grouped in 按剧集 (kept by content, survives moves).
+    private func editSeries(_ item: LibraryItem) {
+        guard let window else { return }
+        SeriesEditDialog.run(on: window, item: item, current: controller.episodeInfo(for: item)) { [weak self] result in
+            switch result {
+            case .save(let override, let renameShow): self?.controller.saveSeries(override, for: item, renameShow: renameShow)
+            case .notSeries: self?.controller.saveSeries(SeriesOverride(excluded: true), for: item)
+            case .cancel: break
+            }
         }
     }
 
@@ -411,6 +425,9 @@ final class LibraryCardItem: NSCollectionViewItem {
                                              font: .systemFont(ofSize: 10, weight: .heavy))
     private let starBadge = Theme.chip("", color: Theme.star, background: NSColor.black.withAlphaComponent(0.72),
                                        font: Theme.digits(11, .heavy))
+    private let watchedBadge = Theme.chip("✓ 已看完", color: Theme.accent2, background: NSColor.black.withAlphaComponent(0.72),
+                                          font: .systemFont(ofSize: 10, weight: .heavy))
+    private let progress = WatchProgressStripe()
     private let tagRow = NSStackView()
     private var hovering = false { didSet { updateBorder() } }
 
@@ -428,7 +445,9 @@ final class LibraryCardItem: NSCollectionViewItem {
         tagRow.spacing = 6
 
         for s in [thumb, nameLabel, tagRow] as [NSView] { s.translatesAutoresizingMaskIntoConstraints = false; v.addSubview(s) }
-        for b in [durationBadge, resolutionBadge, starBadge] { b.translatesAutoresizingMaskIntoConstraints = false; thumb.addSubview(b) }
+        for b in [durationBadge, resolutionBadge, starBadge, watchedBadge, progress] as [NSView] {
+            b.translatesAutoresizingMaskIntoConstraints = false; thumb.addSubview(b)
+        }
         NSLayoutConstraint.activate([
             thumb.topAnchor.constraint(equalTo: v.topAnchor),
             thumb.leadingAnchor.constraint(equalTo: v.leadingAnchor),
@@ -440,6 +459,12 @@ final class LibraryCardItem: NSCollectionViewItem {
             resolutionBadge.topAnchor.constraint(equalTo: thumb.topAnchor, constant: 7),
             starBadge.trailingAnchor.constraint(equalTo: thumb.trailingAnchor, constant: -7),
             starBadge.topAnchor.constraint(equalTo: thumb.topAnchor, constant: 7),
+            watchedBadge.leadingAnchor.constraint(equalTo: thumb.leadingAnchor, constant: 7),
+            watchedBadge.bottomAnchor.constraint(equalTo: thumb.bottomAnchor, constant: -7),
+            progress.leadingAnchor.constraint(equalTo: thumb.leadingAnchor),
+            progress.trailingAnchor.constraint(equalTo: thumb.trailingAnchor),
+            progress.bottomAnchor.constraint(equalTo: thumb.bottomAnchor),
+            progress.heightAnchor.constraint(equalToConstant: 4),
             nameLabel.topAnchor.constraint(equalTo: thumb.bottomAnchor, constant: 10),
             nameLabel.leadingAnchor.constraint(equalTo: v.leadingAnchor, constant: 10),
             nameLabel.trailingAnchor.constraint(equalTo: v.trailingAnchor, constant: -10),
@@ -462,6 +487,11 @@ final class LibraryCardItem: NSCollectionViewItem {
         resolutionBadge.isHidden = resolutionBadge.stringValue.isEmpty
         starBadge.stringValue = "★ \(item.starCount)"
         starBadge.isHidden = item.starCount == 0
+        // Watched: a tick; started: how far, as a stripe along the bottom of the cover.
+        let watched = item.watch?.isWatched == true
+        watchedBadge.isHidden = !watched
+        progress.fraction = watched ? 0 : item.watch?.fraction ?? 0
+        progress.isHidden = progress.fraction <= 0
 
         tagRow.views.forEach { $0.removeFromSuperview() }
         var chips: [NSTextField] = item.tags.prefix(2).map { Theme.chip($0) }
@@ -475,7 +505,9 @@ final class LibraryCardItem: NSCollectionViewItem {
     /// Texts on the card, for tests.
     var textsForTesting: [String] {
         [nameLabel.stringValue, durationBadge.isHidden ? "" : durationBadge.stringValue,
-         resolutionBadge.isHidden ? "" : resolutionBadge.stringValue, starBadge.isHidden ? "" : starBadge.stringValue]
+         resolutionBadge.isHidden ? "" : resolutionBadge.stringValue, starBadge.isHidden ? "" : starBadge.stringValue,
+         watchedBadge.isHidden ? "" : watchedBadge.stringValue,
+         progress.isHidden ? "" : String(format: "%.0f%%", progress.fraction * 100)]
             + tagRow.views.compactMap { ($0 as? NSTextField)?.stringValue }
     }
 
