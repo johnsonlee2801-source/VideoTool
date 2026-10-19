@@ -1,7 +1,7 @@
 import AppKit
 import UniformTypeIdentifiers
 
-final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, NSMenuDelegate {
     private var playerWindow: PlayerWindowController?
     private var libraryWindow: LibraryWindowController?
     /// One library model for the window and for folders added from the player.
@@ -22,6 +22,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         add: { [weak self] proposal in self?.libraryController?.addRoot(proposal.path, recursive: proposal.wholeFolder) },
         refresh: { [weak self] root in self?.libraryController?.rescan(root) })
     private var launchQueue = LaunchOpenQueue()
+    private weak var audioOutputMenu: NSMenu?
 
     // MARK: lifecycle
 
@@ -137,6 +138,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         playMenu.addItem(withTitle: "AI 字幕…", action: #selector(PlayerWindowController.generateAISubtitles(_:)), keyEquivalent: "t")
         playMenu.addItem(withTitle: "切换音轨", action: #selector(PlayerWindowController.cycleAudio(_:)), keyEquivalent: "a")
         playMenu.addItem(withTitle: "静音", action: #selector(PlayerWindowController.toggleMute(_:)), keyEquivalent: "m")
+        let outputItem = playMenu.addItem(withTitle: "声音输出", action: nil, keyEquivalent: "")
+        let outputMenu = NSMenu(title: "声音输出")
+        outputMenu.delegate = self               // filled when opened: devices come and go (AirPlay, headphones)
+        outputItem.submenu = outputMenu
+        audioOutputMenu = outputMenu
         playItem.submenu = playMenu
 
         let viewItem = NSMenuItem(); main.addItem(viewItem)
@@ -210,6 +216,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     }
 
     @objc private func sendFeedback(_ sender: Any?) { Feedback.open() }
+
+    func menuNeedsUpdate(_ menu: NSMenu) {
+        guard menu === audioOutputMenu else { return }
+        menu.removeAllItems()
+        let items = playerWindow?.audioOutputItems() ?? []
+        if items.isEmpty { menu.addItem(withTitle: "（播放器未就绪）", action: nil, keyEquivalent: "") }
+        items.forEach(menu.addItem)
+    }
 
     @objc private func makeDefaultPlayer(_ sender: Any?) {
         DefaultAppRegistrar.makeDefault { summary in

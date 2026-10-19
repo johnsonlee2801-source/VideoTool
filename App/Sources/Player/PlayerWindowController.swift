@@ -33,6 +33,7 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     }()
     private let speedChip = NSButton(title: "", target: nil, action: nil)
     private let speedStore = PreferredSpeedStore()
+    private let audioOutput = AudioOutputPreference()
     /// The speed the user chose (menu, [ ], ⌫); a hold only borrows the player for a while.
     var preferredSpeed: Double { speedStore.speed }
     private var isScrubbing = false
@@ -76,6 +77,10 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         buildContent()
         wireEngine()
         engine?.setSpeed(speedStore.speed)          // start at the speed chosen last time
+        if let engine {                             // and the sound output chosen last time, if it is still there
+            let device = audioOutput.resolved(among: engine.audioDevices())
+            if device != AudioOutput.followSystem { engine.setAudioDevice(device) }
+        }
         wireBookmarks()
         installKeyMonitor()
     }
@@ -508,6 +513,22 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         default:
             return true
         }
+    }
+
+    // MARK: sound output
+
+    /// Play › 声音输出: one item per output, the current one ticked.
+    func audioOutputItems() -> [NSMenuItem] {
+        guard let engine else { return [] }
+        let current = engine.property("audio-device") ?? AudioOutput.followSystem
+        return AudioOutput.menu(devices: engine.audioDevices(), current: current, target: self,
+                                action: #selector(chooseAudioOutput(_:)))
+    }
+
+    @objc func chooseAudioOutput(_ sender: NSMenuItem) {
+        guard let name = sender.representedObject as? String else { return }
+        audioOutput.device = name
+        engine?.setAudioDevice(name)
     }
 
     // MARK: AI subtitles

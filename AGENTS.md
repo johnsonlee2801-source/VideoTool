@@ -46,6 +46,17 @@ goals, layout, build and test commands. `CLAUDE.md` only imports this file.
   (`PlayerEventGlueTests`); keep new event handling reachable that way.
 - `tools/stress_library.sh N` measures indexing N files (2026-10-18: 1000 in 31 s,
   2000 in 63 s, memory flat at ~470 MB). Rerun it after touching `LibraryIndexer`.
+- `tools/quality_check.sh` plays 4K HEVC HDR10, 4K60 H.264 and long-GOP clips in a
+  real window (hardware decoding, CPU, dropped frames, seek latency, HDR). Run it with
+  the screen on and unlocked: with the display asleep, frame/seek numbers are invalid
+  and the results say `"screenLive": false`.
+- Tests never touch the user's data: `AppData` switches the database, thumbnails,
+  subtitles and preferences to a per-run temp location under the test runner. New
+  stores must take their location/defaults from `AppData`.
+- AI subtitles (macOS 26+): `tools/make_speech_fixture.sh` rebuilds the spoken test
+  clip; the recognition test uses the real on-device recogniser.
+- Casting step 2 (picture to Apple TV) is planned in `docs/plans/casting-step2.md`
+  and must be verified on a real device before it ships.
 - Library cards follow video-site habits: 16:9 cover, duration badge bottom-right,
   4K/HD top-left, star count top-right, tag chips; columns adapt to window width.
 

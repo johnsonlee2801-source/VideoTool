@@ -98,6 +98,16 @@ final class MPVEngine: PlayerEngine {
     func setVolume(_ volume: Double) { setDouble("volume", min(max(volume, 0), 100)) }
     func toggleMute() { command(["cycle", "mute"]) }
     func cycleSubtitle() { command(["cycle", "sub"]) }
+    /// Sound outputs as mpv sees them (speakers, headphones, AirPlay).
+    func audioDevices() -> [AudioDevice] {
+        let n = Int(property("audio-device-list/count") ?? "") ?? 0
+        return (0..<n).compactMap { i in
+            guard let name = property("audio-device-list/\(i)/name") else { return nil }
+            return AudioDevice(name: name, description: property("audio-device-list/\(i)/description") ?? name)
+        }
+    }
+    func setAudioDevice(_ name: String) { command(["set", "audio-device", name]) }
+
     /// Adds an external subtitle file and shows it (AI subtitles).
     func addSubtitle(path: String, title: String) { command(["sub-add", path, "select", title]) }
     func cycleAudio() { command(["cycle", "audio"]) }
