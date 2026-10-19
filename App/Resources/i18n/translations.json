@@ -255,6 +255,14 @@
   "en": "Speed Up 0.1×",
   "ja": "0.1×速く"
  },
+ "动图最长 %@ 秒": {
+  "en": "GIFs can be up to %@ seconds long",
+  "ja": "GIF は最長 %@ 秒です"
+ },
+ "动图（GIF）": {
+  "en": "Animated GIF",
+  "ja": "アニメーション GIF"
+ },
  "动物": {
   "en": "Animal",
   "ja": "動物"
@@ -375,6 +383,26 @@
   "en": "Export AI Subtitles…",
   "ja": "AI字幕を書き出す…"
  },
+ "导出…": {
+  "en": "Export…",
+  "ja": "書き出す…"
+ },
+ "导出失败：%@": {
+  "en": "Export failed: %@",
+  "ja": "書き出しに失敗しました：%@"
+ },
+ "导出片段": {
+  "en": "Export Clip",
+  "ja": "クリップを書き出す"
+ },
+ "导出片段…": {
+  "en": "Export Clip…",
+  "ja": "クリップを書き出す…"
+ },
+ "导出超时": {
+  "en": "The export took too long",
+  "ja": "書き出しがタイムアウトしました"
+ },
  "小": {
   "en": "Small",
   "ja": "小"
@@ -398,6 +426,10 @@
  "已取消生成字幕": {
   "en": "Subtitle generation canceled",
   "ja": "字幕の作成をキャンセルしました"
+ },
+ "已导出：%@": {
+  "en": "Exported: %@",
+  "ja": "書き出しました：%@"
  },
  "已把 %1$@ 个子文件夹合并进「%2$@」。": {
   "en": "Merged %1$@ subfolders into “%2$@”.",
@@ -466,6 +498,10 @@
  "成功 %1$@ 种，失败 %2$@ 种：\n": {
   "en": "%1$@ succeeded, %2$@ failed:\n",
   "ja": "成功 %1$@種類、失敗 %2$@種類：\n"
+ },
+ "截图组（8 张 JPEG）": {
+  "en": "Stills (8 JPEGs)",
+  "ja": "静止画（JPEG 8 枚）"
  },
  "户外": {
   "en": "Outdoors",
@@ -591,6 +627,14 @@
   "en": "%@ added",
   "ja": "追加 %@"
  },
+ "无法写入 %@": {
+  "en": "Can't write %@",
+  "ja": "%@ に書き込めません"
+ },
+ "无法读取这个视频": {
+  "en": "This video can't be read",
+  "ja": "このビデオを読み込めません"
+ },
  "无法读取这个视频的声音。": {
   "en": "Can't read the audio in this video.",
   "ja": "このビデオの音声を読み込めません。"
@@ -610,6 +654,14 @@
  "时长未知": {
   "en": "Unknown Length",
   "ja": "長さ不明"
+ },
+ "时间格式不对，例如 1:05": {
+  "en": "Enter times like 1:05",
+  "ja": "時間は 1:05 のように入力してください"
+ },
+ "时间超出了视频长度": {
+  "en": "That time is beyond the end of the video",
+  "ja": "ビデオの長さを超えています"
  },
  "星标": {
   "en": "Stars",
@@ -655,6 +707,10 @@
   "en": "Tree",
   "ja": "木"
  },
+ "格式": {
+  "en": "Format",
+  "ja": "形式"
+ },
  "森林": {
   "en": "Forest",
   "ja": "森"
@@ -662,6 +718,10 @@
  "植物": {
   "en": "Plant",
   "ja": "植物"
+ },
+ "正在导出片段…": {
+  "en": "Exporting clip…",
+  "ja": "クリップを書き出しています…"
  },
  "正在扫描 %1$@… %2$@/%3$@": {
   "en": "Scanning %1$@… %2$@/%3$@",
@@ -839,6 +899,14 @@
   "en": "Traditional Chinese",
   "ja": "繁体字中国語"
  },
+ "结束": {
+  "en": "End",
+  "ja": "終了"
+ },
+ "结束时间要晚于开始时间": {
+  "en": "The end must be after the start",
+  "ja": "終了は開始より後にしてください"
+ },
  "继续观看": {
   "en": "Continue Watching",
   "ja": "続きから見る"
@@ -910,6 +978,10 @@
  "视频里说的是：": {
   "en": "Language spoken in the video:",
   "ja": "ビデオで話されている言語："
+ },
+ "视频（MP4）": {
+  "en": "Video (MP4)",
+  "ja": "ビデオ（MP4）"
  },
  "设为默认播放器": {
   "en": "Set as Default Player",
@@ -1014,6 +1086,10 @@
  "鸟": {
   "en": "Bird",
   "ja": "鳥"
+ },
+ "默认是播放位置前后两颗星之间的部分。": {
+  "en": "By default, the part between the stars around the playhead.",
+  "ja": "初期値は、再生位置の前後にあるスターの間です。"
  },
  "（播放器未就绪）": {
   "en": "(Player not ready)",

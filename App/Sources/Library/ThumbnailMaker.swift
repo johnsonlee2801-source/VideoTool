@@ -40,8 +40,10 @@ enum MPVFrameGrabber {
     /// thumbnail was requested but not written, the reason.
     /// `subtitles`: an external subtitle file drawn into the frame (checks of what the player shows).
     /// `precise: false` lands on the nearest keyframe (hover previews: speed over accuracy).
+    /// `width`: of the image; nil keeps the video's own width.
     static func grab(source: String, start: String, thumbnailTo url: URL?,
-                     subtitles: String? = nil, precise: Bool = true) -> (probe: MediaProbe?, failure: String?) {
+                     subtitles: String? = nil, precise: Bool = true,
+                     width: Int? = MPVFrameGrabber.width) -> (probe: MediaProbe?, failure: String?) {
         guard let h = mpv_create() else { return (nil, "mpv_create failed") }
         defer { mpv_terminate_destroy(h) }
 
@@ -116,7 +118,7 @@ enum MPVFrameGrabber {
         guard let url else { return (probe, nil) }
         guard dw > 0, dh > 0 else { return (probe, "no video track (dwidth=\(dw), dheight=\(dh))") }
 
-        let w = width
+        let w = max(2, (width ?? Int(dw)) / 2 * 2)
         let height = max(2, Int((Double(w) * Double(dh) / Double(dw)).rounded() / 2) * 2)
         let stride = w * 4
         var pixels = [UInt8](repeating: 0, count: stride * height)

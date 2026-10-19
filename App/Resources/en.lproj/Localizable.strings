@@ -63,6 +63,8 @@
 "剧名：" = "Series Title:";
 "加入" = "Add";
 "加速 0.1×" = "Speed Up 0.1×";
+"动图最长 %@ 秒" = "GIFs can be up to %@ seconds long";
+"动图（GIF）" = "Animated GIF";
 "动物" = "Animal";
 "动画" = "Animation";
 "厨房" = "Kitchen";
@@ -93,12 +95,18 @@
 "字幕生成中 · 已完成 %@（可以边看边等）" = "Making subtitles · %@ done (keep watching)";
 "室内" = "Indoors";
 "导出 AI 字幕…" = "Export AI Subtitles…";
+"导出…" = "Export…";
+"导出失败：%@" = "Export failed: %@";
+"导出片段" = "Export Clip";
+"导出片段…" = "Export Clip…";
+"导出超时" = "The export took too long";
 "小" = "Small";
 "屏幕" = "Screen";
 "山" = "Mountain";
 "已加入「%@」，正在后台整理" = "Added “%@”. Organizing in the background.";
 "已取消。" = "Canceled.";
 "已取消生成字幕" = "Subtitle generation canceled";
+"已导出：%@" = "Exported: %@";
 "已把 %1$@ 个子文件夹合并进「%2$@」。" = "Merged %1$@ subfolders into “%2$@”.";
 "已把 %@ 种视频格式的默认打开方式设为 VideoTool。" = "VideoTool is now the default app for %@ video formats.";
 "已撤销星标" = "Star removed";
@@ -116,6 +124,7 @@
 "恢复 1.0×" = "Reset to 1.0×";
 "意大利语" = "Italian";
 "成功 %1$@ 种，失败 %2$@ 种：\n" = "%1$@ succeeded, %2$@ failed:\n";
+"截图组（8 张 JPEG）" = "Stills (8 JPEGs)";
 "户外" = "Outdoors";
 "房屋" = "House";
 "打开…" = "Open…";
@@ -147,11 +156,15 @@
 "文件夹" = "Folder";
 "文字" = "Text";
 "新增 %@" = "%@ added";
+"无法写入 %@" = "Can't write %@";
+"无法读取这个视频" = "This video can't be read";
 "无法读取这个视频的声音。" = "Can't read the audio in this video.";
 "日出日落" = "Sunrise & Sunset";
 "日期未知" = "Unknown Date";
 "日语" = "Japanese";
 "时长未知" = "Unknown Length";
+"时间格式不对，例如 1:05" = "Enter times like 1:05";
+"时间超出了视频长度" = "That time is beyond the end of the video";
 "星标" = "Stars";
 "星标  %@" = "Stars  %@";
 "星标列表" = "Star List";
@@ -163,8 +176,10 @@
 "未识别" = "Unrecognized";
 "标清" = "SD";
 "树木" = "Tree";
+"格式" = "Format";
 "森林" = "Forest";
 "植物" = "Plant";
+"正在导出片段…" = "Exporting clip…";
 "正在扫描 %1$@… %2$@/%3$@" = "Scanning %1$@… %2$@/%3$@";
 "正在扫描…" = "Scanning…";
 "正在翻译字幕…" = "Translating subtitles…";
@@ -209,6 +224,8 @@
 "简体中文" = "Simplified Chinese";
 "粤语" = "Cantonese";
 "繁體中文" = "Traditional Chinese";
+"结束" = "End";
+"结束时间要晚于开始时间" = "The end must be after the start";
 "继续观看" = "Continue Watching";
 "美食" = "Food";
 "翻译成：" = "Translate to:";
@@ -227,6 +244,7 @@
 "视频多的话需要一会儿，可以先去看片。" = "With lots of videos this can take a while, so feel free to start watching.";
 "视频库" = "Video Library";
 "视频里说的是：" = "Language spoken in the video:";
+"视频（MP4）" = "Video (MP4)";
 "设为默认播放器" = "Set as Default Player";
 "设为默认视频播放器…" = "Set as Default Video Player…";
 "跟随系统" = "System Default";
@@ -253,5 +271,6 @@
 "马" = "Horse";
 "鱼" = "Fish";
 "鸟" = "Bird";
+"默认是播放位置前后两颗星之间的部分。" = "By default, the part between the stars around the playhead.";
 "（播放器未就绪）" = "(Player not ready)";
 "（根目录）" = "(Root Folder)";

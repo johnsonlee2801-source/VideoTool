@@ -535,6 +535,76 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         }
     }
 
+    // MARK: clip export
+
+    /// The stretch Export Clip proposes: between the stars around the playhead.
+    func suggestedClipRange() -> ClipRange? {
+        guard let engine, loadedPath != nil else { return nil }
+        return ClipRange.suggested(position: engine.state.timePos,
+                                   stars: bookmarks?.bookmarks.map(\.time) ?? [], duration: engine.state.duration)
+    }
+
+    /// Play › 导出片段…: start and end (prefilled from the stars), format, then where.
+    @objc func exportClip(_ sender: Any?) {
+        guard let window, let source = currentURL, source.isFileURL, let range = suggestedClipRange() else { return }
+        let duration = engine?.state.duration ?? 0
+        let startField = NSTextField(string: TimeFormatting.string(range.start))
+        let endField = NSTextField(string: range.end >= duration - 0.05 && duration > 0
+                                   ? TimeFormatting.string(duration.rounded(.up)) : TimeFormatting.string(range.end))
+        let formats: [(String, ClipExporter.Format, String)] = [
+            (L("视频（MP4）"), .video, "mp4"), (L("动图（GIF）"), .gif, "gif"), (L("截图组（8 张 JPEG）"), .stills(count: 8), ""),
+        ]
+        let popup = NSPopUpButton()
+        popup.addItems(withTitles: formats.map(\.0))
+        let grid = NSGridView(views: [[NSTextField(labelWithString: L("开始")), startField],
+                                      [NSTextField(labelWithString: L("结束")), endField],
+                                      [NSTextField(labelWithString: L("格式")), popup]])
+        grid.frame = NSRect(x: 0, y: 0, width: 280, height: 90)
+        startField.widthAnchor.constraint(equalToConstant: 120).isActive = true
+        let alert = NSAlert()
+        alert.messageText = L("导出片段")
+        alert.informativeText = L("默认是播放位置前后两颗星之间的部分。")
+        alert.accessoryView = grid
+        alert.addButton(withTitle: L("导出…"))
+        alert.addButton(withTitle: L("取消"))
+        alert.beginSheetModal(for: window) { [weak self] response in
+            guard response == .alertFirstButtonReturn, let self else { return }
+            let format = formats[max(0, popup.indexOfSelectedItem)]
+            guard let s = TimeFormatting.parse(startField.stringValue), let e = TimeFormatting.parse(endField.stringValue) else {
+                self.playerView?.hud.flash(text: L("时间格式不对，例如 1:05")); return
+            }
+            let chosen = ClipRange(start: s, end: duration > 0 ? min(e, duration) : e)
+            if let problem = chosen.problem(duration: duration, format: format.1) {
+                self.playerView?.hud.flash(text: problem); return
+            }
+            let stem = source.deletingPathExtension().lastPathComponent + " " +
+                TimeFormatting.string(chosen.start).replacingOccurrences(of: ":", with: "-")
+            let panel = NSSavePanel()
+            panel.nameFieldStringValue = format.2.isEmpty ? stem : stem + "." + format.2
+            panel.directoryURL = source.deletingLastPathComponent()
+            if !format.2.isEmpty { panel.allowedContentTypes = [.init(filenameExtension: format.2) ?? .data] }
+            DispatchQueue.main.async {
+                panel.beginSheetModal(for: window) { response in
+                    guard response == .OK, let url = panel.url else { return }
+                    self.runClipExport(source: source, range: chosen, format: format.1, to: url)
+                }
+            }
+        }
+    }
+
+    private func runClipExport(source: URL, range: ClipRange, format: ClipExporter.Format, to url: URL) {
+        playerView?.hud.flash(text: L("正在导出片段…"))
+        Task { @MainActor [weak self] in
+            do {
+                let files = try await ClipExporter.export(source: source, range: range, format: format, to: url)
+                self?.playerView?.hud.flash(text: L("已导出：%@", files.first?.lastPathComponent ?? ""))
+                NSWorkspace.shared.activateFileViewerSelecting(files)
+            } catch {
+                self?.playerView?.hud.flash(text: L("导出失败：%@", error.localizedDescription))
+            }
+        }
+    }
+
     // MARK: night mode
 
     @objc func toggleNightMode(_ sender: Any?) {
@@ -657,6 +727,8 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
             return true
         case #selector(exportAISubtitles(_:)):
             return aiShown != nil
+        case #selector(exportClip(_:)):
+            return currentURL?.isFileURL == true && loadedPath != nil
         case #selector(toggleNightMode(_:)):
             item.state = NightMode.isOn ? .on : .off
             return engine != nil

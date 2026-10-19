@@ -10,4 +10,17 @@ enum TimeFormatting {
         if h > 0 { return String(format: "%d:%02d:%02d", h, m, s) }
         return String(format: "%d:%02d", m, s)
     }
+
+    /// "1:02:03", "2:05" or "7.5" -> seconds; nil for anything else.
+    static func parse(_ text: String) -> Double? {
+        let parts = text.trimmingCharacters(in: .whitespaces).split(separator: ":", omittingEmptySubsequences: false)
+        guard (1...3).contains(parts.count) else { return nil }
+        var total = 0.0
+        for (i, part) in parts.enumerated() {
+            guard let v = Double(part), v.isFinite, v >= 0, !part.contains("e") else { return nil }
+            if i > 0 && v >= 60 { return nil }                      // minutes and seconds stay below 60
+            total = total * 60 + v
+        }
+        return total
+    }
 }

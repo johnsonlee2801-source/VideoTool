@@ -61,6 +61,7 @@
 		42B273E1C61F3A8302C9B57C /* audio_only.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 6645C550006613F114EE1C03 /* audio_only.mp3 */; };
 		47DD60BFD1FB7F91D3954386 /* ResumePositionStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25E8E392F7F2DE6CB617AC32 /* ResumePositionStoreTests.swift */; };
 		4AAEC04561C68E8BDA4F00E4 /* LibraryScannerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73668B338B5CA2B94D7D8AE0 /* LibraryScannerTests.swift */; };
+		4BF3783F903B318F03031ED9 /* ClipExportTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6AC273BCF28D84BF14D4873A /* ClipExportTests.swift */; };
 		4E774E0714414FC09CA984A2 /* av1_opus.mkv in Resources */ = {isa = PBXBuildFile; fileRef = D8022AC5547965F24F57EE06 /* av1_opus.mkv */; };
 		4F712CDCE1AB03C87BC9E9BB /* KeyRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A98B7FAC8CDCE1901010D8C /* KeyRouter.swift */; };
 		4F88F2201021E2D0F41D5D4E /* LaunchOpenQueueTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7ACD2C66A72859449C656AF /* LaunchOpenQueueTests.swift */; };
@@ -74,6 +75,7 @@
 		5CBF81E1E0CD273303CE7D0E /* testsrc-20s.mp4 in Resources */ = {isa = PBXBuildFile; fileRef = A54AE367692353E902A11DA2 /* testsrc-20s.mp4 */; };
 		600F2FF7FED531462125F03E /* hevc_aac.mp4 in Resources */ = {isa = PBXBuildFile; fileRef = DFBD04978F6C9F15CD0BD375 /* hevc_aac.mp4 */; };
 		62AA1E5E39B3A7C05359C3F5 /* h264_aac.flv in Resources */ = {isa = PBXBuildFile; fileRef = F9EF0BCDF5F65888D49FE6F5 /* h264_aac.flv */; };
+		63237E52A01F152E4C9A1772 /* ClipExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7843163AEC985C1E217B5FB2 /* ClipExporter.swift */; };
 		64BE2300325A4F9CBC2B7682 /* AppleSpeech.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AAC64859934FD89CEC61B05 /* AppleSpeech.swift */; };
 		67C118CCB23DE83700A8A77E /* 测试 视频 #1 (中文)&'名字.mkv in Resources */ = {isa = PBXBuildFile; fileRef = CAE2A475E003B990ECC86AD3 /* 测试 视频 #1 (中文)&'名字.mkv */; };
 		6990B13E72F51A81357025B5 /* LibraryOffer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99C590EFF3AD7002C02E8BBB /* LibraryOffer.swift */; };
@@ -221,11 +223,13 @@
 		67BD09E7D2A2478232C7492C /* PlayerWiringTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerWiringTests.swift; sourceTree = "<group>"; };
 		689E3810583BA8DF561A8483 /* SubtitleExportSizeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubtitleExportSizeTests.swift; sourceTree = "<group>"; };
 		6A8ECAAC1F965BB7C14A4858 /* LibraryShallowRootTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryShallowRootTests.swift; sourceTree = "<group>"; };
+		6AC273BCF28D84BF14D4873A /* ClipExportTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipExportTests.swift; sourceTree = "<group>"; };
 		6FDA42FFD3ED05CA2ED5E13B /* MediaTypes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaTypes.swift; sourceTree = "<group>"; };
 		73668B338B5CA2B94D7D8AE0 /* LibraryScannerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryScannerTests.swift; sourceTree = "<group>"; };
 		73C4E801B05D7EE97E8DA16E /* BookmarkStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookmarkStore.swift; sourceTree = "<group>"; };
 		73F72CE394289093319DFBA6 /* PlayerWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerWindowController.swift; sourceTree = "<group>"; };
 		75A62CAC1D1D448B03ADAD63 /* prores_pcm.mov */ = {isa = PBXFileReference; lastKnownFileType = video.quicktime; path = prores_pcm.mov; sourceTree = "<group>"; };
+		7843163AEC985C1E217B5FB2 /* ClipExporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipExporter.swift; sourceTree = "<group>"; };
 		7A4C40E0F5412FC4F180E25C /* LiveSubtitleTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveSubtitleTests.swift; sourceTree = "<group>"; };
 		7AAC64859934FD89CEC61B05 /* AppleSpeech.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleSpeech.swift; sourceTree = "<group>"; };
 		7F72FEB279668ADBDC94CEAE /* SubtitleFromHereTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubtitleFromHereTests.swift; sourceTree = "<group>"; };
@@ -359,6 +363,7 @@
 				35A675DD65131807384C7730 /* BookmarkMarkersViewTests.swift */,
 				CB30483F2E3CB42090D1C8AE /* BookmarkNavigatorTests.swift */,
 				409E2C1446CEF554A3887225 /* BookmarkStoreTests.swift */,
+				6AC273BCF28D84BF14D4873A /* ClipExportTests.swift */,
 				024FCF8ECD6922BCFB65700D /* CoverageGapTests.swift */,
 				A8644B955E4DEF8D28FE2622 /* CoverageRound2Tests.swift */,
 				FD9EDCD083A4F4954A878E0B /* DefaultAppRegistrarTests.swift */,
@@ -483,6 +488,7 @@
 			isa = PBXGroup;
 			children = (
 				4139FE1B6DB106218A8C9CAB /* AudioOutput.swift */,
+				7843163AEC985C1E217B5FB2 /* ClipExporter.swift */,
 				D08715612F6FCEC40BA6B6DD /* KeyCommand.swift */,
 				8A98B7FAC8CDCE1901010D8C /* KeyRouter.swift */,
 				9AD872C3686DC4CE462AA2FD /* PlaybackMemory.swift */,
@@ -731,6 +737,7 @@
 				3A0214AF327F2D1FCD56B139 /* BookmarkMarkersViewTests.swift in Sources */,
 				B346B132AA0B69515EE20EAA /* BookmarkNavigatorTests.swift in Sources */,
 				A4AF6D86026236892F3C5D03 /* BookmarkStoreTests.swift in Sources */,
+				4BF3783F903B318F03031ED9 /* ClipExportTests.swift in Sources */,
 				EFBAF57421EE294E14932B13 /* CoverageGapTests.swift in Sources */,
 				9FA83ADE118E0547C6A3CAE2 /* CoverageRound2Tests.swift in Sources */,
 				14ED3E439B4C007E372CE357 /* DefaultAppRegistrarTests.swift in Sources */,
@@ -797,6 +804,7 @@
 				19CAAD2534B2E671543DBB78 /* BookmarkMarkersView.swift in Sources */,
 				BA13FA513854F15FE7B0B2E8 /* BookmarkNavigator.swift in Sources */,
 				5B66C0202F10BD8C49961C46 /* BookmarkStore.swift in Sources */,
+				63237E52A01F152E4C9A1772 /* ClipExporter.swift in Sources */,
 				268EE2EFFA6F387B79028C2C /* DefaultAppRegistrar.swift in Sources */,
 				B23C4459DFCF41DFBD2B2BFC /* EmptyStateView.swift in Sources */,
 				0C4D86678255E080A22DD1E8 /* Feedback.swift in Sources */,
