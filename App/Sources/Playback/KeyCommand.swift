@@ -11,6 +11,7 @@ enum PlayerCommand: Equatable {
     case speedDelta(Double)
     case resetSpeed
     case setSpeed(Double)      // a fixed speed from the speed menu
+    case subtitleDelay(Double) // relative seconds (Z earlier, X later)
     case toggleBookmark
     case previousBookmark
     case nextBookmark
@@ -52,6 +53,8 @@ enum KeyCommandMap {
         case "m": return .toggleMute
         case "s": return .cycleSubtitle
         case "a": return .cycleAudio
+        case "z": return .subtitleDelay(-0.1)
+        case "x": return .subtitleDelay(0.1)
         case "[": return .speedDelta(-0.1)
         case "]": return .speedDelta(0.1)
         case "b": return .toggleBookmark

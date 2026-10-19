@@ -7,6 +7,12 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     let playerView: PlayerView?          // internal for the event-glue tests
     private let resumeStore = ResumePositionStore()
     private let history = WatchHistoryStore()
+    private let memory = PlaybackMemory()
+    /// The file whose load has been fully handled (settings restored, subtitles attached).
+    private(set) var loadedPath: String?
+    /// Subtitle timing of the current video, kept here: the player applies changes
+    /// asynchronously, so quick Z/X presses must not each start from its stale value.
+    private var subtitleDelay = 0.0
     private lazy var resumeTracker = ResumeTracker(storedPosition: { [resumeStore] path in
         resumeStore.position(for: URL(fileURLWithPath: path))
     })
@@ -48,6 +54,9 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     private let bookmarks: BookmarkController?
     private let markers = BookmarkMarkersView()
     private let preview = BookmarkPreviewView()
+    private let hover = HoverPreviewer()
+    private var hoverTime: Double?
+    var previewCard: BookmarkPreviewView { preview }       // tests
     let listPanel = BookmarkListView()    // internal: tests use the list
     private var listWidth: NSLayoutConstraint?
     private let starButton = NSButton(title: "", target: nil, action: nil)
@@ -259,6 +268,7 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         listPanel.onDelete = { [weak bookmarks] id in bookmarks?.delete(id) }
         bookmarks.onThumbnailReady = { [weak self] id in self?.refreshPreview(ifShowing: id) }
         markers.onHover = { [weak self] b, x in self?.showPreview(b, atMarkerX: x) }
+        markers.onHoverTime = { [weak self] t, x in self?.showHoverPreview(time: t, atMarkerX: x) }
         markers.onClick = { [weak bookmarks] b in bookmarks?.jump(to: b) }
         listPanel.show([])
     }
@@ -279,6 +289,32 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         frame.origin.y = controlBar.frame.maxY + 6
         preview.frame = frame
         preview.show(b, thumbnail: bookmarks?.thumbnailURL(for: b))
+    }
+
+    /// Hovering the bar away from stars: the time at once, the frame when grabbed.
+    func showHoverPreview(time: Double?, atMarkerX x: CGFloat) {
+        hoverTime = time
+        guard let time, let content = window?.contentView else {
+            if previewing == nil { preview.hide() }
+            return
+        }
+        guard previewing == nil else { return }                 // a star's own preview is showing
+        let image = hover.request(time) { [weak self] img in
+            guard let self, let now = self.hoverTime, self.previewing == nil,
+                  Int(now / HoverPreviewer.step) == Int(time / HoverPreviewer.step) else { return }
+            self.preview.showTime(now, image: img)
+            self.place(self.preview, atMarkerX: x, in: content)
+        }
+        preview.showTime(time, image: image)
+        place(preview, atMarkerX: x, in: content)
+    }
+
+    private func place(_ card: NSView, atMarkerX x: CGFloat, in content: NSView) {
+        let anchor = content.convert(NSPoint(x: x, y: markers.bounds.minY), from: markers)
+        var frame = card.frame
+        frame.origin.x = min(max(anchor.x - frame.width / 2, 6), content.bounds.width - frame.width - 6)
+        frame.origin.y = controlBar.frame.maxY + 6
+        card.frame = frame
     }
 
     @objc func toggleBookmark(_ sender: Any?) {
@@ -358,7 +394,9 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
             resumeTracker.fileLoaded(path: path, duration: duration).forEach(apply)
             bookmarks?.open(path: path)         // identifies the file off the main thread
             engine.setPaused(false)
+            restoreMemory(for: path)
             loadCachedAISubtitles(for: path)
+            loadedPath = path
         case .endFile:
             // With keep-open, natural EOF does not end the file; eofReached in
             // render() handles that. This fires on replace/stop/errors.
@@ -378,6 +416,7 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         libraryOffer.hide()
         cancelAISubtitles()
         aiShown = nil
+        hover.setSource(url.isFileURL ? url.path : nil)
         currentURL = url
         defer { updateAIButton() }
         NSDocumentController.shared.noteNewRecentDocumentURL(url)
@@ -436,8 +475,43 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         speedStore.speed = s
         engine?.setSpeed(s)
     }
-    @objc func cycleSubtitle(_ sender: Any?) { engine?.cycleSubtitle() }
-    @objc func cycleAudio(_ sender: Any?) { engine?.cycleAudio() }
+    @objc func cycleSubtitle(_ sender: Any?) { perform(.cycleSubtitle) }
+    @objc func cycleAudio(_ sender: Any?) { perform(.cycleAudio) }
+    @objc func subtitleEarlier(_ sender: Any?) { perform(.subtitleDelay(-0.1)) }
+    @objc func subtitleLater(_ sender: Any?) { perform(.subtitleDelay(0.1)) }
+
+    // MARK: per-video memory
+
+    /// Puts this video back the way it was left; videos never touched get the defaults.
+    private func restoreMemory(for path: String) {
+        let e = memory.entry(for: path)
+        subtitleDelay = e?.subtitleDelay ?? 0
+        engine?.applyTrackChoice(audio: e?.audioTrack ?? "auto", subtitle: e?.subtitleTrack ?? "auto",
+                                 subtitleDelay: subtitleDelay)
+    }
+
+    /// After a track switch (the player answers asynchronously): note the choice.
+    /// Only embedded subtitle tracks or "off" are kept; AI subtitles come back on their own.
+    private func rememberTracks() {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
+            guard let self, let engine = self.engine, let path = self.currentURL?.path, engine.state.path == path else { return }
+            let aid = engine.property("aid"), sid = engine.property("sid")
+            let external = engine.property("current-tracks/sub/external") == "yes"
+            self.memory.update(path) { e in
+                e.audioTrack = aid
+                if sid == "no" || !external { e.subtitleTrack = sid }
+            }
+        }
+    }
+
+    private func changeSubtitleDelay(by d: Double) {
+        guard let engine, let path = currentURL?.path else { return }
+        let delay = ((subtitleDelay + d) * 10).rounded() / 10
+        subtitleDelay = delay
+        engine.adjustSubtitleDelay(to: delay)
+        playerView?.hud.flash(text: L("字幕延迟 %@ 秒", String(format: "%+.1f", delay)))
+        memory.update(path) { $0.subtitleDelay = delay }
+    }
     @objc func toggleMute(_ sender: Any?) { engine?.toggleMute() }
 
     @objc private func sliderMoved(_ sender: NSSlider) {
@@ -464,8 +538,9 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         case .volume(let d): engine.setVolume(engine.state.volume + d)
         case .toggleMute: engine.toggleMute()
         case .toggleFullscreen: window?.toggleFullScreen(nil)
-        case .cycleSubtitle: engine.cycleSubtitle()
-        case .cycleAudio: engine.cycleAudio()
+        case .cycleSubtitle: engine.cycleSubtitle(); rememberTracks()
+        case .cycleAudio: engine.cycleAudio(); rememberTracks()
+        case .subtitleDelay(let d): changeSubtitleDelay(by: d)
         // Steps start from the chosen speed (the player's own speed updates asynchronously).
         case .speedDelta(let d): choose(speed: preferredSpeed + d)
         case .resetSpeed: choose(speed: 1.0)
@@ -664,17 +739,19 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
             let url = SubtitleCache.url(forVideo: path, source: source, target: t)
             if FileManager.default.fileExists(atPath: url.path) {
                 let request = AISubtitlePipeline.Request(video: path, source: source, target: t)
-                showAISubtitles(srt: url, bilingual: translated, title: Self.subtitleTitle(request, translated: translated))
+                // Switched on unless the viewer had chosen other subtitles (or none) for this video.
+                showAISubtitles(srt: url, bilingual: translated, title: Self.subtitleTitle(request, translated: translated),
+                                select: memory.entry(for: path)?.subtitleTrack == nil)
                 return
             }
         }
     }
 
     /// Shows finished AI subtitles through their .ass (with or without the band).
-    private func showAISubtitles(srt: URL, bilingual: Bool, title: String) {
+    private func showAISubtitles(srt: URL, bilingual: Bool, title: String, select: Bool = true) {
         guard let engine, let display = SubtitleCache.display(for: srt, bilingual: bilingual, band: aiPrefs.band,
                                                                scale: aiPrefs.scale) else { return }
-        engine.addSubtitle(path: display.path, title: title)
+        engine.addSubtitle(path: display.path, title: title, select: select)
         aiShown = (srt, display, bilingual)
     }
 

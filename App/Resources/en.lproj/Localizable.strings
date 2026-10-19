@@ -84,6 +84,9 @@
 "婴儿" = "Baby";
 "字幕已生成" = "Subtitles ready";
 "字幕已生成，共 %@ 句（按 S 可切换字幕）" = "Subtitles ready: %@ lines (press S to switch subtitles)";
+"字幕延后 0.1 秒   X" = "Subtitles 0.1 s Later   X";
+"字幕延迟 %@ 秒" = "Subtitle delay %@ s";
+"字幕提前 0.1 秒   Z" = "Subtitles 0.1 s Earlier   Z";
 "字幕生成中 · 已完成 %@（可以边看边等）" = "Making subtitles · %@ done (keep watching)";
 "室内" = "Indoors";
 "导出 AI 字幕…" = "Export AI Subtitles…";

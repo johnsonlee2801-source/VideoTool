@@ -146,6 +146,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
         sizeItem.submenu = sizeMenu
         playMenu.addItem(withTitle: L("导出 AI 字幕…"), action: #selector(PlayerWindowController.exportAISubtitles(_:)), keyEquivalent: "")
         playMenu.addItem(withTitle: L("切换音轨"), action: #selector(PlayerWindowController.cycleAudio(_:)), keyEquivalent: "a")
+        playMenu.addItem(withTitle: L("字幕提前 0.1 秒   Z"), action: #selector(PlayerWindowController.subtitleEarlier(_:)), keyEquivalent: "")
+        playMenu.addItem(withTitle: L("字幕延后 0.1 秒   X"), action: #selector(PlayerWindowController.subtitleLater(_:)), keyEquivalent: "")
         playMenu.addItem(withTitle: L("静音"), action: #selector(PlayerWindowController.toggleMute(_:)), keyEquivalent: "m")
         let outputItem = playMenu.addItem(withTitle: L("声音输出"), action: nil, keyEquivalent: "")
         let outputMenu = NSMenu(title: L("声音输出"))

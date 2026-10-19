@@ -11,6 +11,8 @@ final class BookmarkMarkersView: NSView {
     var bookmarks: [Bookmark] = [] { didSet { needsDisplay = true } }
     /// Called with the hovered star (or nil) and its x in this view's coordinates.
     var onHover: ((Bookmark?, CGFloat) -> Void)?
+    /// The time under the mouse when it is over the bar but not on a star (nil: none).
+    var onHoverTime: ((Double?, CGFloat) -> Void)?
     /// A star was clicked (for a cluster, its earliest star).
     var onClick: ((Bookmark) -> Void)?
 
@@ -97,19 +99,29 @@ final class BookmarkMarkersView: NSView {
     }
 
     override func mouseMoved(with event: NSEvent) {
-        let hit = star(atX: convert(event.locationInWindow, from: nil).x)
+        let x = convert(event.locationInWindow, from: nil).x
+        let hit = star(atX: x)
         if hit?.0.id != hovered {
             hovered = hit?.0.id
             needsDisplay = true
             onHover?(hit?.0, hit?.1 ?? 0)
         }
+        onHoverTime?(hit == nil ? time(atX: x) : nil, x)
     }
 
     override func mouseExited(with event: NSEvent) {
+        onHoverTime?(nil, 0)
         guard hovered != nil else { return }
         hovered = nil
         needsDisplay = true
         onHover?(nil, 0)
+    }
+
+    /// The time at `x` on the bar (nil off the bar or with nothing loaded).
+    func time(atX x: CGFloat) -> Double? {
+        let t = track()
+        guard duration > 0, t.width > 0, Double(x) >= t.minX - 2, Double(x) <= t.minX + t.width + 2 else { return nil }
+        return min(max((Double(x) - t.minX) / t.width, 0), 1) * duration
     }
 }
 
@@ -161,6 +173,22 @@ final class BookmarkPreviewView: NSView {
         label.frame = NSRect(x: 10, y: 7, width: bounds.width - 20, height: 20)
         isHidden = false
     }
+
+    /// Hover on the bar away from stars: the time, and the frame once it is ready.
+    func showTime(_ time: Double, image: NSImage?) {
+        label.attributedStringValue = NSAttributedString(string: TimeFormatting.string(time), attributes: [
+            .foregroundColor: Theme.textPrimary, .font: Theme.digits(13, .heavy)])
+        self.image.image = image
+        self.image.isHidden = image == nil
+        setFrameSize(image == nil ? Self.compactSize : Self.fullSize)
+        self.image.frame = NSRect(x: 6, y: 32, width: bounds.width - 12, height: bounds.height - 38)
+        label.frame = NSRect(x: 10, y: 7, width: bounds.width - 20, height: 20)
+        isHidden = false
+    }
+
+    /// For tests: what the card shows.
+    var text: String { label.stringValue }
+    var hasImage: Bool { image.image != nil && !image.isHidden }
 
     func hide() { isHidden = true }
 }

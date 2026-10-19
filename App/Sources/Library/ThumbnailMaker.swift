@@ -39,8 +39,9 @@ enum MPVFrameGrabber {
     /// Returns the probe (nil if the file could not be opened) and, if a
     /// thumbnail was requested but not written, the reason.
     /// `subtitles`: an external subtitle file drawn into the frame (checks of what the player shows).
+    /// `precise: false` lands on the nearest keyframe (hover previews: speed over accuracy).
     static func grab(source: String, start: String, thumbnailTo url: URL?,
-                     subtitles: String? = nil) -> (probe: MediaProbe?, failure: String?) {
+                     subtitles: String? = nil, precise: Bool = true) -> (probe: MediaProbe?, failure: String?) {
         guard let h = mpv_create() else { return (nil, "mpv_create failed") }
         defer { mpv_terminate_destroy(h) }
 
@@ -49,7 +50,7 @@ enum MPVFrameGrabber {
             // Keep the audio track (audio-only files have nothing else to load) but never
             // open a sound device: ao=null. Found by FormatMatrixTests FM3.
             ("vo", "libmpv"), ("hwdec", "no"), ("ao", "null"), ("sid", "no"), ("osd-level", "0"),
-            ("pause", "yes"), ("keep-open", "yes"), ("start", start), ("hr-seek", "yes"),
+            ("pause", "yes"), ("keep-open", "yes"), ("start", start), ("hr-seek", precise ? "yes" : "no"),
             // The software renderer asserts (and aborts the whole process) on rotated video
             // (mp_image_crop, found by FormatMatrixTests with a phone-style 90° flag).
             // Render unrotated and rotate the bitmap ourselves.

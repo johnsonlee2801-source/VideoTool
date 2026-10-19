@@ -118,9 +118,20 @@ final class MPVEngine: PlayerEngine {
 
     /// Adds an external subtitle file and shows it (AI subtitles).
     /// The same file again (regenerated or reopened) is selected, not added twice.
-    func addSubtitle(path: String, title: String) {
-        if let id = subtitleTrackID(path: path) { command(["set", "sid", id]); return }
-        command(["sub-add", path, "select", title])
+    /// `select: false` adds it without switching to it (the viewer had chosen otherwise).
+    func addSubtitle(path: String, title: String, select: Bool = true) {
+        if let id = subtitleTrackID(path: path) { if select { command(["set", "sid", id]) }; return }
+        command(["sub-add", path, select ? "select" : "auto", title])
+    }
+
+    func adjustSubtitleDelay(to seconds: Double) { command(["set", "sub-delay", String(seconds)]) }
+
+    /// Track choice and timing for one video: "auto", "no" or a track id. These are
+    /// global in mpv, so every opened video gets them set (nothing leaks between files).
+    func applyTrackChoice(audio: String, subtitle: String, subtitleDelay: Double) {
+        command(["set", "aid", audio])
+        command(["set", "sid", subtitle])
+        command(["set", "sub-delay", String(subtitleDelay)])
     }
 
     /// Re-reads an external subtitle file that was rewritten (subtitles made while playing).

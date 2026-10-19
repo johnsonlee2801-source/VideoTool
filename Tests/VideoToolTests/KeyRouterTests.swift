@@ -14,18 +14,18 @@ import Testing
         #expect(KeyRouter.decide(key("]"), gestureActive: false) == .perform(.speedDelta(0.1)))
     }
     @Test("K2 idle: unmapped keys and chords pass through") func idlePassThrough() {
-        #expect(KeyRouter.decide(key("z"), gestureActive: false) == .passThrough)
+        #expect(KeyRouter.decide(key("q"), gestureActive: false) == .passThrough)
         #expect(KeyRouter.decide(key("o", command: true), gestureActive: false) == .passThrough)
         #expect(KeyRouter.decide(nil, gestureActive: false) == .passThrough)
     }
     @Test("K3 gesture active: a plain key cancels and is swallowed (space does not also pause)") func activePlain() {
         #expect(KeyRouter.decide(key(KeyInput.space), gestureActive: true) == .cancelGestureOnly)
-        #expect(KeyRouter.decide(key("z"), gestureActive: true) == .cancelGestureOnly)
+        #expect(KeyRouter.decide(key("q"), gestureActive: true) == .cancelGestureOnly)
     }
     @Test("K3b with cancelsOnly=false a plain key performs its command (the caller has already cancelled)")
     func activePlainCommandMode() {
         #expect(KeyRouter.decide(key(KeyInput.space), gestureActive: true, plainKeyCancelsOnly: false) == .perform(.togglePause))
-        #expect(KeyRouter.decide(key("z"), gestureActive: true, plainKeyCancelsOnly: false) == .passThrough)
+        #expect(KeyRouter.decide(key("q"), gestureActive: true, plainKeyCancelsOnly: false) == .passThrough)
     }
     @Test("K4 gesture active: chords cancel and still reach the menu bar") func activeChord() {
         #expect(KeyRouter.decide(key("q", command: true), gestureActive: true) == .cancelGestureAndPassThrough)

@@ -65,7 +65,7 @@ import Testing
         let (w, window, _) = try makeWindow()
         defer { w.shutdown() }
         #expect(w.handleKeyDown(key(" ", 49, in: window)) == nil)          // play / pause
-        let z = key("z", 6, in: window)
+        let z = key("q", 12, in: window)          // Q has no player command (Z moves subtitles since 2026-10-19)
         #expect(w.handleKeyDown(z) === z)
     }
 

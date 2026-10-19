@@ -34,7 +34,7 @@ import Testing
         #expect(cmd("m", control: true) == nil)
     }
     @Test("unknown keys map to nothing") func unknown() {
-        #expect(cmd("z") == nil)
+        #expect(cmd("q") == nil)
         #expect(cmd(KeyInput.escape) == nil)
         #expect(cmd("") == nil)
     }
