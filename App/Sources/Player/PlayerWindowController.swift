@@ -3,7 +3,7 @@ import UniformTypeIdentifiers
 
 final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenuItemValidation {
     private let session: PlaybackSession?
-    private var engine: MPVEngine? { session?.engine }
+    var engine: MPVEngine? { session?.engine }       // internal: QualityTests read player stats
     let playerView: PlayerView?          // internal for the event-glue tests
     private let resumeStore = ResumePositionStore()
     private let history = WatchHistoryStore()
