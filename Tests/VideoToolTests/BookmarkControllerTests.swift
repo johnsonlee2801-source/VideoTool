@@ -36,7 +36,7 @@ private final class Rig {
     let engine = FakeEngine()
     var now = Date(timeIntervalSince1970: 10_000)
     let store: BookmarkStore
-    let thumbDir = FileManager.default.temporaryDirectory.appendingPathComponent("thumbs-\(UUID().uuidString)")
+    let thumbDir = TestTemp.directory.appendingPathComponent("thumbs-\(UUID().uuidString)")
     let background = ManualQueue()
     let main = ManualQueue()
     var fingerprints: [String: String] = ["/m/film.mkv": "osh:abc"]
@@ -47,7 +47,7 @@ private final class Rig {
                                              main: { [unowned self] in self.main.submit($0) })
     func settle() { background.runAll(); main.runAll() }
     init() throws {
-        store = try BookmarkStore(path: FileManager.default.temporaryDirectory
+        store = try BookmarkStore(path: TestTemp.directory
             .appendingPathComponent("bmc-\(UUID().uuidString).sqlite").path)
     }
     func open(_ key: String = "osh:abc", path: String = "/m/film.mkv", duration: Double = 600) {

@@ -66,7 +66,7 @@ struct LibraryOfferPolicyTests {
 
 struct LibraryOfferPreferencesTests {
     @Test("LO6 declined folders and 'don't ask again' persist") func persists() throws {
-        let suite = "lo-\(UUID().uuidString)"
+        let suite = "videotool-tests-lo-\(UUID().uuidString)"
         let defaults = try #require(UserDefaults(suiteName: suite))
         defer { defaults.removePersistentDomain(forName: suite) }
         let a = LibraryOfferPreferences(defaults: defaults)
@@ -85,7 +85,7 @@ struct LibraryOfferPreferencesTests {
         var shown: [LibraryOffer.Proposal] = []
         var added: [LibraryOffer.Proposal] = []
         var refreshed: [String] = []
-        let suite = "loc-\(UUID().uuidString)"
+        let suite = "videotool-tests-loc-\(UUID().uuidString)"
         lazy var prefs = LibraryOfferPreferences(defaults: UserDefaults(suiteName: suite)!)
         lazy var coordinator = LibraryOfferCoordinator(
             preferences: prefs, home: "/home/u", roots: { self.roots },

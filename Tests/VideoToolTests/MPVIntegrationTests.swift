@@ -38,7 +38,7 @@ private func waitUntil(_ timeout: Double = 5, _ condition: () -> Bool) async -> 
 
     @Test("I-AI an AI subtitle file is added to the playing video, selected and shown at its time")
     func addsGeneratedSubtitle() async throws {
-        let srt = FileManager.default.temporaryDirectory.appendingPathComponent("ai-\(UUID().uuidString).srt")
+        let srt = TestTemp.directory.appendingPathComponent("ai-\(UUID().uuidString).srt")
         try SRT.document([SubtitleCue(start: 0, end: 30, text: "Hello, everyone.", translation: "大家好。")])
             .write(to: srt, atomically: true, encoding: .utf8)
         let engine = try MPVEngine()
@@ -196,7 +196,7 @@ private func waitUntil(_ timeout: Double = 5, _ condition: () -> Bool) async -> 
 
     @Test("I11 thumbnails come from a separate software-decoding mpv, so they work even when playback uses VideoToolbox")
     func thumbnailExtraction() async throws {
-        let out = FileManager.default.temporaryDirectory.appendingPathComponent("thumb-\(UUID().uuidString).jpg")
+        let out = TestTemp.directory.appendingPathComponent("thumb-\(UUID().uuidString).jpg")
         let ok: Bool = await withCheckedContinuation { cont in
             MPVThumbnailMaker().makeThumbnail(source: sample, at: 5, to: out) { cont.resume(returning: $0) }
         }
@@ -211,7 +211,7 @@ private func waitUntil(_ timeout: Double = 5, _ condition: () -> Bool) async -> 
 
     @Test("I12 a thumbnail request for a missing file reports failure instead of hanging")
     func thumbnailMissingFile() async {
-        let out = FileManager.default.temporaryDirectory.appendingPathComponent("thumb-\(UUID().uuidString).jpg")
+        let out = TestTemp.directory.appendingPathComponent("thumb-\(UUID().uuidString).jpg")
         let ok: Bool = await withCheckedContinuation { cont in
             MPVThumbnailMaker().makeThumbnail(source: "/nonexistent/\(UUID()).mp4", at: 1, to: out) { cont.resume(returning: $0) }
         }
@@ -222,7 +222,7 @@ private func waitUntil(_ timeout: Double = 5, _ condition: () -> Bool) async -> 
     @Test("I13 glue end to end: the real fixture opened through BookmarkController gets its content key and stars persist")
     func bookmarksEndToEnd() async throws {
         let session = try PlaybackSession()
-        let db = FileManager.default.temporaryDirectory.appendingPathComponent("e2e-\(UUID().uuidString).sqlite").path
+        let db = TestTemp.directory.appendingPathComponent("e2e-\(UUID().uuidString).sqlite").path
         let controller = BookmarkController(store: try BookmarkStore(path: db), engine: session.engine, thumbnails: nil)
         controller.open(path: sample)
         #expect(await waitUntil { controller.fileKey != nil })
@@ -236,7 +236,7 @@ private func waitUntil(_ timeout: Double = 5, _ condition: () -> Bool) async -> 
 
     @Test("I14 a star at the very end of the video still yields a thumbnail or fails cleanly")
     func thumbnailAtEnd() async {
-        let out = FileManager.default.temporaryDirectory.appendingPathComponent("thumb-\(UUID().uuidString).jpg")
+        let out = TestTemp.directory.appendingPathComponent("thumb-\(UUID().uuidString).jpg")
         let ok: Bool = await withCheckedContinuation { cont in
             MPVThumbnailMaker().makeThumbnail(source: sample, at: 20.0, to: out) { cont.resume(returning: $0) }
         }
@@ -245,7 +245,7 @@ private func waitUntil(_ timeout: Double = 5, _ condition: () -> Bool) async -> 
 
     @Test("I15 probing the fixture reports its duration and size and writes a thumbnail from 10% in")
     func probeFixture() throws {
-        let out = FileManager.default.temporaryDirectory.appendingPathComponent("probe-\(UUID().uuidString).jpg")
+        let out = TestTemp.directory.appendingPathComponent("probe-\(UUID().uuidString).jpg")
         let p = try #require(MPVMediaProber().probe(source: sample, thumbnailTo: out), "\(MPVThumbnailMaker.lastFailure ?? "")")
         #expect(abs(p.duration - 20) < 0.5)
         #expect(p.width == 640 && p.height == 360)
@@ -260,7 +260,7 @@ private func waitUntil(_ timeout: Double = 5, _ condition: () -> Bool) async -> 
 
     @Test("I17 Vision classifies a real thumbnail without error (labels depend on content)")
     func visionRuns() throws {
-        let out = FileManager.default.temporaryDirectory.appendingPathComponent("vis-\(UUID().uuidString).jpg")
+        let out = TestTemp.directory.appendingPathComponent("vis-\(UUID().uuidString).jpg")
         _ = try #require(MPVMediaProber().probe(source: sample, thumbnailTo: out))
         let tags = VisionTagger().tags(forImageAt: out)
         #expect(tags.count <= TagVocabulary.maxTags)
@@ -271,7 +271,7 @@ private func waitUntil(_ timeout: Double = 5, _ condition: () -> Bool) async -> 
     @Test("I18 real library pass: real fingerprints, mpv probing and Vision; copies found as duplicates; files untouched")
     func realLibraryPass() throws {
         let fm = FileManager.default
-        let root = URL(fileURLWithPath: fm.temporaryDirectory.appendingPathComponent("reallib-\(UUID().uuidString)").path)
+        let root = URL(fileURLWithPath: TestTemp.directory.appendingPathComponent("reallib-\(UUID().uuidString)").path)
             .resolvingSymlinksInPath()
         try fm.createDirectory(at: root.appendingPathComponent("copies"), withIntermediateDirectories: true)
         try fm.copyItem(atPath: sample, toPath: root.appendingPathComponent("clip.mp4").path)
@@ -286,8 +286,8 @@ private func waitUntil(_ timeout: Double = 5, _ condition: () -> Bool) async -> 
             }
         }
         let before = try snapshot()
-        let store = try LibraryStore(path: fm.temporaryDirectory.appendingPathComponent("real-\(UUID().uuidString).sqlite").path)
-        let thumbs = fm.temporaryDirectory.appendingPathComponent("realthumbs-\(UUID().uuidString)")
+        let store = try LibraryStore(path: TestTemp.directory.appendingPathComponent("real-\(UUID().uuidString).sqlite").path)
+        let thumbs = TestTemp.directory.appendingPathComponent("realthumbs-\(UUID().uuidString)")
         _ = try store.addRoot(root.path)
         let indexer = LibraryIndexer(store: store, thumbnailDirectory: thumbs)
 

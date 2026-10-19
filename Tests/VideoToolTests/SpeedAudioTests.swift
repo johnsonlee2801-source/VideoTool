@@ -15,7 +15,7 @@ private let speech = Bundle(for: Marker.self).path(forResource: "speech-en", ofT
 /// a file instead of the speakers; nothing else about the engine changes.
 @MainActor
 private func loudness(at speed: Double) async throws -> (rms: Double, seconds: Double) {
-    let wav = FileManager.default.temporaryDirectory.appendingPathComponent("speed-\(speed)-\(UUID().uuidString).wav")
+    let wav = TestTemp.directory.appendingPathComponent("speed-\(speed)-\(UUID().uuidString).wav")
     defer { try? FileManager.default.removeItem(at: wav) }
     let engine = try MPVEngine(extraOptions: [("vo", "null"), ("vid", "no"), ("ao", "pcm"), ("ao-pcm-file", wav.path),
                                               ("audio-samplerate", "16000"), ("audio-channels", "mono"),

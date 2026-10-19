@@ -6,7 +6,7 @@ import Testing
 private final class Marker {}
 private func fixture(_ name: String, _ ext: String) -> String { Bundle(for: Marker.self).path(forResource: name, ofType: ext)! }
 private func tempDir() -> URL {
-    FileManager.default.temporaryDirectory.appendingPathComponent("aisub-\(UUID().uuidString)", isDirectory: true)
+    TestTemp.directory.appendingPathComponent("aisub-\(UUID().uuidString)", isDirectory: true)
 }
 
 private final class FakeRecognizer: SpeechRecognizing, @unchecked Sendable {
@@ -61,7 +61,7 @@ struct AISubtitlePipelineTests {
 
     @Test("AI2 a second run for the same video and languages comes from the cache") func cached() async throws {
         let dir = tempDir(), rec = FakeRecognizer()
-        let video = FileManager.default.temporaryDirectory.appendingPathComponent("v-\(UUID().uuidString).mkv")
+        let video = TestTemp.directory.appendingPathComponent("v-\(UUID().uuidString).mkv")
         try Data(count: 10).write(to: video)
         let p = AISubtitlePipeline(recognizer: rec, translator: FakeTranslator(), cacheDirectory: dir, extract: fakeExtract(.success(3)))
         let req = AISubtitlePipeline.Request(video: video.path, source: "en-US", target: "zh-Hans")
@@ -128,7 +128,7 @@ struct AISubtitlePipelineTests {
     }
 
     @Test("AI9 chosen languages are remembered; 'don't translate' is kept as nil") func prefs() throws {
-        let suite = "ai-\(UUID().uuidString)"
+        let suite = "videotool-tests-ai-\(UUID().uuidString)"
         let d = try #require(UserDefaults(suiteName: suite))
         defer { d.removePersistentDomain(forName: suite) }
         let a = AISubtitlePreferences(defaults: d)
@@ -179,5 +179,65 @@ struct AISubtitlePipelineTests {
         #expect(srt.contains("normal speed"))
         #expect(srt.hasPrefix("1\n00:00:0"))
         #expect(out.cueCount >= 3)
+    }
+}
+
+struct SubtitleReuseTests {
+    final class CountingRecognizer: SpeechRecognizing, @unchecked Sendable {
+        var calls = 0
+        func transcribe(audio: URL, locale: String, duration: Double, progress: @escaping @Sendable (Double) -> Void) async throws -> [SpeechSegment] {
+            calls += 1
+            return [SpeechSegment(text: "Hello, everyone.", start: 0, end: 1.2, words: []),
+                    SpeechSegment(text: "Press and hold the picture.", start: 1.5, end: 3.25, words: [])]
+        }
+    }
+    final class SwitchableTranslator: SubtitleTranslating, @unchecked Sendable {
+        var works = false
+        func translate(_ lines: [String], from: String, to: String) async throws -> [String] {
+            guard works else { throw AISubtitleError.translationUnavailable }
+            return lines.map { "译：" + $0 }
+        }
+    }
+
+    @Test("RT1 SRT files read back into the same cues (to reuse earlier recognition)") func parseRoundTrip() {
+        let cues = [SubtitleCue(start: 0, end: 1.2, text: "Hello, everyone."), SubtitleCue(start: 3725.5, end: 3727, text: "二")]
+        #expect(SRT.parse(SRT.document(cues)) == cues)
+        #expect(SRT.parse("1\r\n00:00:01,000 --> 00:00:02,500\r\nWindows line ends\r\n\r\n") ==
+                [SubtitleCue(start: 1, end: 2.5, text: "Windows line ends")])
+        #expect(SRT.parse("garbage").isEmpty)
+    }
+
+    @Test("RT2 after a failed translation, trying again only translates: no second extraction or recognition")
+    func retryTranslatesOnly() async throws {
+        let dir = TestTemp.directory.appendingPathComponent("rt2-\(UUID().uuidString)")
+        let rec = CountingRecognizer(), tr = SwitchableTranslator()
+        var extractions = 0
+        let p = AISubtitlePipeline(recognizer: rec, translator: tr, cacheDirectory: dir, extract: { _, wav, _, _ in
+            extractions += 1
+            try? FileManager.default.createDirectory(at: wav.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try? Data(count: 100).write(to: wav); return .success(3)
+        })
+        let req = AISubtitlePipeline.Request(video: "/v/a.mkv", source: "en-US", target: "zh-Hans")
+        let first = try await p.run(req, progress: { _, _ in })
+        #expect(first.translationSkipped)
+        tr.works = true
+        let second = try await p.run(req, progress: { _, _ in })
+        #expect(!second.translationSkipped && second.cueCount == 2)
+        #expect(rec.calls == 1 && extractions == 1)
+        #expect(try String(contentsOf: second.srt, encoding: .utf8).contains("译：Press and hold the picture.\nPress and hold the picture."))
+    }
+
+    @Test("RT3 a translated run also keeps the original-only file, so another target language reuses it")
+    func otherTarget() async throws {
+        let dir = TestTemp.directory.appendingPathComponent("rt3-\(UUID().uuidString)")
+        let rec = CountingRecognizer(), tr = SwitchableTranslator(); tr.works = true
+        let p = AISubtitlePipeline(recognizer: rec, translator: tr, cacheDirectory: dir, extract: { _, wav, _, _ in
+            try? FileManager.default.createDirectory(at: wav.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try? Data(count: 100).write(to: wav); return .success(3)
+        })
+        _ = try await p.run(.init(video: "/v/a.mkv", source: "en-US", target: "zh-Hans"), progress: { _, _ in })
+        #expect(FileManager.default.fileExists(atPath: SubtitleCache.url(forVideo: "/v/a.mkv", source: "en-US", target: nil, in: dir).path))
+        _ = try await p.run(.init(video: "/v/a.mkv", source: "en-US", target: "ja"), progress: { _, _ in })
+        #expect(rec.calls == 1)
     }
 }

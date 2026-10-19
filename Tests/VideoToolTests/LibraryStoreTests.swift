@@ -3,7 +3,7 @@ import Testing
 @testable import VideoTool
 
 private func dbPath() -> String {
-    FileManager.default.temporaryDirectory.appendingPathComponent("lib-\(UUID().uuidString).sqlite").path
+    TestTemp.directory.appendingPathComponent("lib-\(UUID().uuidString).sqlite").path
 }
 private func rec(_ path: String, key: String = UUID().uuidString, root: String = "/m", size: Int64 = 1000,
                  modified: Double = 0, duration: Double = 60, w: Int = 1920, h: Int = 1080) -> MediaRecord {

@@ -44,7 +44,7 @@ private final class Rig {
     let store: LibraryStore
     let prober = FakeProber()
     let tagger = FakeTagger()
-    let thumbs = FileManager.default.temporaryDirectory.appendingPathComponent("libthumbs-\(UUID().uuidString)")
+    let thumbs = TestTemp.directory.appendingPathComponent("libthumbs-\(UUID().uuidString)")
     var failFingerprint: Set<String> = []
     private let fpLock = NSLock()
     private var _fingerprintCalls: [String] = []
@@ -65,10 +65,10 @@ private final class Rig {
                                           return r
                                       })
     init() throws {
-        root = URL(fileURLWithPath: FileManager.default.temporaryDirectory.appendingPathComponent("lib-\(UUID().uuidString)").path)
+        root = URL(fileURLWithPath: TestTemp.directory.appendingPathComponent("lib-\(UUID().uuidString)").path)
             .resolvingSymlinksInPath().path
         try FileManager.default.createDirectory(atPath: root, withIntermediateDirectories: true)
-        store = try LibraryStore(path: FileManager.default.temporaryDirectory.appendingPathComponent("idx-\(UUID().uuidString).sqlite").path)
+        store = try LibraryStore(path: TestTemp.directory.appendingPathComponent("idx-\(UUID().uuidString).sqlite").path)
         _ = try store.addRoot(root)
     }
     @discardableResult func file(_ rel: String, seed: UInt8, size: Int = 1000) throws -> String {

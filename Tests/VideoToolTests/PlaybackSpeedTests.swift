@@ -25,7 +25,7 @@ struct PlaybackSpeedTests {
     }
 
     @Test("PS4 the chosen speed is remembered; bad stored values fall back to 1.0") func remembered() throws {
-        let suite = "ps-\(UUID().uuidString)"
+        let suite = "videotool-tests-ps-\(UUID().uuidString)"
         let defaults = try #require(UserDefaults(suiteName: suite))
         defer { defaults.removePersistentDomain(forName: suite) }
         #expect(PreferredSpeedStore(defaults: defaults).speed == 1.0)

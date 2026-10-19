@@ -45,7 +45,7 @@ final class GatedRecognizer: SpeechRecognizing, @unchecked Sendable {
 
 private let speech = [SpeechSegment(text: "Hello, everyone.", start: 0, end: 1.2, words: [])]
 private func pipeline(_ rec: SpeechRecognizing) -> AISubtitlePipeline {
-    let dir = FileManager.default.temporaryDirectory.appendingPathComponent("rf-\(UUID().uuidString)")
+    let dir = TestTemp.directory.appendingPathComponent("rf-\(UUID().uuidString)")
     return AISubtitlePipeline(recognizer: rec, translator: nil, cacheDirectory: dir, extract: { _, wav, _, _ in
         try? FileManager.default.createDirectory(at: wav.deletingLastPathComponent(), withIntermediateDirectories: true)
         try? Data(count: 100).write(to: wav)
@@ -124,7 +124,7 @@ private func button(_ title: String, in view: NSView) -> NSButton? {
     }
 
     @Test("RF5 generating again for subtitles already loaded does not add a second track") func noDuplicateTrack() async throws {
-        let srt = FileManager.default.temporaryDirectory.appendingPathComponent("rf5-\(UUID().uuidString).srt")
+        let srt = TestTemp.directory.appendingPathComponent("rf5-\(UUID().uuidString).srt")
         try SRT.document([SubtitleCue(start: 0, end: 30, text: "Hi")]).write(to: srt, atomically: true, encoding: .utf8)
         let engine = try MPVEngine()
         let layer = MPVRenderLayer(engine: engine)              // vo=libmpv needs a render context to load
@@ -164,15 +164,16 @@ struct PipelineCancellationTests {
             }
         }
         let tr = CancelInTranslation()
-        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("rf6-\(UUID().uuidString)")
+        let dir = TestTemp.directory.appendingPathComponent("rf6-\(UUID().uuidString)")
         let p2 = AISubtitlePipeline(recognizer: Gen(), translator: tr, cacheDirectory: dir, extract: { _, wav, _, _ in
             try? FileManager.default.createDirectory(at: wav.deletingLastPathComponent(), withIntermediateDirectories: true)
             try? Data(count: 100).write(to: wav); return .success(3)
         })
         tr.pipeline = p2
         await #expect(throws: AISubtitleError.cancelled) { try await p2.run(.init(video: "/v", source: "en-US", target: "zh-Hans"), progress: { _, _ in }) }
-        #expect((try? FileManager.default.contentsOfDirectory(atPath: dir.path).filter { $0.hasSuffix(".srt") })?.isEmpty ?? true,
-                "a cancelled job writes no subtitle file")
+        // Recognition had finished, so its result is kept for a retry; no translated file is written.
+        #expect(!FileManager.default.fileExists(atPath: SubtitleCache.url(forVideo: "/v", source: "en-US", target: "zh-Hans", in: dir).path),
+                "a cancelled translation writes no translated subtitle file")
     }
 
     @Test("RF7 when translation is skipped the file is the original-only one, without translations") func skippedFile() async throws {
@@ -182,7 +183,7 @@ struct PipelineCancellationTests {
         final class NoTranslation: SubtitleTranslating, @unchecked Sendable {
             func translate(_ lines: [String], from: String, to: String) async throws -> [String] { throw AISubtitleError.translationUnavailable }
         }
-        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("rf7-\(UUID().uuidString)")
+        let dir = TestTemp.directory.appendingPathComponent("rf7-\(UUID().uuidString)")
         let p = AISubtitlePipeline(recognizer: Gen(), translator: NoTranslation(), cacheDirectory: dir, extract: { _, wav, _, _ in
             try? FileManager.default.createDirectory(at: wav.deletingLastPathComponent(), withIntermediateDirectories: true)
             try? Data(count: 100).write(to: wav); return .success(3)
@@ -195,7 +196,7 @@ struct PipelineCancellationTests {
 
 struct SmallFindingTests {
     @Test("RF8 adding the disk root takes in every library folder (no nested folders left)") func diskRoot() throws {
-        let s = try LibraryStore(path: FileManager.default.temporaryDirectory.appendingPathComponent("rf8-\(UUID().uuidString).sqlite").path)
+        let s = try LibraryStore(path: TestTemp.directory.appendingPathComponent("rf8-\(UUID().uuidString).sqlite").path)
         _ = try s.addRoot("/m/a")
         #expect(try s.addRoot("/") == .absorbed(["/m/a"]))
         #expect(try s.roots() == ["/"])
@@ -289,11 +290,11 @@ struct ResumeOnceTests {
 
     @Test("RF17 coming back to the library window shows what was watched meanwhile (继续观看 is not stale)")
     func refreshOnFocus() throws {
-        let store = try LibraryStore(path: FileManager.default.temporaryDirectory.appendingPathComponent("rf17-\(UUID().uuidString).sqlite").path)
+        let store = try LibraryStore(path: TestTemp.directory.appendingPathComponent("rf17-\(UUID().uuidString).sqlite").path)
         _ = try store.addRoot("/m")
         try store.upsert(MediaRecord(path: "/m/a.mp4", fileKey: "k", size: 1, modified: Date(), duration: 1200,
                                      width: 1920, height: 1080, root: "/m"))
-        let suite = "rf17-\(UUID().uuidString)"
+        let suite = "videotool-tests-rf17-\(UUID().uuidString)"
         let d = try #require(UserDefaults(suiteName: suite))
         defer { d.removePersistentDomain(forName: suite) }
         let history = WatchHistoryStore(defaults: d)

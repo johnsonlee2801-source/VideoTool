@@ -153,6 +153,14 @@ final class AISubtitlePipeline {
             return Output(srt: cached, cueCount: max(cues - 1, 0), fromCache: true, translationSkipped: false)
         }
 
+        // An earlier run already recognised this video (say its translation failed, or
+        // another language was chosen): reuse that and only translate.
+        let originalOnly = SubtitleCache.url(forVideo: request.video, source: request.source, target: nil, in: cacheDirectory)
+        if target != nil, let text = try? String(contentsOf: originalOnly, encoding: .utf8) {
+            let earlier = SRT.parse(text)
+            if !earlier.isEmpty { return try await finish(earlier, request: request, target: target, final: cached, progress: progress) }
+        }
+
         // 1. soundtrack
         let wav = cacheDirectory.appendingPathComponent("audio-\(UUID().uuidString).wav")
         defer { try? FileManager.default.removeItem(at: wav) }
@@ -181,8 +189,18 @@ final class AISubtitlePipeline {
             throw error
         }
         try checkCancelled()
-        var cues = CueShaper.cues(from: segments)
+        let cues = CueShaper.cues(from: segments)
         guard !cues.isEmpty else { throw AISubtitleError.noSpeech }
+        // Kept in any case: a later translation (or retry) starts from here.
+        try FileManager.default.createDirectory(at: cacheDirectory, withIntermediateDirectories: true)
+        try SRT.document(cues).write(to: originalOnly, atomically: true, encoding: .utf8)
+        return try await finish(cues, request: request, target: target, final: cached, progress: progress)
+    }
+
+    /// Translation (if wanted) and the final file.
+    private func finish(_ recognised: [SubtitleCue], request: Request, target: String?, final cached: URL,
+                        progress: @escaping @Sendable (Phase, Double) -> Void) async throws -> Output {
+        var cues = recognised
 
         // 3. translation (an unavailable language pair still leaves the original subtitles)
         var translationSkipped = false

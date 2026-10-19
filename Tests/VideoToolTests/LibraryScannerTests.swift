@@ -3,7 +3,7 @@ import Testing
 @testable import VideoTool
 
 private func tree(_ files: [String: Int]) throws -> String {
-    let root = FileManager.default.temporaryDirectory.appendingPathComponent("scan-\(UUID().uuidString)").path
+    let root = TestTemp.directory.appendingPathComponent("scan-\(UUID().uuidString)").path
     for (rel, size) in files {
         let url = URL(fileURLWithPath: root).appendingPathComponent(rel)
         try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)

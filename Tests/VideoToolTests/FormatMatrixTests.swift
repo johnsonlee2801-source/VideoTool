@@ -59,7 +59,7 @@ private func waitUntil(_ timeout: Double = 6, _ condition: () -> Bool) async -> 
     @Test("FM1 every video format is probed with the right duration and displayed size", arguments: videoCases)
     func probe(_ c: FormatCase) throws {
         let path = try #require(fixture(c.file), "fixture missing from test bundle: \(c.file)")
-        let thumb = FileManager.default.temporaryDirectory.appendingPathComponent("fm-\(UUID().uuidString).jpg")
+        let thumb = TestTemp.directory.appendingPathComponent("fm-\(UUID().uuidString).jpg")
         let p = try #require(MPVMediaProber().probe(source: path, thumbnailTo: thumb), "\(MPVThumbnailMaker.lastFailure ?? "")")
         #expect(abs(p.duration - c.duration) < 0.25, "duration \(p.duration)")
         #expect(p.width == c.width && p.height == c.height, "size \(p.width)x\(p.height)")
@@ -91,7 +91,7 @@ private func waitUntil(_ timeout: Double = 6, _ condition: () -> Bool) async -> 
     @Test("FM3 audio-only files: duration read, no picture, thumbnail fails cleanly", arguments: ["audio_only.mp3", "audio_only.flac"])
     func audioOnly(_ name: String) throws {
         let path = try #require(fixture(name))
-        let thumb = FileManager.default.temporaryDirectory.appendingPathComponent("fm-\(UUID().uuidString).jpg")
+        let thumb = TestTemp.directory.appendingPathComponent("fm-\(UUID().uuidString).jpg")
         let p = try #require(MPVMediaProber().probe(source: path, thumbnailTo: thumb))
         #expect(abs(p.duration - 3) < 0.25)
         #expect(p.width == 0 && p.height == 0)
@@ -102,7 +102,7 @@ private func waitUntil(_ timeout: Double = 6, _ condition: () -> Bool) async -> 
     func truncated() async throws {
         let path = try #require(fixture("truncated.mp4"))
         let start = Date()
-        _ = MPVMediaProber().probe(source: path, thumbnailTo: FileManager.default.temporaryDirectory
+        _ = MPVMediaProber().probe(source: path, thumbnailTo: TestTemp.directory
             .appendingPathComponent("fm-\(UUID().uuidString).jpg"))
         #expect(Date().timeIntervalSince(start) < MPVFrameGrabber.timeout + 1)
 
@@ -140,7 +140,7 @@ private func waitUntil(_ timeout: Double = 6, _ condition: () -> Bool) async -> 
     @Test("FM7 a rotated phone video gives a portrait thumbnail without crashing the process")
     func rotatedThumbnail() throws {
         let path = try #require(fixture("rotated_90.mp4"))
-        let thumb = FileManager.default.temporaryDirectory.appendingPathComponent("fm-\(UUID().uuidString).jpg")
+        let thumb = TestTemp.directory.appendingPathComponent("fm-\(UUID().uuidString).jpg")
         let p = try #require(MPVMediaProber().probe(source: path, thumbnailTo: thumb))
         #expect(p.width == 180 && p.height == 320)
         let image = try #require(NSImage(contentsOf: thumb))

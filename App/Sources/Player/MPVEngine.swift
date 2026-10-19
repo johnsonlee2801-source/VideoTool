@@ -26,6 +26,11 @@ final class MPVEngine: PlayerEngine {
     var onStateChange: ((PlayerState) -> Void)?
     var onEvent: ((PlayerEvent) -> Void)?
 
+    /// Under the test runner the player makes no sound: tests must not play through
+    /// the user's speakers, and opening the real output is slow while the screen is
+    /// locked (2026-10-19: 16 s per file instead of 1 s). Audio is still decoded.
+    static var testOptions: [(String, String)] { AppData.isTestRun ? [("ao", "null")] : [] }
+
     /// `extraOptions` come after the defaults (tests use them, e.g. ao=pcm).
     init(extraOptions: [(String, String)] = []) throws {
         guard let h = mpv_create() else { throw MPVError.createFailed }
@@ -46,7 +51,7 @@ final class MPVEngine: PlayerEngine {
             ("ytdl", "no"),
             ("audio-pitch-correction", "yes"),
             ("volume-max", "100"),
-        ] + extraOptions
+        ] + Self.testOptions + extraOptions
         for (k, v) in options {
             let r = mpv_set_option_string(h, k, v)
             if r < 0 { throw MPVError.api(r, "set option \(k)") }

@@ -10,7 +10,7 @@ private final class Marker {}
 private let fixture = Bundle(for: Marker.self).path(forResource: "testsrc-20s", ofType: "mp4")!
 
 private func tempFile(_ bytes: [UInt8], name: String = UUID().uuidString) throws -> String {
-    let dir = FileManager.default.temporaryDirectory.appendingPathComponent("fp-\(UUID().uuidString)")
+    let dir = TestTemp.directory.appendingPathComponent("fp-\(UUID().uuidString)")
     try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
     let url = dir.appendingPathComponent(name)
     try Data(bytes).write(to: url)

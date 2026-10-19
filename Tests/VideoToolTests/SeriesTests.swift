@@ -99,7 +99,7 @@ struct SeriesGroupingTests {
 
 struct SeriesOverrideStoreTests {
     @Test("SG6 corrections and show names persist") func persists() throws {
-        let suite = "sg-\(UUID().uuidString)"
+        let suite = "videotool-tests-sg-\(UUID().uuidString)"
         let d = try #require(UserDefaults(suiteName: suite))
         defer { d.removePersistentDomain(forName: suite) }
         let a = SeriesOverrideStore(defaults: d)
@@ -115,7 +115,7 @@ struct SeriesOverrideStoreTests {
 
 struct WatchHistoryTests {
     @Test("WH1 progress is recorded per file; reaching the end marks it watched") func progress() throws {
-        let suite = "wh-\(UUID().uuidString)"
+        let suite = "videotool-tests-wh-\(UUID().uuidString)"
         let d = try #require(UserDefaults(suiteName: suite))
         defer { d.removePersistentDomain(forName: suite) }
         let h = WatchHistoryStore(defaults: d, now: { Date(timeIntervalSince1970: 100) })
@@ -135,7 +135,7 @@ struct WatchHistoryTests {
     }
 
     @Test("WH3 the oldest entries are dropped beyond the cap") func cap() throws {
-        let suite = "wh-\(UUID().uuidString)"
+        let suite = "videotool-tests-wh-\(UUID().uuidString)"
         let d = try #require(UserDefaults(suiteName: suite))
         defer { d.removePersistentDomain(forName: suite) }
         var t = 0.0
@@ -184,13 +184,13 @@ struct ContinueWatchingTests {
 
     @Test("SG8 a correction made through the controller regroups at once, and renaming covers the whole show")
     func controllerSaves() throws {
-        let store = try LibraryStore(path: FileManager.default.temporaryDirectory.appendingPathComponent("sg8-\(UUID().uuidString).sqlite").path)
+        let store = try LibraryStore(path: TestTemp.directory.appendingPathComponent("sg8-\(UUID().uuidString).sqlite").path)
         _ = try store.addRoot("/m")
         for (i, n) in ["Sousou.no.Frieren.S01E01.mkv", "Sousou.no.Frieren.S01E02.mkv", "random.mp4"].enumerated() {
             try store.upsert(MediaRecord(path: "/m/\(n)", fileKey: "k\(i)", size: 1, modified: Date(), duration: 60,
                                          width: 1920, height: 1080, root: "/m"))
         }
-        let suite = "sg8-\(UUID().uuidString)"
+        let suite = "videotool-tests-sg8-\(UUID().uuidString)"
         let d = try #require(UserDefaults(suiteName: suite))
         defer { d.removePersistentDomain(forName: suite) }
         let c = LibraryController(store: store, stars: nil, makeIndexer: { nil }, background: { $0() }, main: { $0() },

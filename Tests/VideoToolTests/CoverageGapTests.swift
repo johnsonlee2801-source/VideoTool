@@ -8,7 +8,7 @@ import Testing
 struct AppleSpeechErrorTests {
     @Test("CG1 a language this Mac cannot recognise is reported, not crashed on") func unsupportedSpeech() async throws {
         guard #available(macOS 26.0, *) else { return }
-        let wav = FileManager.default.temporaryDirectory.appendingPathComponent("cg1-\(UUID().uuidString).wav")
+        let wav = TestTemp.directory.appendingPathComponent("cg1-\(UUID().uuidString).wav")
         await #expect(throws: AISubtitleError.unsupportedLanguage) {
             try await AppleSpeechRecognizer().transcribe(audio: wav, locale: "xx-ZZ", duration: 1, progress: { _ in })
         }

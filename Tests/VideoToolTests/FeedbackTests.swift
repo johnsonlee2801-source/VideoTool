@@ -16,11 +16,23 @@ struct FeedbackTests {
         #expect(body.contains("遇到的问题") && body.contains("建议"))
     }
 
-    @Test("FB2 nothing personal goes into the template: no home folder, user name or file paths")
+    @Test("FB2 the template is exactly the prompt plus the two versions: nothing else can slip in")
     func nothingPersonal() {
-        let body = Feedback.template(appVersion: Feedback.appVersion, system: Feedback.systemVersion)
-        #expect(!body.contains(NSHomeDirectory()))
-        #expect(!body.contains(NSUserName()))
-        #expect(!body.contains("/Users/"))
+        #expect(Feedback.template(appVersion: "0.2.0 (7)", system: "macOS 27.0") == """
+            **我遇到的问题 / 我的建议**
+
+
+            **怎样能重现（如果是问题）**
+            1.
+            2.
+
+            ---
+            VideoTool 0.2.0 (7) · macOS 27.0
+            """)
+        let live = Feedback.template(appVersion: Feedback.appVersion, system: Feedback.systemVersion)
+        for personal in [NSHomeDirectory(), NSUserName(), NSFullUserName(), Host.current().localizedName ?? "~"] where !personal.isEmpty {
+            #expect(!live.contains(personal), "personal data in the feedback template")
+        }
+        #expect(Feedback.systemVersion.hasPrefix("macOS ") && Feedback.appVersion.contains("("))
     }
 }

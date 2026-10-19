@@ -7,7 +7,7 @@ import Testing
 
 @Suite @MainActor struct LibraryWindowTests {
     private func makeController(withVideos names: [String]) throws -> (LibraryController, LibraryStore) {
-        let db = FileManager.default.temporaryDirectory.appendingPathComponent("lw-\(UUID().uuidString).sqlite").path
+        let db = TestTemp.directory.appendingPathComponent("lw-\(UUID().uuidString).sqlite").path
         let store = try LibraryStore(path: db)
         _ = try store.addRoot("/m")
         for (i, n) in names.enumerated() {
@@ -52,7 +52,7 @@ import Testing
     }
 
     @Test("W4 an empty library explains how to start") func emptyState() throws {
-        let db = FileManager.default.temporaryDirectory.appendingPathComponent("lw-\(UUID().uuidString).sqlite").path
+        let db = TestTemp.directory.appendingPathComponent("lw-\(UUID().uuidString).sqlite").path
         let c = LibraryController(store: try LibraryStore(path: db), stars: nil, makeIndexer: { nil },
                                   background: { _ in }, main: { $0() })
         let w = LibraryWindowController(controller: c, onOpen: { _ in })

@@ -16,7 +16,7 @@ struct AudioOutputTests {
     }
 
     @Test("AO2 the chosen output is remembered and used again only while it is there") func remembered() throws {
-        let suite = "ao-\(UUID().uuidString)"
+        let suite = "videotool-tests-ao-\(UUID().uuidString)"
         let d = try #require(UserDefaults(suiteName: suite))
         defer { d.removePersistentDomain(forName: suite) }
         let p = AudioOutputPreference(defaults: d)

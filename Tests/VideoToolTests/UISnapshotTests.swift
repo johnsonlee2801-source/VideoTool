@@ -34,7 +34,7 @@ enum Snapshot {
     }
 
     static func frame(at seconds: Double) -> NSImage? {
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent("snapframe-\(seconds).jpg")
+        let url = TestTemp.directory.appendingPathComponent("snapframe-\(seconds).jpg")
         if !FileManager.default.fileExists(atPath: url.path) {
             _ = MPVFrameGrabber.grab(source: fixture, start: String(seconds), thumbnailTo: url)
         }
@@ -87,9 +87,9 @@ enum Snapshot {
     }
 
     private func library(empty: Bool = false) throws -> LibraryWindowController {
-        let db = FileManager.default.temporaryDirectory.appendingPathComponent("snap-\(UUID().uuidString).sqlite").path
+        let db = TestTemp.directory.appendingPathComponent("snap-\(UUID().uuidString).sqlite").path
         let store = try LibraryStore(path: db)
-        let thumbs = FileManager.default.temporaryDirectory.appendingPathComponent("snapthumbs-\(UUID().uuidString)")
+        let thumbs = TestTemp.directory.appendingPathComponent("snapthumbs-\(UUID().uuidString)")
         if !empty {
             _ = try store.addRoot("/Volumes/Media/Movies")
             let names = ["Tokyo Night Walk 4K.mp4", "猫猫日常 vlog.mov", "Concert – encore.mkv", "Beach Day.mp4",
@@ -110,7 +110,7 @@ enum Snapshot {
             }
         }
         // Some watch progress, so covers show stripes, a tick and a 继续观看 row.
-        let history = WatchHistoryStore(defaults: UserDefaults(suiteName: "snap-\(UUID().uuidString)")!)
+        let history = WatchHistoryStore(defaults: UserDefaults(suiteName: "videotool-tests-snap-\(UUID().uuidString)")!)
         if !empty {
             let base = "/Volumes/Media/Movies/"
             history.recordProgress(path: base + "猫猫日常 vlog.mov", position: 300, duration: 754)

@@ -145,6 +145,26 @@ enum SRT {
         return String(format: "%02d:%02d:%02d,%03d", ms / 3_600_000, ms / 60_000 % 60, ms / 1000 % 60, ms % 1000)
     }
 
+    /// Reads cues back (text lines joined with newlines; no translation split).
+    static func parse(_ text: String) -> [SubtitleCue] {
+        let blocks = text.replacingOccurrences(of: "\r\n", with: "\n").components(separatedBy: "\n\n")
+        return blocks.compactMap { block in
+            let lines = block.split(separator: "\n", omittingEmptySubsequences: true).map(String.init)
+            guard let t = lines.firstIndex(where: { $0.contains("-->") }) else { return nil }
+            let ends = lines[t].components(separatedBy: "-->").map { $0.trimmingCharacters(in: .whitespaces) }
+            guard ends.count == 2, let start = seconds(ends[0]), let end = seconds(ends[1]) else { return nil }
+            let body = lines[(t + 1)...].joined(separator: "\n")
+            return body.isEmpty ? nil : SubtitleCue(start: start, end: end, text: body)
+        }
+    }
+
+    /// "HH:MM:SS,mmm" (or with a dot) → seconds.
+    static func seconds(_ stamp: String) -> Double? {
+        let parts = stamp.replacingOccurrences(of: ",", with: ".").split(separator: ":")
+        guard parts.count == 3, let h = Double(parts[0]), let m = Double(parts[1]), let s = Double(parts[2]) else { return nil }
+        return h * 3600 + m * 60 + s
+    }
+
     static func document(_ cues: [SubtitleCue]) -> String {
         var out = ""
         var number = 0

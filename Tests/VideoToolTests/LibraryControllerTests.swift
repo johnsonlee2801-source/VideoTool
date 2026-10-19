@@ -11,7 +11,7 @@ private final class Rig {
     let tagger = FakeTagger()
     let background = ManualQueue()
     let main = ManualQueue()
-    let thumbs = FileManager.default.temporaryDirectory.appendingPathComponent("lcthumbs-\(UUID().uuidString)")
+    let thumbs = TestTemp.directory.appendingPathComponent("lcthumbs-\(UUID().uuidString)")
     lazy var controller = LibraryController(
         store: store, stars: stars,
         makeIndexer: { [unowned self] in
@@ -23,10 +23,10 @@ private final class Rig {
         main: { [unowned self] in self.main.submit($0) })
 
     init() throws {
-        root = URL(fileURLWithPath: FileManager.default.temporaryDirectory.appendingPathComponent("lc-\(UUID().uuidString)").path)
+        root = URL(fileURLWithPath: TestTemp.directory.appendingPathComponent("lc-\(UUID().uuidString)").path)
             .resolvingSymlinksInPath().path
         try FileManager.default.createDirectory(atPath: root, withIntermediateDirectories: true)
-        let db = FileManager.default.temporaryDirectory.appendingPathComponent("lc-\(UUID().uuidString).sqlite").path
+        let db = TestTemp.directory.appendingPathComponent("lc-\(UUID().uuidString).sqlite").path
         store = try LibraryStore(path: db)
         stars = try BookmarkStore(path: db)
     }

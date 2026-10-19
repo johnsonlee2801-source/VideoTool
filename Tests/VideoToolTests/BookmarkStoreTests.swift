@@ -3,7 +3,7 @@ import Testing
 @testable import VideoTool
 
 private func tempDBPath() -> String {
-    FileManager.default.temporaryDirectory.appendingPathComponent("bm-\(UUID().uuidString).sqlite").path
+    TestTemp.directory.appendingPathComponent("bm-\(UUID().uuidString).sqlite").path
 }
 private func bm(_ key: String, _ t: Double, note: String = "", end: Double? = nil, at created: Double = 0) -> Bookmark {
     Bookmark(id: UUID(), fileKey: key, time: t, endTime: end, note: note, createdAt: Date(timeIntervalSince1970: created))
@@ -64,7 +64,7 @@ private func bm(_ key: String, _ t: Double, note: String = "", end: Double? = ni
     }
 
     @Test("B8 opening a path in a missing directory creates the directory") func createsDirectory() throws {
-        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("bm-\(UUID().uuidString)/nested")
+        let dir = TestTemp.directory.appendingPathComponent("bm-\(UUID().uuidString)/nested")
         let s = try BookmarkStore(path: dir.appendingPathComponent("library.sqlite").path)
         try s.insert(bm("k", 1))
         #expect(FileManager.default.fileExists(atPath: dir.path))

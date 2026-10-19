@@ -7,7 +7,7 @@ import Testing
 // is indexed without its sub-folders, so opening a video there can still offer it.
 
 private func dbPath() -> String {
-    FileManager.default.temporaryDirectory.appendingPathComponent("shallow-\(UUID().uuidString).sqlite").path
+    TestTemp.directory.appendingPathComponent("shallow-\(UUID().uuidString).sqlite").path
 }
 
 @Suite struct LibraryShallowRootStoreTests {
@@ -68,7 +68,7 @@ private func dbPath() -> String {
 
 @Suite struct LibraryShallowScanTests {
     @Test("SR6 the scanner can stay in the top layer") func topLayerOnly() throws {
-        let root = FileManager.default.temporaryDirectory.appendingPathComponent("sr6-\(UUID().uuidString)")
+        let root = TestTemp.directory.appendingPathComponent("sr6-\(UUID().uuidString)")
         for rel in ["a.mp4", "b.mkv", "sub/c.mp4", "sub/deep/d.mov"] {
             let url = root.appendingPathComponent(rel)
             try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
@@ -82,7 +82,7 @@ private func dbPath() -> String {
     }
 
     @Test("SR7 indexing a this-layer-only folder lists only its own videos") func indexerUsesFlag() throws {
-        let root = FileManager.default.temporaryDirectory.appendingPathComponent("sr7-\(UUID().uuidString)")
+        let root = TestTemp.directory.appendingPathComponent("sr7-\(UUID().uuidString)")
         for (rel, seed) in [("a.mp4", 1), ("sub/b.mp4", 2)] {
             let url = root.appendingPathComponent(rel)
             try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
@@ -92,7 +92,7 @@ private func dbPath() -> String {
         let store = try LibraryStore(path: dbPath())
         _ = try store.addRoot(r, recursive: false)
         let indexer = LibraryIndexer(store: store, prober: FakeProber(), tagger: nil,
-                                     thumbnailDirectory: FileManager.default.temporaryDirectory
+                                     thumbnailDirectory: TestTemp.directory
                                         .appendingPathComponent("sr7thumbs-\(UUID().uuidString)"))
         _ = indexer.index(root: r, progress: { _ in }, isCancelled: { false })
         #expect(try store.media(inRoot: r).map { ($0.path as NSString).lastPathComponent } == ["a.mp4"])
