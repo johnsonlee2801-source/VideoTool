@@ -15,12 +15,33 @@ Hold to speed up. Star the moments that matter. Free AI subtitles, made on your 
 
 Most of us watch at 1.5× or 2× and skip the boring parts. Lectures, series, anime, screen recordings, downloads: you want to get through them quickly without missing the good bits. VideoTool is built around that.
 
-- **🖱 Hold to speed up, drag to fine-tune.** Press and hold the picture: it plays at 2× (or faster than your usual speed). Drag right for up to 6×, left to slow down. Let go and you're back. No other desktop player does this.
-- **★ Stars on the timeline.** Press **B** at a great moment. A star appears on the progress bar with a thumbnail and an optional note. Click it to jump back (2 s early, so you catch the lead-in).
-- **🌐 Free AI subtitles and translation.** Any video in English, Japanese, Chinese, Korean and more gets subtitles in seconds, with a translation shown above the original line. Everything runs **on your Mac**. Nothing is uploaded, and there's no fee.
+- **🖱 Hold to speed up, drag to fine-tune.** Press and hold the picture: it plays at 2× (or faster than your usual speed). Keep holding and drag right for up to 6×, or left to slow down. Let go and you're back.
+- **★ Stars on the timeline.** Press **B** at a great moment. A star appears on the progress bar with a thumbnail and an optional note. Click it to jump back (2 s early, so you catch the lead-in). Export the part between two stars as an MP4, a GIF or a set of stills.
+- **🌐 Free AI subtitles and translation.** Any video in English, Japanese, Chinese, Korean and more gets subtitles while you watch: they start from where you are and appear within seconds, with a translation above the original line on a thin dark band. Everything runs **on your Mac**. Nothing is uploaded, and there's no fee. Save them as an .srt file if you like.
 - **📚 A library that organizes itself.** Open a video and VideoTool offers to add its folder. It groups episodes into series, keeps a *Continue Watching* row, finds duplicates and tags what's in the picture. Nothing is ever moved or renamed.
 - **🎞 Plays everything.** It's built on mpv and FFmpeg: MKV, HEVC 10-bit, HDR10, AV1, VP9, WMV, FLV, old AVIs, multiple audio and subtitle tracks. Hardware decoding keeps a 4K HDR file at about a fifth of one CPU core.
+- **⏭ Less waiting.** Mark where a series' intro ends and its credits begin once; every episode then skips them and moves on to the next one. Hover over the timeline to preview a frame. Night mode lifts voices and tames the rumble of explosions.
+- **🧠 Remembers each video.** Where you stopped, the audio and subtitle track you chose and your subtitle timing come back when you reopen it.
 - **🔒 Private by design.** No account, no tracking, no analytics. Your library, stars and subtitles stay in `~/Library/Application Support/VideoTool`.
+
+## How VideoTool differs
+
+There are excellent players for the Mac. This is what VideoTool adds, and where the others are stronger.
+
+| | VideoTool | IINA | VLC | Infuse |
+|---|---|---|---|---|
+| Price and source | Free, open source (MPL-2.0) | Free, open source | Free, open source | Free, Pro subscription |
+| Speed while holding the picture | 2×, drag for 0.5×–6× | — | — | 2× |
+| Stars on the timeline with thumbnails and notes | ✓ | — | Bookmarks (no thumbnails) | — |
+| Subtitles generated on your Mac, with translation | ✓ (macOS 26) | Download only | Announced for VLC 4 | Download only |
+| Export a clip, GIF or stills | ✓ | Screenshots | Via Convert / Save | — |
+| Library that groups series from your folders | ✓ | — | — | ✓ (with online artwork) |
+| Skip intros and credits | ✓ (you mark them once) | — | — | ✓ (from an online database) |
+| Plays MKV, HEVC, AV1, HDR | ✓ | ✓ | ✓ | ✓ |
+
+Choose **VLC** if you need Windows, Linux or phones; **Infuse** for streaming from a NAS, Plex or Jellyfin, and for the Apple TV; **IINA** for a mature mpv player with plugins and online video. VideoTool is for watching your own files quickly without missing the good parts.
+
+<sub>Based on each app's public documentation in October 2026. Spot something wrong? Please open an issue.</sub>
 
 ## A closer look
 
@@ -52,6 +73,7 @@ VideoTool remembers your speed, so a lecture you watch at 1.5× opens at 1.5× n
 | ⌘T | AI subtitles | S / A | Next subtitle / audio track |
 | ⌘L | Library | F | Full screen |
 | M | Mute | ⌘O | Open a file |
+| Z / X | Subtitles 0.1 s earlier / later | ⌘E | Export a clip |
 
 ## Requirements
 
@@ -60,7 +82,10 @@ VideoTool remembers your speed, so a lecture you watch at 1.5× opens at 1.5× n
 
 ## Install
 
-Signed downloads are on the way. For now, build it yourself (Xcode and [XcodeGen](https://github.com/yonaskolb/XcodeGen)):
+1. Download **VideoTool-x.y.z.dmg** from [Releases](https://github.com/johnsonlee2801-source/VideoTool/releases/latest) (Apple silicon and Intel), open it and drag VideoTool to Applications.
+2. The first time, macOS says it can't verify the developer: VideoTool isn't notarized by Apple yet. Click **Done**, open **System Settings › Privacy & Security**, scroll down and click **Open Anyway** next to VideoTool, then confirm. You only do this once.
+
+Or build it yourself (Xcode and [XcodeGen](https://github.com/yonaskolb/XcodeGen)):
 
 ```sh
 brew install xcodegen
@@ -78,12 +103,11 @@ The interface is available in **English, 简体中文 and 日本語** and follow
 
 ## Quality
 
-VideoTool is developed test-first. About 400 automated tests run the real playback engine and real on-device speech recognition, plus every bundled video format. The code is checked for leaks of personal data before every push. Line coverage is above 90%. See [CONTRIBUTING.md](CONTRIBUTING.md).
+VideoTool is developed test-first. About 450 automated tests run the real playback engine and real on-device speech recognition, plus every bundled video format. The code is checked for leaks of personal data before every push. Line coverage is above 90%. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Roadmap
 
 - Casting to Apple TV and AirPlay TVs (sound output to AirPlay speakers already works: Play › Audio Output)
-- Export a clip, GIF or stills between two stars
 - Picture enhancement (frame interpolation, anime upscaling)
 - Library and stars synced across your Macs
 
