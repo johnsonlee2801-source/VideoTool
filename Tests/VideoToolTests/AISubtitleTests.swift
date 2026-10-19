@@ -114,7 +114,8 @@ struct AISubtitlePipelineTests {
         _ = try await p.run(.init(video: "/v/a.mkv", source: "en-US", target: "zh-Hans"), progress: { ph, _ in
             log.lock.lock(); if log.phases.last != ph { log.phases.append(ph) }; log.lock.unlock()
         })
-        #expect(log.phases == [.extracting, .recognizing, .translating, .done])
+        // Since 2026-10-19 translation runs batch by batch during recognition (live subtitles).
+        #expect(log.phases == [.extracting, .recognizing, .done])
     }
 
     @Test("AI8 language helpers: same-language check, cache key changes with languages") func helpers() {
