@@ -13,6 +13,13 @@ protocol SpeechRecognizing {
                     progress: @escaping @Sendable (Double) -> Void) async throws -> [SpeechSegment]
 }
 
+/// A recogniser that can hand over each sentence as soon as it is recognised, so
+/// subtitles can be shown while the rest of the video is still being processed.
+protocol StreamingSpeechRecognizing: SpeechRecognizing {
+    func transcribe(audio: URL, locale: String, duration: Double, progress: @escaping @Sendable (Double) -> Void,
+                    onSegment: @escaping @Sendable (SpeechSegment) -> Void) async throws -> [SpeechSegment]
+}
+
 /// Translates lines, keeping their order. The real one needs macOS 26 (`AppleTranslator`).
 protocol SubtitleTranslating {
     func translate(_ lines: [String], from source: String, to target: String) async throws -> [String]
@@ -127,7 +134,7 @@ final class AISubtitlePipeline {
     private let recognizer: SpeechRecognizing
     private let translator: SubtitleTranslating?
     private let extract: Extract
-    private let cacheDirectory: URL
+    let cacheDirectory: URL
     private let token = CancellationToken()
 
     init(recognizer: SpeechRecognizing, translator: SubtitleTranslating?,
@@ -137,13 +144,25 @@ final class AISubtitlePipeline {
         self.translator = translator
         self.cacheDirectory = cacheDirectory
         self.extract = extract
+        liveFile = cacheDirectory.appendingPathComponent("live-\(UUID().uuidString).srt")
     }
 
     func cancel() { token.cancel() }
     var isCancelled: Bool { token.isCancelled }
 
     /// `progress(phase, fraction of that phase)`; may be called from any thread.
-    func run(_ request: Request, progress: @escaping @Sendable (Phase, Double) -> Void) async throws -> Output {
+    /// Subtitles made so far, rewritten while the job runs (the player shows this file).
+    let liveFile: URL
+
+    /// Lines handed to `partial` at once at the start, then about every this many.
+    static let firstBatch = 2, batch = 20
+    static let batchSeconds = 3.0
+
+    /// `progress(phase, fraction of that phase)`; `partial(all cues so far)` while
+    /// lines arrive (first after ~2 lines, then every ~20 lines or 3 s), translated
+    /// if a translation was asked for. Both may be called from any thread.
+    func run(_ request: Request, progress: @escaping @Sendable (Phase, Double) -> Void,
+             partial: (@Sendable ([SubtitleCue]) -> Void)? = nil) async throws -> Output {
         let wantsTranslation = request.target.map { !SubtitleLanguages.sameLanguage(request.source, $0) } ?? false
         let target = wantsTranslation ? request.target : nil
         let cached = SubtitleCache.url(forVideo: request.video, source: request.source, target: target, in: cacheDirectory)
@@ -152,13 +171,23 @@ final class AISubtitlePipeline {
             let cues = (try? String(contentsOf: cached, encoding: .utf8))?.components(separatedBy: " --> ").count ?? 1
             return Output(srt: cached, cueCount: max(cues - 1, 0), fromCache: true, translationSkipped: false)
         }
+        let live = LiveCues(source: request.source, target: target, translator: translator)
 
         // An earlier run already recognised this video (say its translation failed, or
-        // another language was chosen): reuse that and only translate.
+        // another language was chosen): reuse that and only translate, batch by batch.
         let originalOnly = SubtitleCache.url(forVideo: request.video, source: request.source, target: nil, in: cacheDirectory)
         if target != nil, let text = try? String(contentsOf: originalOnly, encoding: .utf8) {
             let earlier = SRT.parse(text)
-            if !earlier.isEmpty { return try await finish(earlier, request: request, target: target, final: cached, progress: progress) }
+            if !earlier.isEmpty {
+                progress(.translating, 0)
+                for start in stride(from: 0, to: earlier.count, by: Self.batch) {
+                    try await live.add(Array(earlier[start..<min(start + Self.batch, earlier.count)]))
+                    try checkCancelled()
+                    partial?(live.cues)
+                    progress(.translating, Double(live.cues.count) / Double(earlier.count))
+                }
+                return try finish(live, request: request, final: cached, progress: progress)
+            }
         }
 
         // 1. soundtrack
@@ -178,55 +207,66 @@ final class AISubtitlePipeline {
         }
         try checkCancelled()
 
-        // 2. speech → cues
+        // 2. speech → cues → (translation), handed over in batches while recognition runs
         progress(.recognizing, 0)
-        let segments: [SpeechSegment]
+        let (stream, feed) = AsyncStream<SpeechSegment>.makeStream()
+        let recognizer = self.recognizer
+        let recognition = Task { () throws -> [SpeechSegment] in
+            defer { feed.finish() }
+            if let streaming = recognizer as? StreamingSpeechRecognizing {
+                return try await streaming.transcribe(audio: wav, locale: request.source, duration: duration,
+                                                      progress: { progress(.recognizing, $0) }, onSegment: { feed.yield($0) })
+            }
+            return try await recognizer.transcribe(audio: wav, locale: request.source, duration: duration,
+                                                   progress: { progress(.recognizing, $0) })
+        }
+        var pending: [SpeechSegment] = []
+        var streamed = 0
+        var lastHandOver = Date()
         do {
-            segments = try await recognizer.transcribe(audio: wav, locale: request.source, duration: duration,
-                                                       progress: { progress(.recognizing, $0) })
+            for await segment in stream {
+                streamed += 1
+                pending.append(segment)
+                let due = live.cues.isEmpty ? pending.count >= Self.firstBatch
+                    : pending.count >= Self.batch || Date().timeIntervalSince(lastHandOver) >= Self.batchSeconds
+                guard due else { continue }
+                try await live.add(CueShaper.cues(from: pending))
+                pending = []
+                lastHandOver = Date()
+                try checkCancelled()
+                partial?(live.cues)
+            }
+            let all = try await recognition.value
+            if streamed == 0 { pending = all }                 // the recogniser could not stream
         } catch {
+            recognition.cancel()
             try checkCancelled(after: error)
             throw error
         }
         try checkCancelled()
-        let cues = CueShaper.cues(from: segments)
-        guard !cues.isEmpty else { throw AISubtitleError.noSpeech }
+        if !pending.isEmpty {
+            try await live.add(CueShaper.cues(from: pending))
+            try checkCancelled()
+            partial?(live.cues)
+        }
+        guard !live.cues.isEmpty else { throw AISubtitleError.noSpeech }
         // Kept in any case: a later translation (or retry) starts from here.
         try FileManager.default.createDirectory(at: cacheDirectory, withIntermediateDirectories: true)
-        try SRT.document(cues).write(to: originalOnly, atomically: true, encoding: .utf8)
-        return try await finish(cues, request: request, target: target, final: cached, progress: progress)
+        try SRT.document(live.cues.map { var c = $0; c.translation = nil; return c })
+            .write(to: originalOnly, atomically: true, encoding: .utf8)
+        return try finish(live, request: request, final: cached, progress: progress)
     }
 
-    /// Translation (if wanted) and the final file.
-    private func finish(_ recognised: [SubtitleCue], request: Request, target: String?, final cached: URL,
-                        progress: @escaping @Sendable (Phase, Double) -> Void) async throws -> Output {
-        var cues = recognised
-
-        // 3. translation (an unavailable language pair still leaves the original subtitles)
-        var translationSkipped = false
-        if let target {
-            progress(.translating, 0)
-            do {
-                guard let translator else { throw AISubtitleError.translationUnavailable }
-                let lines = try await translator.translate(cues.map(\.text), from: request.source, to: target)
-                for i in cues.indices where i < lines.count { cues[i].translation = lines[i] }
-            } catch AISubtitleError.cancelled {
-                throw AISubtitleError.cancelled
-            } catch {
-                translationSkipped = true
-            }
-            try checkCancelled()
-            progress(.translating, 1)
-        }
-
-        // 4. file
-        let final = translationSkipped
+    /// The finished file: bilingual, or original-only if translation was not possible.
+    private func finish(_ live: LiveCues, request: Request, final cached: URL,
+                        progress: @escaping @Sendable (Phase, Double) -> Void) throws -> Output {
+        let final = live.translationSkipped
             ? SubtitleCache.url(forVideo: request.video, source: request.source, target: nil, in: cacheDirectory)
             : cached
         try FileManager.default.createDirectory(at: cacheDirectory, withIntermediateDirectories: true)
-        try SRT.document(cues).write(to: final, atomically: true, encoding: .utf8)
+        try SRT.document(live.cues).write(to: final, atomically: true, encoding: .utf8)
         progress(.done, 1)
-        return Output(srt: final, cueCount: cues.count, fromCache: false, translationSkipped: translationSkipped)
+        return Output(srt: final, cueCount: live.cues.count, fromCache: false, translationSkipped: live.translationSkipped)
     }
 
     private func checkCancelled() throws {
@@ -238,5 +278,47 @@ final class AISubtitlePipeline {
     private func checkCancelled(after error: Error) throws {
         if error is CancellationError { throw AISubtitleError.cancelled }
         try checkCancelled()
+    }
+}
+
+/// The cues of a job so far. New lines keep time order after the earlier ones and
+/// are translated as they come in. If translation fails part-way, every line goes
+/// back to the original only, so the result is never half translated.
+final class LiveCues {
+    private(set) var cues: [SubtitleCue] = []
+    private(set) var translationSkipped = false
+    private let source: String
+    private let target: String?
+    private let translator: SubtitleTranslating?
+
+    init(source: String, target: String?, translator: SubtitleTranslating?) {
+        self.source = source
+        self.target = target
+        self.translator = translator
+    }
+
+    func add(_ new: [SubtitleCue]) async throws {
+        var batch = new
+        var previousEnd = cues.last?.end ?? -.infinity
+        for i in batch.indices {
+            if batch[i].start < previousEnd {
+                batch[i].start = previousEnd
+                batch[i].end = max(batch[i].end, previousEnd + CueShaper.minDuration)
+            }
+            previousEnd = batch[i].end
+        }
+        if let target, !translationSkipped, !batch.isEmpty {
+            do {
+                guard let translator else { throw AISubtitleError.translationUnavailable }
+                let lines = try await translator.translate(batch.map(\.text), from: source, to: target)
+                for i in batch.indices where i < lines.count { batch[i].translation = lines[i] }
+            } catch AISubtitleError.cancelled {
+                throw AISubtitleError.cancelled
+            } catch {
+                translationSkipped = true
+                for i in cues.indices { cues[i].translation = nil }
+            }
+        }
+        cues += batch
     }
 }

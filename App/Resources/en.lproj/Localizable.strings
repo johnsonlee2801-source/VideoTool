@@ -80,6 +80,7 @@
 "婴儿" = "Baby";
 "字幕已生成" = "Subtitles ready";
 "字幕已生成，共 %@ 句（按 S 可切换字幕）" = "Subtitles ready: %@ lines (press S to switch subtitles)";
+"字幕生成中 · 已到 %@（可以边看边等）" = "Making subtitles · ready up to %@ (keep watching)";
 "室内" = "Indoors";
 "屏幕" = "Screen";
 "山" = "Mountain";

@@ -323,6 +323,10 @@
   "en": "Subtitles ready: %@ lines (press S to switch subtitles)",
   "ja": "字幕を作成しました：%@行（Sキーで字幕を切り替え）"
  },
+ "字幕生成中 · 已到 %@（可以边看边等）": {
+  "en": "Making subtitles · ready up to %@ (keep watching)",
+  "ja": "字幕を作成中 · %@ まで完了（見ながら待てます）"
+ },
  "室内": {
   "en": "Indoors",
   "ja": "屋内"

@@ -567,16 +567,36 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         aiCard.onCancel = { [weak self] in self?.cancelAISubtitles(showing: L("已取消生成字幕")) }
         aiCard.show(.extracting, 0)
         let request = AISubtitlePipeline.Request(video: video, source: choice.source, target: choice.target)
+        let title = Self.subtitleTitle(request, translated: request.target != nil)
+        var liveShown = false, liveUpTo = 0.0
         aiTask = Task { @MainActor [weak self] in
             let message: String
             do {
-                let out = try await pipeline.run(request) { phase, fraction in
+                let out = try await pipeline.run(request, progress: { phase, fraction in
                     DispatchQueue.main.async {
-                        if self?.aiPipeline === pipeline, !pipeline.isCancelled { self?.aiCard.show(phase, fraction) }
+                        guard let self, self.aiPipeline === pipeline, !pipeline.isCancelled else { return }
+                        if liveShown, phase == .recognizing || phase == .translating {
+                            self.aiCard.showLive(upTo: liveUpTo, fraction: fraction)
+                        } else {
+                            self.aiCard.show(phase, fraction)
+                        }
                     }
-                }
+                }, partial: { cues in
+                    // Subtitles while they are being made: rewrite the live file, show or reload it.
+                    DispatchQueue.main.async {
+                        guard let self, self.aiPipeline === pipeline, !pipeline.isCancelled,
+                              self.currentURL?.path == video, let engine = self.engine else { return }
+                        try? SRT.document(cues).write(to: pipeline.liveFile, atomically: true, encoding: .utf8)
+                        if liveShown { engine.reloadSubtitle(path: pipeline.liveFile.path) }
+                        else { engine.addSubtitle(path: pipeline.liveFile.path, title: title); liveShown = true }
+                        liveUpTo = cues.last?.end ?? 0
+                        let duration = engine.state.duration
+                        self.aiCard.showLive(upTo: liveUpTo, fraction: duration > 0 ? liveUpTo / duration : 0)
+                    }
+                })
                 // A job that was cancelled or replaced must not touch the current one.
                 guard let self, self.aiPipeline === pipeline else { return }
+                self.removeLiveSubtitles(of: pipeline)
                 guard self.currentURL?.path == video else { return }
                 self.engine?.addSubtitle(path: out.srt.path, title: Self.subtitleTitle(request, translated: !out.translationSkipped))
                 message = out.translationSkipped ? AISubtitleError.translationUnavailable.message
@@ -588,6 +608,7 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
                 message = AISubtitleError.failed(error.localizedDescription).message
             }
             guard let self, self.aiPipeline === pipeline else { return }
+            self.removeLiveSubtitles(of: pipeline)
             self.aiCard.finish(message)
             self.aiTask = nil
             self.aiPipeline = nil
@@ -603,9 +624,16 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         if #unavailable(macOS 26.0) { aiButton.toolTip = L("需要 macOS 26 或更新版本") }
     }
 
+    /// Takes the subtitles-in-progress off screen and deletes their file.
+    private func removeLiveSubtitles(of pipeline: AISubtitlePipeline) {
+        engine?.removeSubtitle(path: pipeline.liveFile.path)
+        try? FileManager.default.removeItem(at: pipeline.liveFile)
+    }
+
     /// Stops a running job (new file, window closing, or 取消).
     func cancelAISubtitles(showing message: String? = nil) {
         guard aiTask != nil else { return }
+        if let pipeline = aiPipeline { removeLiveSubtitles(of: pipeline) }
         aiPipeline?.cancel()
         aiTask?.cancel()
         aiTask = nil

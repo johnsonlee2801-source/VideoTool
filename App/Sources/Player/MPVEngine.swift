@@ -119,13 +119,26 @@ final class MPVEngine: PlayerEngine {
     /// Adds an external subtitle file and shows it (AI subtitles).
     /// The same file again (regenerated or reopened) is selected, not added twice.
     func addSubtitle(path: String, title: String) {
+        if let id = subtitleTrackID(path: path) { command(["set", "sid", id]); return }
+        command(["sub-add", path, "select", title])
+    }
+
+    /// Re-reads an external subtitle file that was rewritten (subtitles made while playing).
+    func reloadSubtitle(path: String) {
+        if let id = subtitleTrackID(path: path) { command(["sub-reload", id]) }
+    }
+
+    func removeSubtitle(path: String) {
+        if let id = subtitleTrackID(path: path) { command(["sub-remove", id]) }
+    }
+
+    private func subtitleTrackID(path: String) -> String? {
         let n = Int(property("track-list/count") ?? "") ?? 0
         for i in 0..<n where property("track-list/\(i)/type") == "sub"
             && property("track-list/\(i)/external-filename") == path {
-            if let id = property("track-list/\(i)/id") { command(["set", "sid", id]) }
-            return
+            return property("track-list/\(i)/id")
         }
-        command(["sub-add", path, "select", title])
+        return nil
     }
     func cycleAudio() { command(["cycle", "audio"]) }
 

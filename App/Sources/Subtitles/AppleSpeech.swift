@@ -7,9 +7,15 @@ import Translation
 /// On-device speech recognition (macOS 26+). The language model is downloaded by
 /// the system the first time a language is used; nothing leaves the Mac.
 @available(macOS 26.0, *)
-final class AppleSpeechRecognizer: SpeechRecognizing {
+final class AppleSpeechRecognizer: StreamingSpeechRecognizing {
     func transcribe(audio: URL, locale id: String, duration: Double,
                     progress: @escaping @Sendable (Double) -> Void) async throws -> [SpeechSegment] {
+        try await transcribe(audio: audio, locale: id, duration: duration, progress: progress, onSegment: { _ in })
+    }
+
+    /// Each sentence goes to `onSegment` as soon as it is final (subtitles while working).
+    func transcribe(audio: URL, locale id: String, duration: Double, progress: @escaping @Sendable (Double) -> Void,
+                    onSegment: @escaping @Sendable (SpeechSegment) -> Void) async throws -> [SpeechSegment] {
         guard SpeechTranscriber.isAvailable,
               let locale = await SpeechTranscriber.supportedLocale(equivalentTo: Locale(identifier: id)) else {
             throw AISubtitleError.unsupportedLanguage
@@ -23,7 +29,9 @@ final class AppleSpeechRecognizer: SpeechRecognizing {
         let collect = Task { () -> [SpeechSegment] in
             var out: [SpeechSegment] = []
             for try await r in transcriber.results {
-                out.append(Self.segment(r))
+                let segment = Self.segment(r)
+                out.append(segment)
+                onSegment(segment)
                 if duration > 0 { progress(min(r.range.end.seconds / duration, 1)) }
             }
             return out

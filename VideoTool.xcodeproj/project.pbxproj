@@ -11,6 +11,7 @@
 		0366C4CE98A5AA8DFFF08AF6 /* LibraryIndexer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A29CD1028EF85CA1041CB81 /* LibraryIndexer.swift */; };
 		05AFDE994CE9A12E73981699 /* AppDataTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C361EDDD61E7184C16640E2 /* AppDataTests.swift */; };
 		06103E0BE4D751D6F4C86C55 /* SpeedGestureController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D15CCDD25854AF4472C360E /* SpeedGestureController.swift */; };
+		0658D53D4D1B56F644AD17EA /* LiveSubtitleTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A4C40E0F5412FC4F180E25C /* LiveSubtitleTests.swift */; };
 		06CA8242F4539A878A5DF608 /* LibraryScanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5AF5CA00B0DEB3E1C5647FE4 /* LibraryScanner.swift */; };
 		0756527CFB690D4A9C707D46 /* ThumbnailMaker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39A6466577A5AA9499AC49B0 /* ThumbnailMaker.swift */; };
 		09A18CBFB63ED29273F5FFC8 /* AISubtitles.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4B0101A43EB74217554CEDE /* AISubtitles.swift */; };
@@ -213,6 +214,7 @@
 		73C4E801B05D7EE97E8DA16E /* BookmarkStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookmarkStore.swift; sourceTree = "<group>"; };
 		73F72CE394289093319DFBA6 /* PlayerWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerWindowController.swift; sourceTree = "<group>"; };
 		75A62CAC1D1D448B03ADAD63 /* prores_pcm.mov */ = {isa = PBXFileReference; lastKnownFileType = video.quicktime; path = prores_pcm.mov; sourceTree = "<group>"; };
+		7A4C40E0F5412FC4F180E25C /* LiveSubtitleTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveSubtitleTests.swift; sourceTree = "<group>"; };
 		7AAC64859934FD89CEC61B05 /* AppleSpeech.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleSpeech.swift; sourceTree = "<group>"; };
 		80160D36611FC50CE96CB1D5 /* UISnapshotTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UISnapshotTests.swift; sourceTree = "<group>"; };
 		822B01872C21504126E831C5 /* rotated_90.mp4 */ = {isa = PBXFileReference; path = rotated_90.mp4; sourceTree = "<group>"; };
@@ -356,6 +358,7 @@
 				6A8ECAAC1F965BB7C14A4858 /* LibraryShallowRootTests.swift */,
 				D4C290916D2D05A5C1792541 /* LibraryStoreTests.swift */,
 				5DF2D81EBDDBD897F3AE5766 /* LibraryWindowTests.swift */,
+				7A4C40E0F5412FC4F180E25C /* LiveSubtitleTests.swift */,
 				101F0E522B9AB35259F27444 /* LocalizationTests.swift */,
 				F54E8D4D94C725C2958F3645 /* MediaTypesTests.swift */,
 				A8193AA0A360D44DA60859B7 /* MPVIntegrationTests.swift */,
@@ -719,6 +722,7 @@
 				2B4AABF16C39769EDA404348 /* LibraryShallowRootTests.swift in Sources */,
 				6C937F592935EEAD9CC65DC0 /* LibraryStoreTests.swift in Sources */,
 				EA29CB187F08E739747EEBA4 /* LibraryWindowTests.swift in Sources */,
+				0658D53D4D1B56F644AD17EA /* LiveSubtitleTests.swift in Sources */,
 				89FECA796C6DE96312973172 /* LocalizationTests.swift in Sources */,
 				862F874451AB26C9E9C84FBE /* MPVIntegrationTests.swift in Sources */,
 				F5E1BF9A4BA4CD9434DF53D8 /* MPVPropertyTests.swift in Sources */,
