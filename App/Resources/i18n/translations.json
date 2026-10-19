@@ -71,6 +71,10 @@
   "en": "AI Subtitles (%@)",
   "ja": "AI字幕（%@）"
  },
+ "AI 字幕（⌘T）": {
+  "en": "AI Subtitles (⌘T)",
+  "ja": "AI字幕（⌘T）"
+ },
  "AI 正在听写字幕…": {
   "en": "AI is transcribing subtitles…",
   "ja": "AIが字幕を書き起こしています…"
@@ -86,6 +90,10 @@
  "⌘O 打开文件  ·  ⌘L 打开视频库": {
   "en": "⌘O Open File  ·  ⌘L Open Video Library",
   "ja": "⌘O ファイルを開く  ·  ⌘L ビデオライブラリを開く"
+ },
+ "⌘T  AI 字幕": {
+  "en": "⌘T  AI Subtitles",
+  "ja": "⌘T  AI字幕"
  },
  "✓ 已看完": {
   "en": "✓ Watched",

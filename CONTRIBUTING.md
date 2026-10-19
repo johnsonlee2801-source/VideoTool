@@ -1,5 +1,8 @@
 # Contributing to VideoTool
 
+VideoTool is licensed under the [MPL-2.0](LICENSE). By contributing you agree that
+your contribution is licensed under the same terms.
+
 Thanks for helping. This page is for people who build and change VideoTool; the
 [README](README.md) is for people who use it. Project rules for coding agents
 are in [AGENTS.md](AGENTS.md).

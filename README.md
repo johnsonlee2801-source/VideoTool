@@ -95,4 +95,4 @@ Ideas and bug reports are welcome: **Help › Send Feedback…** in the app open
 
 ## License
 
-VideoTool's own licence will be announced before the first public release.
+VideoTool is open source under the [Mozilla Public License 2.0](LICENSE) (MPL-2.0). You may use, study, change and share it; changes to VideoTool's own files stay open under the same licence, and VideoTool can be combined with other code. Third-party components keep their own licences (see above).

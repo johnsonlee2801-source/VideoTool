@@ -95,4 +95,4 @@ VideoTool 先写测试再写代码，有约 400 项自动测试：真实播放�
 
 ## 许可证
 
-VideoTool 自身的许可证会在首次公开发布前公布。
+VideoTool 以 [Mozilla Public License 2.0](LICENSE)（MPL-2.0）开源。你可以使用、研究、修改和分享它。修改 VideoTool 自己的文件后，修改部分也要按同一许可证开放；VideoTool 也可以和其他代码组合使用。第三方组件仍按各自的许可证（见上文）。

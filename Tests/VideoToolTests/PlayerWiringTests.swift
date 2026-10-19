@@ -110,3 +110,24 @@ private func waitUntil(_ timeout: Double = 5, _ condition: () -> Bool) async -> 
         #expect(w.aiCard.isHidden && !w.isMakingAISubtitles)
     }
 }
+
+@Suite(.serialized) @MainActor struct AISubtitleButtonTests {
+    // 2026-10-19: the user could not find AI subtitles (menu + ⌘T only). A button
+    // in the control bar makes them visible.
+    @Test("PW8 the control bar has an AI subtitles button: off without a video, opens the dialog with one")
+    func button() async throws {
+        let w = PlayerWindowController()
+        defer { w.window?.attachedSheet.map { w.window?.endSheet($0) }; w.shutdown() }
+        w.showWindow(nil)
+        #expect(w.aiButton.superview != nil, "the button is in the control bar")
+        #expect(!w.aiButton.isEnabled, "nothing to subtitle yet")
+        w.open(sample)
+        let engine = try #require(w.engine)
+        #expect(await waitUntil { engine.state.duration > 0 })
+        guard #available(macOS 26.0, *) else { #expect(!w.aiButton.isEnabled); return }
+        #expect(w.aiButton.isEnabled)
+        w.aiButton.performClick(nil)
+        #expect(await waitUntil(8) { w.window?.attachedSheet != nil }, "clicking the button opens the language dialog")
+        #expect(!w.aiButton.isEnabled, "no second dialog while one is open")
+    }
+}

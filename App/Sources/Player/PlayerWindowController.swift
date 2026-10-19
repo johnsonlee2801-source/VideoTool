@@ -50,6 +50,8 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     private var listWidth: NSLayoutConstraint?
     private let starButton = NSButton(title: "", target: nil, action: nil)
     private let listButton = NSButton(title: "", target: nil, action: nil)
+    /// AI subtitles, visible in the control bar (the menu item alone was not found).
+    let aiButton = NSButton(title: "", target: nil, action: nil)
     /// Pixels around a star in which a click on the bar snaps to it.
     private static let snapRadius: CGFloat = 6
     static let listPanelWidth: CGFloat = 300
@@ -147,6 +149,7 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         for (button, symbol, tip, action) in [
             (starButton, "star", L("打星标（B）"), #selector(toggleBookmark(_:))),
             (listButton, "list.star", L("星标列表（⇧⌘B）"), #selector(toggleBookmarkList(_:))),
+            (aiButton, "captions.bubble", L("AI 字幕（⌘T）"), #selector(generateAISubtitles(_:))),
         ] {
             button.isBordered = false
             button.image = NSImage(systemSymbolName: symbol, accessibilityDescription: tip)
@@ -158,7 +161,8 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
             button.widthAnchor.constraint(equalToConstant: 24).isActive = true
         }
 
-        let stack = NSStackView(views: [playButton, timeLabel, slider, durationLabel, speedChip, starButton, listButton])
+        let stack = NSStackView(views: [playButton, timeLabel, slider, durationLabel, speedChip, aiButton, starButton, listButton])
+        updateAIButton()
         stack.orientation = .horizontal
         stack.spacing = 12
         stack.edgeInsets = NSEdgeInsets(top: 0, left: 16, bottom: 0, right: 16)
@@ -372,6 +376,7 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         libraryOffer.hide()
         cancelAISubtitles()
         currentURL = url
+        defer { updateAIButton() }
         NSDocumentController.shared.noteNewRecentDocumentURL(url)
         engine.load(url)
         window?.makeKeyAndOrderFront(nil)
@@ -540,11 +545,13 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         guard #available(macOS 26.0, *), let url = currentURL, url.isFileURL, let window,
               aiTask == nil, !aiDialogPending else { return }
         aiDialogPending = true
+        updateAIButton()
         Task { @MainActor [weak self] in
             let sources = await AppleSpeechRecognizer.availableSources()
             guard let self else { return }
             AISubtitleDialog.run(on: window, sources: sources, preferences: self.aiPrefs) { [weak self] choice in
                 self?.aiDialogPending = false
+                self?.updateAIButton()
                 guard let self, let choice, self.currentURL == url else { return }
                 let pipeline = AISubtitlePipeline(recognizer: AppleSpeechRecognizer(),
                                                   translator: AppleTranslator(window: { [weak self] in self?.window }))
@@ -584,7 +591,16 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
             self.aiCard.finish(message)
             self.aiTask = nil
             self.aiPipeline = nil
+            self.updateAIButton()
         }
+        updateAIButton()
+    }
+
+    /// On with a local file open, nothing running and no dialog showing (macOS 26+).
+    private func updateAIButton() {
+        let item = NSMenuItem(title: "", action: #selector(generateAISubtitles(_:)), keyEquivalent: "")
+        aiButton.isEnabled = validateMenuItem(item)
+        if #unavailable(macOS 26.0) { aiButton.toolTip = L("需要 macOS 26 或更新版本") }
     }
 
     /// Stops a running job (new file, window closing, or 取消).
@@ -595,6 +611,7 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         aiTask = nil
         aiPipeline = nil
         if let message { aiCard.finish(message) } else { aiCard.hide() }
+        updateAIButton()
     }
 
     /// Subtitles made earlier for this file (same languages as last time) come back by themselves.

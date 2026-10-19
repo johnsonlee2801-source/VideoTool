@@ -17,10 +17,12 @@
 "AI 字幕…" = "AI Subtitles…";
 "AI 字幕（%1$@ → %2$@）" = "AI Subtitles (%1$@ → %2$@)";
 "AI 字幕（%@）" = "AI Subtitles (%@)";
+"AI 字幕（⌘T）" = "AI Subtitles (⌘T)";
 "AI 正在听写字幕…" = "AI is transcribing subtitles…";
 "B  打星标" = "B  Star";
 "iCloud 未下载" = "Not Downloaded from iCloud";
 "⌘O 打开文件  ·  ⌘L 打开视频库" = "⌘O Open File  ·  ⌘L Open Video Library";
+"⌘T  AI 字幕" = "⌘T  AI Subtitles";
 "✓ 已看完" = "✓ Watched";
 "「%1$@」已在视频库的「%2$@」里，不用重复添加。" = "“%1$@” is already in “%2$@” in your library, so there's no need to add it again.";
 "「%@」\n改过的信息会记住，文件改名或移动后也有效。" = "“%@”\nYour changes are remembered, even if the file is renamed or moved.";
