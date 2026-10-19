@@ -23,6 +23,8 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     /// The language dialog is being prepared or shown (⌘T must not open a second one).
     private var aiDialogPending = false
     var isMakingAISubtitles: Bool { aiTask != nil }
+    /// The AI subtitles on screen (to redraw them when the band is switched).
+    private var aiShown: (srt: URL, display: URL, bilingual: Bool)?
     /// A file was opened here (menu, Finder, drop or library); used for the library offer.
     var onFileOpened: ((URL) -> Void)?
     private let playButton = NSButton(title: "", target: nil, action: nil)
@@ -375,6 +377,7 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         preview.hide()
         libraryOffer.hide()
         cancelAISubtitles()
+        aiShown = nil
         currentURL = url
         defer { updateAIButton() }
         NSDocumentController.shared.noteNewRecentDocumentURL(url)
@@ -511,6 +514,9 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         case #selector(chooseSpeedPreset(_:)):
             item.state = (item.representedObject as? Double).map { abs($0 - preferredSpeed) < 0.001 } == true ? .on : .off
             return engine != nil
+        case #selector(toggleSubtitleBand(_:)):
+            item.state = aiPrefs.band ? .on : .off
+            return true
         case #selector(generateAISubtitles(_:)):
             guard #available(macOS 26.0, *) else { item.toolTip = L("需要 macOS 26 或更新版本"); return false }
             return currentURL?.isFileURL == true && aiTask == nil && !aiDialogPending
@@ -586,7 +592,8 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
                     DispatchQueue.main.async {
                         guard let self, self.aiPipeline === pipeline, !pipeline.isCancelled,
                               self.currentURL?.path == video, let engine = self.engine else { return }
-                        try? SRT.document(cues).write(to: pipeline.liveFile, atomically: true, encoding: .utf8)
+                        try? ASS.document(cues, band: self.aiPrefs.band, until: engine.state.duration)
+                            .write(to: pipeline.liveFile, atomically: true, encoding: .utf8)
                         if liveShown { engine.reloadSubtitle(path: pipeline.liveFile.path) }
                         else { engine.addSubtitle(path: pipeline.liveFile.path, title: title); liveShown = true }
                         liveUpTo = cues.last?.end ?? 0
@@ -598,7 +605,8 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
                 guard let self, self.aiPipeline === pipeline else { return }
                 self.removeLiveSubtitles(of: pipeline)
                 guard self.currentURL?.path == video else { return }
-                self.engine?.addSubtitle(path: out.srt.path, title: Self.subtitleTitle(request, translated: !out.translationSkipped))
+                self.showAISubtitles(srt: out.srt, bilingual: request.target != nil && !out.translationSkipped,
+                                     title: Self.subtitleTitle(request, translated: !out.translationSkipped))
                 message = out.translationSkipped ? AISubtitleError.translationUnavailable.message
                                                  : L("字幕已生成，共 %@ 句（按 S 可切换字幕）", String(describing: out.cueCount))
             } catch let error as AISubtitleError {
@@ -650,10 +658,26 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
             let url = SubtitleCache.url(forVideo: path, source: source, target: t)
             if FileManager.default.fileExists(atPath: url.path) {
                 let request = AISubtitlePipeline.Request(video: path, source: source, target: t)
-                engine?.addSubtitle(path: url.path, title: Self.subtitleTitle(request, translated: translated))
+                showAISubtitles(srt: url, bilingual: translated, title: Self.subtitleTitle(request, translated: translated))
                 return
             }
         }
+    }
+
+    /// Shows finished AI subtitles through their .ass (with or without the band).
+    private func showAISubtitles(srt: URL, bilingual: Bool, title: String) {
+        guard let engine, let display = SubtitleCache.display(for: srt, bilingual: bilingual, band: aiPrefs.band,
+                                                               until: engine.state.duration) else { return }
+        engine.addSubtitle(path: display.path, title: title)
+        aiShown = (srt, display, bilingual)
+    }
+
+    /// Play › AI 字幕背景条: on by default; redraws the subtitles on screen right away.
+    @objc func toggleSubtitleBand(_ sender: Any?) {
+        aiPrefs.band.toggle()
+        guard let shown = aiShown, let engine else { return }
+        SubtitleCache.display(for: shown.srt, bilingual: shown.bilingual, band: aiPrefs.band, until: engine.state.duration)
+        engine.reloadSubtitle(path: shown.display.path)
     }
 
     static func subtitleTitle(_ r: AISubtitlePipeline.Request, translated: Bool) -> String {

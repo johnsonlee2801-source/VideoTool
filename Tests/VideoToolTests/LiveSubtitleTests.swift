@@ -188,6 +188,7 @@ struct LiveSubtitlePipelineTests {
         #expect(await waitUntil { !w.isMakingAISubtitles })
         // Removing the live track and adding the finished one are two async player commands.
         let final = SubtitleCache.url(forVideo: sample.path, source: "en-US", target: nil, in: dir)
+            .deletingPathExtension().appendingPathExtension("ass")          // shown through its .ass
         #expect(await waitUntil { engine.trackCounts().subtitle == 1 && engine.property("current-tracks/sub/external-filename") == final.path },
                 "tracks \(engine.trackCounts().subtitle), current \(engine.property("current-tracks/sub/external-filename") ?? "nil")")
         #expect(w.aiCard.message.contains("字幕已生成"))

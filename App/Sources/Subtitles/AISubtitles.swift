@@ -87,6 +87,13 @@ final class AISubtitlePreferences {
         set { defaults.set(newValue, forKey: Self.sourceKey) }
     }
     /// A target language id, or nil for "don't translate".
+    /// The dark band behind AI subtitles that hides subtitles burnt into the picture.
+    static let bandKey = "videotool.ai-subtitles.band"
+    var band: Bool {
+        get { defaults.object(forKey: Self.bandKey) as? Bool ?? true }
+        set { defaults.set(newValue, forKey: Self.bandKey) }
+    }
+
     var target: String? {
         get {
             let v = defaults.string(forKey: Self.targetKey) ?? "zh-Hans"
@@ -96,8 +103,18 @@ final class AISubtitlePreferences {
     }
 }
 
-/// Where generated subtitles are kept: one .srt per file version and language pair.
+/// Where generated subtitles are kept: one .srt per file version and language pair
+/// (the data), shown through an .ass next to it (layout and the band).
 enum SubtitleCache {
+    /// Writes the .ass the player shows for a cached .srt, and returns it.
+    @discardableResult
+    static func display(for srt: URL, bilingual: Bool, band: Bool, until videoEnd: Double) -> URL? {
+        guard let text = try? String(contentsOf: srt, encoding: .utf8) else { return nil }
+        let ass = srt.deletingPathExtension().appendingPathExtension("ass")
+        let doc = ASS.document(SRT.parse(text, bilingual: bilingual), band: band, until: videoEnd)
+        return (try? doc.write(to: ass, atomically: true, encoding: .utf8)) == nil ? nil : ass
+    }
+
     static var directory: URL { AppData.directory.appendingPathComponent("Subtitles", isDirectory: true) }
 
     static func url(forVideo path: String, source: String, target: String?, in dir: URL = directory) -> URL {
@@ -144,7 +161,7 @@ final class AISubtitlePipeline {
         self.translator = translator
         self.cacheDirectory = cacheDirectory
         self.extract = extract
-        liveFile = cacheDirectory.appendingPathComponent("live-\(UUID().uuidString).srt")
+        liveFile = cacheDirectory.appendingPathComponent("live-\(UUID().uuidString).ass")
     }
 
     func cancel() { token.cancel() }

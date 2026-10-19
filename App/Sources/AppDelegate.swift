@@ -136,6 +136,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
         playMenu.addItem(.separator())
         playMenu.addItem(withTitle: L("切换字幕轨"), action: #selector(PlayerWindowController.cycleSubtitle(_:)), keyEquivalent: "s")
         playMenu.addItem(withTitle: L("AI 字幕…"), action: #selector(PlayerWindowController.generateAISubtitles(_:)), keyEquivalent: "t")
+        playMenu.addItem(withTitle: L("AI 字幕背景条"), action: #selector(PlayerWindowController.toggleSubtitleBand(_:)), keyEquivalent: "")
         playMenu.addItem(withTitle: L("切换音轨"), action: #selector(PlayerWindowController.cycleAudio(_:)), keyEquivalent: "a")
         playMenu.addItem(withTitle: L("静音"), action: #selector(PlayerWindowController.toggleMute(_:)), keyEquivalent: "m")
         let outputItem = playMenu.addItem(withTitle: L("声音输出"), action: nil, keyEquivalent: "")

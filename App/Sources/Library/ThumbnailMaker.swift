@@ -38,7 +38,9 @@ enum MPVFrameGrabber {
     /// `start` is anything mpv's `--start` accepts ("12.5", "10%").
     /// Returns the probe (nil if the file could not be opened) and, if a
     /// thumbnail was requested but not written, the reason.
-    static func grab(source: String, start: String, thumbnailTo url: URL?) -> (probe: MediaProbe?, failure: String?) {
+    /// `subtitles`: an external subtitle file drawn into the frame (checks of what the player shows).
+    static func grab(source: String, start: String, thumbnailTo url: URL?,
+                     subtitles: String? = nil) -> (probe: MediaProbe?, failure: String?) {
         guard let h = mpv_create() else { return (nil, "mpv_create failed") }
         defer { mpv_terminate_destroy(h) }
 
@@ -52,7 +54,7 @@ enum MPVFrameGrabber {
             // (mp_image_crop, found by FormatMatrixTests with a phone-style 90° flag).
             // Render unrotated and rotate the bitmap ourselves.
             ("video-rotate", "no"),
-        ]
+        ] + (subtitles.map { [("sid", "auto"), ("sub-files", $0)] } ?? [])
         for (k, v) in options {
             let r = mpv_set_option_string(h, k, v)
             if r < 0 { return (nil, "option \(k)=\(v): \(String(cString: mpv_error_string(r)))") }

@@ -63,6 +63,10 @@
   "en": "AI Subtitles…",
   "ja": "AI字幕…"
  },
+ "AI 字幕背景条": {
+  "en": "Background Band Behind AI Subtitles",
+  "ja": "AI字幕の背景帯"
+ },
  "AI 字幕（%1$@ → %2$@）": {
   "en": "AI Subtitles (%1$@ → %2$@)",
   "ja": "AI字幕（%1$@ → %2$@）"
