@@ -22,8 +22,8 @@
     },
     {
       "name": "unit",
-      "description": "App tests without real libmpv (macOS). Run outside the sandbox (DerivedData in ~/Library). Exit 65 = test failure.",
-      "command": "scripts/xcb.sh test -skip-testing:VideoToolTests/MPVIntegrationTests -skip-testing:VideoToolTests/FormatMatrixTests; rc=$?; if [ $rc -eq 65 ]; then exit 1; fi; exit $rc",
+      "description": "App tests that need no media decoding or speech models (windows may still create an idle mpv). Run outside the sandbox. Exit 65 = test failure.",
+      "command": "scripts/xcb.sh test -skip-testing:VideoToolTests/MPVIntegrationTests -skip-testing:VideoToolTests/FormatMatrixTests -skip-testing:VideoToolTests/AISubtitleIntegrationTests -skip-testing:VideoToolTests/SpeedAudioTests -skip-testing:VideoToolTests/AudioOutputEngineTests -skip-testing:VideoToolTests/PlayerWiringTests -skip-testing:VideoToolTests/AIJobLifecycleTests -skip-testing:VideoToolTests/AppleSpeechErrorTests -skip-testing:VideoToolTests/QualityTests -skip-testing:VideoToolTests/StressTests; rc=$?; if [ $rc -eq 65 ]; then exit 1; fi; exit $rc",
       "probeCommand": "test -d VideoTool.xcodeproj && ls Tests/VideoToolTests/*.swift",
       "gateOn": [
         "commit"
@@ -33,8 +33,8 @@
     },
     {
       "name": "integration",
-      "description": "Tests against real libmpv (MPVIntegrationTests) with the bundled fixture video. Includes FormatMatrixTests (every codec/container in Tests/Fixtures/formats).",
-      "command": "scripts/xcb.sh test -only-testing:VideoToolTests/MPVIntegrationTests -only-testing:VideoToolTests/FormatMatrixTests; rc=$?; if [ $rc -eq 65 ]; then exit 1; fi; exit $rc",
+      "description": "Real libmpv playback, every bundled format, AI subtitles with the on-device recogniser, sound output and audio at speed. QualityTests/StressTests stay opt-in (tools/quality_check.sh, tools/stress_library.sh).",
+      "command": "scripts/xcb.sh test -only-testing:VideoToolTests/MPVIntegrationTests -only-testing:VideoToolTests/FormatMatrixTests -only-testing:VideoToolTests/AISubtitleIntegrationTests -only-testing:VideoToolTests/SpeedAudioTests -only-testing:VideoToolTests/AudioOutputEngineTests -only-testing:VideoToolTests/PlayerWiringTests -only-testing:VideoToolTests/AIJobLifecycleTests -only-testing:VideoToolTests/AppleSpeechErrorTests; rc=$?; if [ $rc -eq 65 ]; then exit 1; fi; exit $rc",
       "probeCommand": "ls Tests/VideoToolTests/MPVIntegrationTests.swift Tests/Fixtures/testsrc-20s.mp4",
       "gateOn": [
         "commit"

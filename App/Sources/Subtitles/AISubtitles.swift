@@ -172,8 +172,14 @@ final class AISubtitlePipeline {
 
         // 2. speech → cues
         progress(.recognizing, 0)
-        let segments = try await recognizer.transcribe(audio: wav, locale: request.source, duration: duration,
+        let segments: [SpeechSegment]
+        do {
+            segments = try await recognizer.transcribe(audio: wav, locale: request.source, duration: duration,
                                                        progress: { progress(.recognizing, $0) })
+        } catch {
+            try checkCancelled(after: error)
+            throw error
+        }
         try checkCancelled()
         var cues = CueShaper.cues(from: segments)
         guard !cues.isEmpty else { throw AISubtitleError.noSpeech }
@@ -207,5 +213,12 @@ final class AISubtitlePipeline {
 
     private func checkCancelled() throws {
         if token.isCancelled || Task.isCancelled { throw AISubtitleError.cancelled }
+    }
+
+    /// Whatever a step throws once the job was cancelled (CancellationError, a
+    /// recogniser error…) is a cancellation, not a failure to report.
+    private func checkCancelled(after error: Error) throws {
+        if error is CancellationError { throw AISubtitleError.cancelled }
+        try checkCancelled()
     }
 }

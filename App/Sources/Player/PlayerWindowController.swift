@@ -20,6 +20,8 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     private let aiPrefs = AISubtitlePreferences()
     private var aiPipeline: AISubtitlePipeline?
     private var aiTask: Task<Void, Never>?
+    /// The language dialog is being prepared or shown (⌘T must not open a second one).
+    private var aiDialogPending = false
     var isMakingAISubtitles: Bool { aiTask != nil }
     /// A file was opened here (menu, Finder, drop or library); used for the library offer.
     var onFileOpened: ((URL) -> Void)?
@@ -506,7 +508,7 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
             return engine != nil
         case #selector(generateAISubtitles(_:)):
             guard #available(macOS 26.0, *) else { item.toolTip = "需要 macOS 26 或更新版本"; return false }
-            return currentURL?.isFileURL == true && aiTask == nil
+            return currentURL?.isFileURL == true && aiTask == nil && !aiDialogPending
         case #selector(toggleBookmarkList(_:)):
             item.state = listPanel.isHidden ? .off : .on
             return bookmarks != nil
@@ -535,21 +537,25 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
 
     /// Play › AI 字幕…: pick languages, then make subtitles on this Mac and show them.
     @objc func generateAISubtitles(_ sender: Any?) {
-        guard #available(macOS 26.0, *), let url = currentURL, url.isFileURL, let window, aiTask == nil else { return }
+        guard #available(macOS 26.0, *), let url = currentURL, url.isFileURL, let window,
+              aiTask == nil, !aiDialogPending else { return }
+        aiDialogPending = true
         Task { @MainActor [weak self] in
             let sources = await AppleSpeechRecognizer.availableSources()
             guard let self else { return }
             AISubtitleDialog.run(on: window, sources: sources, preferences: self.aiPrefs) { [weak self] choice in
+                self?.aiDialogPending = false
                 guard let self, let choice, self.currentURL == url else { return }
-                self.startAISubtitles(video: url.path, choice: choice)
+                let pipeline = AISubtitlePipeline(recognizer: AppleSpeechRecognizer(),
+                                                  translator: AppleTranslator(window: { [weak self] in self?.window }))
+                self.startAISubtitles(video: url.path, choice: choice, pipeline: pipeline)
             }
         }
     }
 
-    @available(macOS 26.0, *)
-    private func startAISubtitles(video: String, choice: AISubtitleDialog.Choice) {
-        let pipeline = AISubtitlePipeline(recognizer: AppleSpeechRecognizer(),
-                                          translator: AppleTranslator(window: { [weak self] in self?.window }))
+    /// Internal so tests can run a job with a fake recogniser.
+    func startAISubtitles(video: String, choice: AISubtitleDialog.Choice, pipeline: AISubtitlePipeline) {
+        cancelAISubtitles()                       // never two jobs at once
         aiPipeline = pipeline
         aiCard.onCancel = { [weak self] in self?.cancelAISubtitles(showing: "已取消生成字幕") }
         aiCard.show(.extracting, 0)
@@ -558,9 +564,13 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
             let message: String
             do {
                 let out = try await pipeline.run(request) { phase, fraction in
-                    DispatchQueue.main.async { if !pipeline.isCancelled { self?.aiCard.show(phase, fraction) } }
+                    DispatchQueue.main.async {
+                        if self?.aiPipeline === pipeline, !pipeline.isCancelled { self?.aiCard.show(phase, fraction) }
+                    }
                 }
-                guard let self, self.currentURL?.path == video else { return }
+                // A job that was cancelled or replaced must not touch the current one.
+                guard let self, self.aiPipeline === pipeline else { return }
+                guard self.currentURL?.path == video else { return }
                 self.engine?.addSubtitle(path: out.srt.path, title: Self.subtitleTitle(request, translated: !out.translationSkipped))
                 message = out.translationSkipped ? AISubtitleError.translationUnavailable.message
                                                  : "字幕已生成，共 \(out.cueCount) 句（按 S 可切换字幕）"
@@ -570,9 +580,10 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
             } catch {
                 message = AISubtitleError.failed(error.localizedDescription).message
             }
-            self?.aiCard.finish(message)
-            self?.aiTask = nil
-            self?.aiPipeline = nil
+            guard let self, self.aiPipeline === pipeline else { return }
+            self.aiCard.finish(message)
+            self.aiTask = nil
+            self.aiPipeline = nil
         }
     }
 

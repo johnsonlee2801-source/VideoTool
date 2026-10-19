@@ -115,31 +115,38 @@ private final class Results: @unchecked Sendable {
         return m
     }
 
-    @Test("Q1 4K HEVC 10-bit HDR10: hardware decoding, recognised as HDR (PQ, BT.2020), smooth, quick seeks")
+    @Test("Q1 4K HEVC 10-bit HDR10: hardware decoding, recognised as HDR (PQ, BT.2020), light on the CPU")
     func hdr10() async throws {
         let m = try await measure("hdr10_4k_hevc10.mkv")
         #expect(m.hwdec.contains("videotoolbox"), "hwdec: \(m.hwdec)")
         #expect(m.gamma == "pq" && m.primaries == "bt.2020", "\(m.gamma) / \(m.primaries)")
         #expect(m.cpuPercent < 100, "CPU \(m.cpuPercent)% of one core")
-        guard screenIsLive else { return }          // frames and seeks need a visible window
-        #expect(Double(m.dropped) <= max(2, Double(m.frames) * 0.02), "\(m.dropped) of \(m.frames) frames dropped")
-        #expect(m.seekMedianMs < 400 && m.seekMaxMs < 1500, "seek median \(m.seekMedianMs) ms, max \(m.seekMaxMs) ms")
     }
 
-    @Test("Q2 4K 60 fps H.264 at 60 Mbit/s: hardware decoding, no dropped frames worth noticing")
+    @Test("Q2 4K 60 fps H.264 at 60 Mbit/s: hardware decoding, light on the CPU")
     func h264HighBitrate() async throws {
         let m = try await measure("h264_4k60_high.mp4")
         #expect(m.hwdec.contains("videotoolbox"), "hwdec: \(m.hwdec)")
         #expect(m.cpuPercent < 100, "CPU \(m.cpuPercent)% of one core")
-        guard screenIsLive else { return }          // frames and seeks need a visible window
-        #expect(Double(m.dropped) <= max(2, Double(m.frames) * 0.02), "\(m.dropped) of \(m.frames) frames dropped")
-        #expect(m.seekMedianMs < 400 && m.seekMaxMs < 1500, "seek median \(m.seekMedianMs) ms, max \(m.seekMaxMs) ms")
     }
 
-    @Test("Q3 1080p HEVC with 10 s between keyframes: dragging stays responsive")
+    // Frames and seeks need a visible window: these are reported as skipped while
+    // the display is asleep or the screen locked, never as passed.
+
+    @Test("Q3 4K HDR10 and 4K60: no dropped frames worth noticing; jumps land quickly",
+          .enabled(if: screenIsLive, "screen asleep or locked: frames and seeks cannot be measured"))
+    func framesAndSeeks() async throws {
+        for name in ["hdr10_4k_hevc10.mkv", "h264_4k60_high.mp4"] {
+            let m = try await measure(name)
+            #expect(Double(m.dropped) <= max(2, Double(m.frames) * 0.02), "\(name): \(m.dropped) of \(m.frames) frames dropped")
+            #expect(m.seekMedianMs < 400 && m.seekMaxMs < 1500, "\(name): seek median \(m.seekMedianMs) ms, max \(m.seekMaxMs) ms")
+        }
+    }
+
+    @Test("Q4 1080p HEVC with 10 s between keyframes: dragging stays responsive",
+          .enabled(if: screenIsLive, "screen asleep or locked: frames and seeks cannot be measured"))
     func longGOP() async throws {
         let m = try await measure("hevc_1080_longgop.mp4")
-        guard screenIsLive else { return }
         #expect(m.scrubMedianMs < 250, "scrub median \(m.scrubMedianMs) ms")
         #expect(m.seekMedianMs < 1000 && m.seekMaxMs < 2500, "seek median \(m.seekMedianMs) ms, max \(m.seekMaxMs) ms")
     }

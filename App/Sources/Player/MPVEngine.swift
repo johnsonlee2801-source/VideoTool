@@ -26,7 +26,8 @@ final class MPVEngine: PlayerEngine {
     var onStateChange: ((PlayerState) -> Void)?
     var onEvent: ((PlayerEvent) -> Void)?
 
-    init() throws {
+    /// `extraOptions` come after the defaults (tests use them, e.g. ao=pcm).
+    init(extraOptions: [(String, String)] = []) throws {
         guard let h = mpv_create() else { throw MPVError.createFailed }
         // A failing initializer never runs deinit, so destroy the handle here.
         var initialized = false
@@ -45,7 +46,7 @@ final class MPVEngine: PlayerEngine {
             ("ytdl", "no"),
             ("audio-pitch-correction", "yes"),
             ("volume-max", "100"),
-        ]
+        ] + extraOptions
         for (k, v) in options {
             let r = mpv_set_option_string(h, k, v)
             if r < 0 { throw MPVError.api(r, "set option \(k)") }
@@ -109,7 +110,16 @@ final class MPVEngine: PlayerEngine {
     func setAudioDevice(_ name: String) { command(["set", "audio-device", name]) }
 
     /// Adds an external subtitle file and shows it (AI subtitles).
-    func addSubtitle(path: String, title: String) { command(["sub-add", path, "select", title]) }
+    /// The same file again (regenerated or reopened) is selected, not added twice.
+    func addSubtitle(path: String, title: String) {
+        let n = Int(property("track-list/count") ?? "") ?? 0
+        for i in 0..<n where property("track-list/\(i)/type") == "sub"
+            && property("track-list/\(i)/external-filename") == path {
+            if let id = property("track-list/\(i)/id") { command(["set", "sid", id]) }
+            return
+        }
+        command(["sub-add", path, "select", title])
+    }
     func cycleAudio() { command(["cycle", "audio"]) }
 
     // MARK: commands & properties

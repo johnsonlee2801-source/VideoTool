@@ -46,7 +46,9 @@ struct PlaybackSpeedTests {
     }
 
     @Test("PS6 choosing a speed, ] and ⌫ update the remembered speed; a hold does not")
-    func choosingRemembers() throws {
+    func choosingRemembers() async throws {
+        let saved = PreferredSpeedStore().speed
+        defer { PreferredSpeedStore().speed = saved }       // shared by every window in this run
         let w = PlayerWindowController()
         defer { w.shutdown() }
         w.perform(.setSpeed(2.5))
@@ -55,8 +57,13 @@ struct PlaybackSpeedTests {
         #expect(w.preferredSpeed == 2.6)
         w.perform(.resetSpeed)
         #expect(w.preferredSpeed == 1.0)
+        // A real hold: button down past the 0.25 s threshold, then release.
         let view = try #require(w.playerView)
-        view.gesture.mouseDown(); view.gesture.cancel()
+        view.gesture.mouseDown()
+        let deadline = Date().addingTimeInterval(2)
+        while !view.gesture.isHolding, Date() < deadline { try await Task.sleep(for: .milliseconds(20)) }
+        #expect(view.gesture.isHolding, "the hold never started")
+        view.gesture.mouseUp()
         #expect(w.preferredSpeed == 1.0)
     }
 }

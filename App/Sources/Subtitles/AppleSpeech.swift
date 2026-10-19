@@ -88,13 +88,26 @@ final class AppleTranslator: SubtitleTranslating {
 
     private static func run(_ session: TranslationSession, _ lines: [String]) async throws -> [String] {
         var out = lines
-        for start in stride(from: 0, to: lines.count, by: batchSize) {
+        for range in batches(count: lines.count, size: batchSize) {
             if Task.isCancelled { throw AISubtitleError.cancelled }
-            let range = start..<min(start + batchSize, lines.count)
             let requests = range.map { TranslationSession.Request(sourceText: lines[$0], clientIdentifier: String($0)) }
-            for response in try await session.translations(from: requests) {
-                if let i = response.clientIdentifier.flatMap(Int.init), out.indices.contains(i) { out[i] = response.targetText }
-            }
+            let responses = try await session.translations(from: requests)
+            out = merge(responses.map { ($0.clientIdentifier, $0.targetText) }, into: out)
+        }
+        return out
+    }
+
+    /// Consecutive index ranges of at most `size`.
+    static func batches(count: Int, size: Int) -> [Range<Int>] {
+        stride(from: 0, to: count, by: max(size, 1)).map { $0..<min($0 + max(size, 1), count) }
+    }
+
+    /// Puts each translation back at the line it came from (responses may arrive in
+    /// any order); unknown or missing ids leave the original line in place.
+    static func merge(_ responses: [(id: String?, text: String)], into lines: [String]) -> [String] {
+        var out = lines
+        for r in responses {
+            if let i = r.id.flatMap(Int.init), out.indices.contains(i) { out[i] = r.text }
         }
         return out
     }
@@ -105,22 +118,59 @@ final class AppleTranslator: SubtitleTranslating {
     private func withPromptedSession(from: Locale.Language, to: Locale.Language,
                                      _ work: @escaping (TranslationSession) async throws -> [String]) async throws -> [String] {
         guard let content = window()?.contentView else { throw AISubtitleError.translationUnavailable }
-        return try await withCheckedThrowingContinuation { continuation in
-            var host: NSView?
-            let view = TranslationBridge(configuration: .init(source: from, target: to)) { session in
-                do {
-                    try await session.prepareTranslation()
-                    continuation.resume(returning: try await work(session))
-                } catch {
-                    continuation.resume(throwing: AISubtitleError.translationUnavailable)
+        let once = ResumeOnce<[String]>()
+        var host: NSView?
+        let cleanUp = { @MainActor in host?.removeFromSuperview(); host = nil }
+        // Cancelling the job (or the user ignoring the download prompt and pressing
+        // 取消) ends the wait; the continuation is resumed exactly once either way.
+        return try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { continuation in
+                once.set(continuation)
+                let view = TranslationBridge(configuration: .init(source: from, target: to)) { session in
+                    do {
+                        try await session.prepareTranslation()
+                        once.resume(.success(try await work(session)))
+                    } catch {
+                        once.resume(.failure(Task.isCancelled ? AISubtitleError.cancelled : AISubtitleError.translationUnavailable))
+                    }
+                    await cleanUp()
                 }
-                await MainActor.run { host?.removeFromSuperview() }
+                let hosting = NSHostingView(rootView: view)
+                hosting.frame = NSRect(x: 0, y: 0, width: 1, height: 1)
+                content.addSubview(hosting)
+                host = hosting
             }
-            let hosting = NSHostingView(rootView: view)
-            hosting.frame = NSRect(x: 0, y: 0, width: 1, height: 1)
-            content.addSubview(hosting)
-            host = hosting
+        } onCancel: {
+            once.resume(.failure(AISubtitleError.cancelled))
+            Task { await cleanUp() }
         }
+    }
+}
+
+/// Resumes a continuation at most once, whoever gets there first (the work, a
+/// second firing of SwiftUI's task, or cancellation); later calls are ignored.
+/// A resume that arrives before the continuation is set is kept and delivered then.
+final class ResumeOnce<T>: @unchecked Sendable {
+    private let lock = NSLock()
+    private var continuation: CheckedContinuation<T, Error>?
+    private var pending: Result<T, Error>?
+    private var done = false
+
+    func set(_ c: CheckedContinuation<T, Error>) {
+        lock.lock()
+        if let pending, !done { done = true; lock.unlock(); c.resume(with: pending); return }
+        continuation = c
+        lock.unlock()
+    }
+
+    func resume(_ result: Result<T, Error>) {
+        lock.lock()
+        guard !done else { lock.unlock(); return }
+        guard let c = continuation else { pending = pending ?? result; lock.unlock(); return }
+        done = true
+        continuation = nil
+        lock.unlock()
+        c.resume(with: result)
     }
 }
 

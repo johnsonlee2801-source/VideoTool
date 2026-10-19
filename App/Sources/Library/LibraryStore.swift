@@ -74,7 +74,8 @@ final class LibraryStore {
         if let parent = existing.first(where: { $0.path != new && $0.covers(new) }) {
             return .alreadyCovered(by: parent.path)
         }
-        let children = recursive ? existing.map(\.path).filter { $0.hasPrefix(new + "/") } : []
+        let inside = new == "/" ? "/" : new + "/"
+        let children = recursive ? existing.map(\.path).filter { $0 != new && $0.hasPrefix(inside) } : []
         try db.transaction {
             try db.run("""
                 INSERT INTO library_roots (path, added_at, recursive) VALUES (?, ?, ?)

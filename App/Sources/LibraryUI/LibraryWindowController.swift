@@ -341,6 +341,10 @@ final class LibraryWindowController: NSWindowController, NSWindowDelegate,
         }
     }
 
+    /// Back from the player: progress may have changed (继续观看, progress stripes).
+    /// Only re-reads the index; no rescan.
+    func windowDidBecomeKey(_ notification: Notification) { controller.reload() }
+
     /// Correct how a file is grouped in 按剧集 (kept by content, survives moves).
     private func editSeries(_ item: LibraryItem) {
         guard let window else { return }

@@ -18,6 +18,6 @@ enum AppData {
             .appendingPathComponent("VideoTool", isDirectory: true)
 
     static let defaults: UserDefaults = isTestRun
-        ? UserDefaults(suiteName: "videotool-tests-\(getpid())") ?? .standard
+        ? UserDefaults(suiteName: "videotool-tests-\(getpid())")!     // never the user's real preferences
         : .standard
 }

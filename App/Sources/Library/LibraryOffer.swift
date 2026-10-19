@@ -36,15 +36,20 @@ enum LibraryOffer {
     /// Folders that hold a little of everything: offered as their top layer only.
     static func isBroad(_ folder: String, home: String) -> Bool {
         let broad = Set([home] + ["Desktop", "Downloads", "Documents", "Pictures", "Music"].map { home + "/" + $0 })
-        if broad.contains(folder) { return true }
+        if broad.contains(folder) || folder == iCloudDrive(home) { return true }
         let parts = folder.split(separator: "/")
         return parts.count == 2 && parts[0] == "Volumes"                      // a whole drive
     }
 
     /// Never offered: the disk root, the folders that list users or drives, and
     /// temporary, trash and system locations.
+    /// iCloud Drive lives under ~/Library but holds the user's own files.
+    static func iCloudDrive(_ home: String) -> String { home + "/Library/Mobile Documents/com~apple~CloudDocs" }
+
     static func isSystem(_ folder: String, home: String) -> Bool {
         if ["/", "/Users", "/Volumes"].contains(folder) { return true }
+        let drive = iCloudDrive(home)
+        if folder == drive || folder.hasPrefix(drive + "/") { return false }
         let system = ["/tmp", "/private", "/var", "/System", "/Library", "/Applications",
                       home + "/Library", home + "/.Trash"]
         return system.contains { folder == $0 || folder.hasPrefix($0 + "/") }

@@ -21,7 +21,7 @@ enum EpisodeParser {
         let season = chineseSeason(in: name)
 
         let strong: [(String, (NSTextCheckingResult, NSString) -> (season: Int?, episode: Int)?)] = [
-            (#"(?i)\bS(\d{1,2})[ ._-]?E(\d{1,4})\b"#, { m, s in (int(m, 1, s), int(m, 2, s)!) }),
+            (#"(?i)\bS(\d{1,2})[ ._-]?E(\d{1,4})(?:-?E\d{1,4})*\b"#, { m, s in (int(m, 1, s), int(m, 2, s)!) }),
             (#"(?<![\d])(\d{1,2})x(\d{2,3})(?![\d])"#, { m, s in (int(m, 1, s), int(m, 2, s)!) }),
             (#"第\s*([0-9]{1,4}|[零〇一二两三四五六七八九十百]+)\s*[集话話回期]"#, { m, s in
                 let raw = sub(m, 1, s)
