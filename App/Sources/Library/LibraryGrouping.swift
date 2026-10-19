@@ -5,14 +5,14 @@ enum LibraryGroupingMode: String, CaseIterable {
 
     var title: String {
         switch self {
-        case .all: return "全部视频"
-        case .series: return "按剧集"
-        case .folder: return "按文件夹"
-        case .date: return "按日期"
-        case .duration: return "按时长"
-        case .resolution: return "按清晰度"
-        case .duplicates: return "重复文件"
-        case .tag: return "按内容标签"
+        case .all: return L("全部视频")
+        case .series: return L("按剧集")
+        case .folder: return L("按文件夹")
+        case .date: return L("按日期")
+        case .duration: return L("按时长")
+        case .resolution: return L("按清晰度")
+        case .duplicates: return L("重复文件")
+        case .tag: return L("按内容标签")
         }
     }
 }
@@ -40,12 +40,12 @@ enum LibraryGrouping {
         case underOneMinute, oneToTen, tenToThirty, thirtyToSixty, overAnHour, unknown
         var title: String {
             switch self {
-            case .underOneMinute: return "1 分钟以内"
-            case .oneToTen: return "1–10 分钟"
-            case .tenToThirty: return "10–30 分钟"
-            case .thirtyToSixty: return "30–60 分钟"
-            case .overAnHour: return "1 小时以上"
-            case .unknown: return "时长未知"
+            case .underOneMinute: return L("1 分钟以内")
+            case .oneToTen: return L("1–10 分钟")
+            case .tenToThirty: return L("10–30 分钟")
+            case .thirtyToSixty: return L("30–60 分钟")
+            case .overAnHour: return L("1 小时以上")
+            case .unknown: return L("时长未知")
             }
         }
     }
@@ -54,11 +54,11 @@ enum LibraryGrouping {
         case uhd, fullHD, hd, sd, unknown
         var title: String {
             switch self {
-            case .uhd: return "4K 及以上"
+            case .uhd: return L("4K 及以上")
             case .fullHD: return "1080p"
             case .hd: return "720p"
-            case .sd: return "标清"
-            case .unknown: return "清晰度未知"
+            case .sd: return L("标清")
+            case .unknown: return L("清晰度未知")
             }
         }
     }
@@ -118,17 +118,17 @@ enum LibraryGrouping {
             return c == .orderedSame ? ($0.season ?? 0) < ($1.season ?? 0) : c == .orderedAscending
         }
         var out = shows.map { s in
-            LibrarySection(title: [s.title, s.season.map { "第 \($0) 季" }, "\(s.items.count) 集"].compactMap { $0 }.joined(separator: " · "),
+            LibrarySection(title: [s.title, s.season.map { L("第 %@ 季", String(describing: $0)) }, L("%@ 集", String(describing: s.items.count))].compactMap { $0 }.joined(separator: " · "),
                            items: s.items)
         }
-        if !others.isEmpty { out.append(LibrarySection(title: "其他视频", items: others.sorted(by: byName))) }
+        if !others.isEmpty { out.append(LibrarySection(title: L("其他视频"), items: others.sorted(by: byName))) }
         return out
     }
 
     static func folderTitle(path: String, root: String) -> String {
         let dir = (path as NSString).deletingLastPathComponent
         let base = root.hasSuffix("/") ? String(root.dropLast()) : root
-        if dir == base { return "（根目录）" }
+        if dir == base { return L("（根目录）") }
         if dir.hasPrefix(base + "/") { return String(dir.dropFirst(base.count + 1)) }
         return dir
     }
@@ -138,14 +138,15 @@ enum LibraryGrouping {
 
     static func monthTitle(_ date: Date, calendar: Calendar) -> String {
         let c = calendar.dateComponents([.year, .month], from: date)
-        return "\(c.year ?? 0) 年 \(c.month ?? 0) 月"
+        return L("%1$@ 年 %2$@ 月", String(describing: c.year ?? 0), String(describing: c.month ?? 0))
     }
 
     static func sections(_ items: [LibraryItem], mode: LibraryGroupingMode, search: String = "",
                          series: SeriesContext = SeriesContext(), calendar: Calendar = .current) -> [LibrarySection] {
         let needle = search.trimmingCharacters(in: .whitespaces)
         let filtered = needle.isEmpty ? items : items.filter { item in
-            item.name.localizedCaseInsensitiveContains(needle) || item.tags.contains { $0.localizedCaseInsensitiveContains(needle) }
+            item.name.localizedCaseInsensitiveContains(needle)
+                || item.tags.contains { $0.localizedCaseInsensitiveContains(needle) || L($0).localizedCaseInsensitiveContains(needle) }
         }
         guard !filtered.isEmpty else { return [] }
         // Name order, then full path, so equal names never reshuffle between reloads.
@@ -156,10 +157,10 @@ enum LibraryGrouping {
 
         switch mode {
         case .all:
-            let all = LibrarySection(title: "全部视频", items: filtered.sorted(by: byName))
+            let all = LibrarySection(title: L("全部视频"), items: filtered.sorted(by: byName))
             // Unfinished videos first, most recent first (not while searching).
             let inProgress = needle.isEmpty ? continueWatching(filtered) : []
-            return inProgress.isEmpty ? [all] : [LibrarySection(title: "继续观看", items: inProgress), all]
+            return inProgress.isEmpty ? [all] : [LibrarySection(title: L("继续观看"), items: inProgress), all]
 
         case .series:
             return seriesSections(filtered, context: series, byName: byName)
@@ -177,7 +178,7 @@ enum LibraryGrouping {
                 let items = groups[key]!
                 return LibrarySection(title: monthTitle(items[0].record.modified, calendar: calendar), items: items.sorted(by: byName))
             }
-            if !unknown.isEmpty { out.append(LibrarySection(title: "日期未知", items: unknown.sorted(by: byName))) }
+            if !unknown.isEmpty { out.append(LibrarySection(title: L("日期未知"), items: unknown.sorted(by: byName))) }
             return out
 
         case .duration:
@@ -200,7 +201,7 @@ enum LibraryGrouping {
                 .filter { $0.count > 1 }
                 .map { $0.sorted(by: byName) }
                 .sorted { $0.count != $1.count ? $0.count > $1.count : byName($0[0], $1[0]) }
-                .map { LibrarySection(title: "\($0[0].name) 等 \($0.count) 份相同内容", items: $0) }
+                .map { LibrarySection(title: L("%1$@ 等 %2$@ 份相同内容", String(describing: $0[0].name), String(describing: $0.count)), items: $0) }
 
         case .tag:
             var groups: [String: [LibraryItem]] = [:]
@@ -212,8 +213,8 @@ enum LibraryGrouping {
             var out = groups.keys
                 .sorted { groups[$0]!.count != groups[$1]!.count ? groups[$0]!.count > groups[$1]!.count
                                                                   : $0.localizedStandardCompare($1) == .orderedAscending }
-                .map { LibrarySection(title: $0, items: groups[$0]!.sorted(by: byName)) }
-            if !untagged.isEmpty { out.append(LibrarySection(title: "未识别", items: untagged.sorted(by: byName))) }
+                .map { LibrarySection(title: L($0), items: groups[$0]!.sorted(by: byName)) }     // stored in Chinese
+            if !untagged.isEmpty { out.append(LibrarySection(title: L("未识别"), items: untagged.sorted(by: byName))) }
             return out
         }
     }

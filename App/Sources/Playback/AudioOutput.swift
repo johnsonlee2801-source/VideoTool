@@ -13,7 +13,7 @@ enum AudioOutput {
     /// mpv lists each device once per audio API; keep "auto" and the Core Audio ones
     /// (by id: two outputs may share a name, e.g. two pairs of AirPods).
     static func choices(from devices: [AudioDevice]) -> [AudioDevice] {
-        [AudioDevice(name: followSystem, description: "跟随系统")] + devices.filter { $0.name.hasPrefix("coreaudio/") }
+        [AudioDevice(name: followSystem, description: L("跟随系统"))] + devices.filter { $0.name.hasPrefix("coreaudio/") }
     }
 
     static func menu(devices: [AudioDevice], current: String, target: AnyObject?, action: Selector?) -> [NSMenuItem] {

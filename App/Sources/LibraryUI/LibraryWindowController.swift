@@ -23,8 +23,8 @@ final class LibraryWindowController: NSWindowController, NSWindowDelegate,
         s.spacing = 12
         return s
     }()
-    private let addButton = NSButton(title: "添加文件夹…", target: nil, action: nil)
-    private let rescanButton = NSButton(title: "重新扫描", target: nil, action: nil)
+    private let addButton = NSButton(title: L("添加文件夹…"), target: nil, action: nil)
+    private let rescanButton = NSButton(title: L("重新扫描"), target: nil, action: nil)
 
     private enum SidebarRow { case header(String), mode(LibraryGroupingMode), root(String) }
     private var sidebarRows: [SidebarRow] = []
@@ -35,7 +35,7 @@ final class LibraryWindowController: NSWindowController, NSWindowDelegate,
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1100, height: 720),
                               styleMask: [.titled, .closable, .miniaturizable, .resizable],
                               backing: .buffered, defer: false)
-        window.title = "视频库"
+        window.title = L("视频库")
         window.appearance = NSAppearance(named: .darkAqua)
         window.backgroundColor = Theme.bg0
         window.titlebarAppearsTransparent = true
@@ -102,7 +102,7 @@ final class LibraryWindowController: NSWindowController, NSWindowDelegate,
         gridScroll.hasVerticalScroller = true
         gridScroll.backgroundColor = Theme.bg0
 
-        searchField.placeholderString = "搜索文件名或标签"
+        searchField.placeholderString = L("搜索文件名或标签")
         searchField.delegate = self
         searchField.controlSize = .large
         addButton.target = self; addButton.action = #selector(addFolder(_:))
@@ -120,7 +120,7 @@ final class LibraryWindowController: NSWindowController, NSWindowDelegate,
         emptyTitle.textColor = Theme.textPrimary
         emptyTitle.alignment = .center
 
-        let brand = NSTextField(labelWithString: "视频库")
+        let brand = NSTextField(labelWithString: L("视频库"))
         brand.font = Theme.display(20, .heavy)
         brand.textColor = Theme.textPrimary
         let bar = NSStackView(views: [brand, addButton, rescanButton, status, NSView(), searchField])
@@ -176,8 +176,8 @@ final class LibraryWindowController: NSWindowController, NSWindowDelegate,
     }
 
     private func refresh() {
-        sidebarRows = [.header("整理方式")] + LibraryGroupingMode.allCases.map { .mode($0) }
-            + [.header("文件夹")] + controller.roots.map { .root($0) }
+        sidebarRows = [.header(L("整理方式"))] + LibraryGroupingMode.allCases.map { .mode($0) }
+            + [.header(L("文件夹"))] + controller.roots.map { .root($0) }
         sidebar.reloadData()
         if let i = sidebarRows.firstIndex(where: { if case .mode(let m) = $0 { return m == controller.mode }; return false }) {
             sidebar.selectRowIndexes([i], byExtendingSelection: false)
@@ -187,16 +187,16 @@ final class LibraryWindowController: NSWindowController, NSWindowDelegate,
         refreshStatus()
         rescanButton.isEnabled = !controller.roots.isEmpty && !controller.isIndexing
         if controller.roots.isEmpty {
-            emptyTitle.stringValue = "把视频文件夹交给我"
+            emptyTitle.stringValue = L("把视频文件夹交给我")
             emptyIcon.image = NSImage(systemSymbolName: "film.stack.fill", accessibilityDescription: nil)
-            empty.stringValue = "点左上角「添加文件夹…」，VideoTool 会按文件夹、日期、时长、清晰度和画面内容自动整理。\n只建索引，不会移动你的文件。"
+            empty.stringValue = L("点左上角「添加文件夹…」，VideoTool 会按文件夹、日期、时长、清晰度和画面内容自动整理。\n只建索引，不会移动你的文件。")
         } else if sections.isEmpty {
             emptyIcon.image = NSImage(systemSymbolName: controller.isIndexing ? "hourglass" : "sparkle.magnifyingglass",
                                       accessibilityDescription: nil)
-            emptyTitle.stringValue = controller.isIndexing ? "正在扫描…" :
-                (controller.mode == .duplicates && controller.search.isEmpty ? "没有重复文件" : "没有符合条件的视频")
-            empty.stringValue = controller.isIndexing ? "视频多的话需要一会儿，可以先去看片。" :
-                (controller.mode == .duplicates && controller.search.isEmpty ? "两份内容完全一样的视频会出现在这里。" : "换个关键词试试。")
+            emptyTitle.stringValue = controller.isIndexing ? L("正在扫描…") :
+                (controller.mode == .duplicates && controller.search.isEmpty ? L("没有重复文件") : L("没有符合条件的视频"))
+            empty.stringValue = controller.isIndexing ? L("视频多的话需要一会儿，可以先去看片。") :
+                (controller.mode == .duplicates && controller.search.isEmpty ? L("两份内容完全一样的视频会出现在这里。") : L("换个关键词试试。"))
         } else {
             emptyTitle.stringValue = ""
             empty.stringValue = ""
@@ -211,8 +211,8 @@ final class LibraryWindowController: NSWindowController, NSWindowDelegate,
         panel.canChooseDirectories = true
         panel.canChooseFiles = false
         panel.allowsMultipleSelection = true
-        panel.prompt = "添加到视频库"
-        panel.message = "选择放视频的文件夹。VideoTool 只读取、建索引，不会移动或修改文件。"
+        panel.prompt = L("添加到视频库")
+        panel.message = L("选择放视频的文件夹。VideoTool 只读取、建索引，不会移动或修改文件。")
         guard let window, panel.runModal() == .OK else { _ = window; return }
         for url in panel.urls { controller.addRoot(url.path) }
     }
@@ -258,7 +258,7 @@ final class LibraryWindowController: NSWindowController, NSWindowDelegate,
                                     tint: selected ? Theme.accent : Theme.textSecondary)
         case .root(let p):
             let shallow = controller.rootEntries.contains { $0.path == p && !$0.recursive }
-            label.stringValue = (p as NSString).lastPathComponent + (shallow ? " · 仅这一层" : "")
+            label.stringValue = (p as NSString).lastPathComponent + (shallow ? L(" · 仅这一层") : "")
             label.font = .systemFont(ofSize: 13, weight: .semibold)
             label.textColor = Theme.textSecondary
             label.toolTip = p
@@ -337,15 +337,15 @@ final class LibraryWindowController: NSWindowController, NSWindowDelegate,
     /// Right-click on a folder in the sidebar (nothing for the mode rows).
     func sidebarMenuItems(row: Int) -> [NSMenuItem] {
         guard sidebarRows.indices.contains(row), case .root(let path) = sidebarRows[row] else { return [] }
-        return [ClosureMenuItem("在 Finder 中显示") { NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: path) },
-                ClosureMenuItem("从视频库移除（不删除文件）") { [weak self] in self?.controller.removeRoot(path) }]
+        return [ClosureMenuItem(L("在 Finder 中显示")) { NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: path) },
+                ClosureMenuItem(L("从视频库移除（不删除文件）")) { [weak self] in self?.controller.removeRoot(path) }]
     }
 
     /// Right-click on a video card.
     func cardMenuItems(for item: LibraryItem) -> [NSMenuItem] {
-        [ClosureMenuItem("在播放器中打开") { [weak self] in self?.open(item) },
-         ClosureMenuItem("修改剧集信息…") { [weak self] in self?.editSeries(item) },
-         ClosureMenuItem("在 Finder 中显示") {
+        [ClosureMenuItem(L("在播放器中打开")) { [weak self] in self?.open(item) },
+         ClosureMenuItem(L("修改剧集信息…")) { [weak self] in self?.editSeries(item) },
+         ClosureMenuItem(L("在 Finder 中显示")) {
              NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: item.record.path)])
          }]
     }
@@ -445,7 +445,7 @@ final class LibraryCardItem: NSCollectionViewItem {
                                              font: .systemFont(ofSize: 10, weight: .heavy))
     private let starBadge = Theme.chip("", color: Theme.star, background: NSColor.black.withAlphaComponent(0.72),
                                        font: Theme.digits(11, .heavy))
-    private let watchedBadge = Theme.chip("✓ 已看完", color: Theme.accent2, background: NSColor.black.withAlphaComponent(0.72),
+    private let watchedBadge = Theme.chip(L("✓ 已看完"), color: Theme.accent2, background: NSColor.black.withAlphaComponent(0.72),
                                           font: .systemFont(ofSize: 10, weight: .heavy))
     private let progress = WatchProgressStripe()
     private let tagRow = NSStackView()
@@ -514,8 +514,8 @@ final class LibraryCardItem: NSCollectionViewItem {
         progress.isHidden = progress.fraction <= 0
 
         tagRow.views.forEach { $0.removeFromSuperview() }
-        var chips: [NSTextField] = item.tags.prefix(2).map { Theme.chip($0) }
-        if item.record.status == .cloudOnly { chips = [Theme.chip("iCloud 未下载", color: Theme.accent2)] }
+        var chips: [NSTextField] = item.tags.prefix(2).map { Theme.chip(L($0)) }      // tags are stored in Chinese
+        if item.record.status == .cloudOnly { chips = [Theme.chip(L("iCloud 未下载"), color: Theme.accent2)] }
         if chips.isEmpty, res != .unknown { chips = [Theme.chip(res.title)] }
         chips.forEach { tagRow.addArrangedSubview($0) }
 

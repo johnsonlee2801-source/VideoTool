@@ -1,0 +1,141 @@
+#!/opt/anaconda3/bin/python3
+"""Interface languages for VideoTool (Chinese source, English and Japanese).
+
+  tools/i18n.py wrap      one-off: wrap Chinese UI literals in App/Sources with L(...)
+  tools/i18n.py extract   list every L("...") key -> App/Resources/i18n/keys.json
+  tools/i18n.py build     translations.json -> <lang>.lproj/Localizable.strings
+  tools/i18n.py check     every key translated, format specifiers match (exit 1 if not)
+"""
+import json, pathlib, re, sys
+
+ROOT = pathlib.Path(__file__).resolve().parent.parent
+SRC = ROOT / "App/Sources"
+RES = ROOT / "App/Resources"
+TRANS = RES / "i18n/translations.json"
+LANGS = ["en", "ja"]
+CJK = re.compile(r"[\u3400-\u9fff\uff00-\uffef\u3000-\u303f]")
+# Chinese here is matching logic or stored data, not interface text.
+SKIP_FILES = {"Library/Series.swift", "Library/VisionTagger.swift", "Localization.swift"}
+SPEC = re.compile(r"%(?:\d+\$)?[@dfsilu]|%(?:\d+\$)?\.\d+f|%(?:\d+\$)?ll[du]")
+
+def literal_spans(line):
+    """(start, end, body) of plain "..." literals on a line (no raw/multiline)."""
+    out, i = [], 0
+    while i < len(line):
+        c = line[i]
+        if line.startswith("//", i):
+            break
+        if c == '"' and not line.startswith('"""', i) and (i == 0 or line[i - 1] != "#"):
+            j, depth = i + 1, 0
+            while j < len(line):
+                if line[j] == "\\" and j + 1 < len(line) and line[j + 1] == "(":
+                    depth += 1; j += 2; continue
+                if depth and line[j] == "(":
+                    depth += 1
+                elif depth and line[j] == ")":
+                    depth -= 1
+                elif line[j] == "\\":
+                    j += 2; continue
+                elif line[j] == '"' and depth == 0:
+                    break
+                j += 1
+            out.append((i, j + 1, line[i + 1:j]))
+            i = j + 1
+        else:
+            i += 1
+    return out
+
+def split_interpolations(body):
+    """'共 \\(n) 个' -> ('共 %@ 个', ['n'])."""
+    fmt, args, i = "", [], 0
+    while i < len(body):
+        if body.startswith("\\(", i):
+            j, depth = i + 2, 1
+            while depth:
+                if body[j] == "(": depth += 1
+                elif body[j] == ")": depth -= 1
+                j += 1
+            args.append(body[i + 2:j - 1]); fmt += "%@"; i = j
+        else:
+            fmt += body[i]; i += 1
+    if len(args) > 1:
+        n = iter(range(1, len(args) + 1))
+        fmt = re.sub(r"%@", lambda m: f"%{next(n)}$@", fmt)
+    return fmt, args
+
+def wrap():
+    changed = 0
+    for p in SRC.rglob("*.swift"):
+        rel = str(p.relative_to(SRC))
+        if rel in SKIP_FILES: continue
+        lines = p.read_text().split("\n"); dirty = False
+        for k, line in enumerate(lines):
+            s = line.strip()
+            if s.startswith("//"): continue
+            for start, end, body in reversed(literal_spans(line)):
+                if not CJK.search(body): continue
+                before = line[:start]
+                if re.search(r"\bL\(\s*$", before): continue          # already wrapped
+                fmt, args = split_interpolations(body)
+                fmt = fmt.replace("%%", "%%")
+                call = 'L("%s"%s)' % (fmt, "".join(f', String(describing: {a})' for a in args))
+                line = line[:start] + call + line[end:]
+                dirty = True; changed += 1
+            lines[k] = line
+        if dirty: p.write_text("\n".join(lines))
+    print(f"wrapped {changed} literals")
+
+def unescape(swift):
+    """Swift literal text -> the runtime string (the key Bundle looks up)."""
+    return re.sub(r"\\(.)", lambda m: {"n": "\n", "t": "\t", '"': '"', "\\": "\\"}.get(m.group(1), m.group(0)), swift)
+
+KEY = re.compile(r'\bL\("((?:[^"\\]|\\.)*)"')
+
+def extract():
+    keys = set()
+    for p in SRC.rglob("*.swift"):
+        for m in KEY.finditer(p.read_text()):
+            keys.add(unescape(m.group(1)))
+    keys |= set(extra_keys())
+    out = sorted(keys)
+    (RES / "i18n").mkdir(parents=True, exist_ok=True)
+    (RES / "i18n/keys.json").write_text(json.dumps(out, ensure_ascii=False, indent=1) + "\n")
+    print(f"{len(out)} keys")
+
+def extra_keys():
+    """Stored data shown through L(): the Chinese tag names of TagVocabulary."""
+    text = (SRC / "Library/VisionTagger.swift").read_text()
+    body = text[text.index("TagVocabulary"):]
+    return sorted(set(re.findall(r'"([^"\\]*[\u4e00-\u9fff][^"\\]*)"', body)))
+
+def esc(s): return s.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n")
+
+def build():
+    t = json.loads(TRANS.read_text())
+    keys = json.loads((RES / "i18n/keys.json").read_text())
+    for lang in LANGS + ["zh-Hans"]:
+        d = RES / f"{lang}.lproj"; d.mkdir(exist_ok=True)
+        rows = [f'"{esc(k)}" = "{esc(k if lang == "zh-Hans" else t.get(k, {}).get(lang, k))}";' for k in keys]
+        (d / "Localizable.strings").write_text("/* Generated by tools/i18n.py — edit App/Resources/i18n/translations.json */\n" + "\n".join(rows) + "\n")
+    print(f"built {len(keys)} strings for {', '.join(LANGS)} (+ zh-Hans identity)")
+
+def check():
+    t = json.loads(TRANS.read_text())
+    keys = json.loads((RES / "i18n/keys.json").read_text())
+    problems = []
+    for k in keys:
+        for lang in LANGS:
+            v = t.get(k, {}).get(lang)
+            if not v: problems.append(f"missing {lang}: {k}"); continue
+            if sorted(SPEC.findall(k)) != sorted(SPEC.findall(v)) and \
+               sorted(re.sub(r"\d+\$", "", x) for x in SPEC.findall(k)) != sorted(re.sub(r"\d+\$", "", x) for x in SPEC.findall(v)):
+                problems.append(f"specifiers differ ({lang}): {k!r} vs {v!r}")
+            if lang == "en" and CJK.search(v): problems.append(f"Chinese left in en: {v!r}")
+    stale = sorted(set(t) - set(keys))
+    for p in problems: print(p)
+    print(f"{len(keys)} keys, {len(problems)} problems, {len(stale)} unused translations")
+    return 1 if problems else 0
+
+if __name__ == "__main__":
+    cmd = sys.argv[1] if len(sys.argv) > 1 else "check"
+    sys.exit({"wrap": wrap, "extract": extract, "build": build, "check": check}[cmd]() or 0)

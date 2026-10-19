@@ -97,71 +97,71 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
 
         let appItem = NSMenuItem(); main.addItem(appItem)
         let appMenu = NSMenu()
-        appMenu.addItem(withTitle: "关于 VideoTool", action: #selector(showAbout(_:)), keyEquivalent: "")
+        appMenu.addItem(withTitle: L("关于 VideoTool"), action: #selector(showAbout(_:)), keyEquivalent: "")
         appMenu.addItem(.separator())
-        appMenu.addItem(withTitle: "隐藏 VideoTool", action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
+        appMenu.addItem(withTitle: L("隐藏 VideoTool"), action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
         appMenu.addItem(.separator())
-        appMenu.addItem(withTitle: "退出 VideoTool", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        appMenu.addItem(withTitle: L("退出 VideoTool"), action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         appItem.submenu = appMenu
 
         let fileItem = NSMenuItem(); main.addItem(fileItem)
-        let fileMenu = NSMenu(title: "文件")
-        fileMenu.addItem(withTitle: "打开…", action: #selector(openDocument(_:)), keyEquivalent: "o")
+        let fileMenu = NSMenu(title: L("文件"))
+        fileMenu.addItem(withTitle: L("打开…"), action: #selector(openDocument(_:)), keyEquivalent: "o")
         fileMenu.addItem(.separator())
-        fileMenu.addItem(withTitle: "设为默认视频播放器…", action: #selector(makeDefaultPlayer(_:)), keyEquivalent: "")
-        fileMenu.addItem(withTitle: "打开视频时询问加入视频库", action: #selector(toggleLibraryOffer(_:)), keyEquivalent: "")
+        fileMenu.addItem(withTitle: L("设为默认视频播放器…"), action: #selector(makeDefaultPlayer(_:)), keyEquivalent: "")
+        fileMenu.addItem(withTitle: L("打开视频时询问加入视频库"), action: #selector(toggleLibraryOffer(_:)), keyEquivalent: "")
         fileMenu.addItem(.separator())
-        fileMenu.addItem(withTitle: "关闭", action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")
+        fileMenu.addItem(withTitle: L("关闭"), action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")
         fileItem.submenu = fileMenu
 
         let playItem = NSMenuItem(); main.addItem(playItem)
-        let playMenu = NSMenu(title: "播放")
-        playMenu.addItem(withTitle: "播放 / 暂停", action: #selector(PlayerWindowController.togglePause(_:)), keyEquivalent: " ")
-        playMenu.addItem(withTitle: "快退 5 秒", action: #selector(PlayerWindowController.seekBack(_:)), keyEquivalent: "")
-        playMenu.addItem(withTitle: "快进 5 秒", action: #selector(PlayerWindowController.seekForward(_:)), keyEquivalent: "")
+        let playMenu = NSMenu(title: L("播放"))
+        playMenu.addItem(withTitle: L("播放 / 暂停"), action: #selector(PlayerWindowController.togglePause(_:)), keyEquivalent: " ")
+        playMenu.addItem(withTitle: L("快退 5 秒"), action: #selector(PlayerWindowController.seekBack(_:)), keyEquivalent: "")
+        playMenu.addItem(withTitle: L("快进 5 秒"), action: #selector(PlayerWindowController.seekForward(_:)), keyEquivalent: "")
         playMenu.addItem(.separator())
-        playMenu.addItem(withTitle: "加速 0.1×", action: #selector(PlayerWindowController.speedUp(_:)), keyEquivalent: "]")
-        playMenu.addItem(withTitle: "减速 0.1×", action: #selector(PlayerWindowController.speedDown(_:)), keyEquivalent: "[")
-        playMenu.addItem(withTitle: "恢复 1.0×", action: #selector(PlayerWindowController.resetSpeed(_:)), keyEquivalent: "\u{8}")
-        let speedItem = playMenu.addItem(withTitle: "播放速度", action: nil, keyEquivalent: "")
+        playMenu.addItem(withTitle: L("加速 0.1×"), action: #selector(PlayerWindowController.speedUp(_:)), keyEquivalent: "]")
+        playMenu.addItem(withTitle: L("减速 0.1×"), action: #selector(PlayerWindowController.speedDown(_:)), keyEquivalent: "[")
+        playMenu.addItem(withTitle: L("恢复 1.0×"), action: #selector(PlayerWindowController.resetSpeed(_:)), keyEquivalent: "\u{8}")
+        let speedItem = playMenu.addItem(withTitle: L("播放速度"), action: nil, keyEquivalent: "")
         speedItem.submenu = PlaybackSpeed.menu(current: 1.0, target: nil,
                                                action: #selector(PlayerWindowController.chooseSpeedPreset(_:)))
         playMenu.addItem(.separator())
         // B and ⌥←/⌥→ are handled by the player's key monitor; shown here for discoverability.
-        playMenu.addItem(withTitle: "打星标 / 撤销   B", action: #selector(PlayerWindowController.toggleBookmark(_:)), keyEquivalent: "")
-        playMenu.addItem(withTitle: "上一个星标   ⌥←", action: #selector(PlayerWindowController.previousBookmark(_:)), keyEquivalent: "")
-        playMenu.addItem(withTitle: "下一个星标   ⌥→", action: #selector(PlayerWindowController.nextBookmark(_:)), keyEquivalent: "")
-        let list = playMenu.addItem(withTitle: "星标列表", action: #selector(PlayerWindowController.toggleBookmarkList(_:)), keyEquivalent: "b")
+        playMenu.addItem(withTitle: L("打星标 / 撤销   B"), action: #selector(PlayerWindowController.toggleBookmark(_:)), keyEquivalent: "")
+        playMenu.addItem(withTitle: L("上一个星标   ⌥←"), action: #selector(PlayerWindowController.previousBookmark(_:)), keyEquivalent: "")
+        playMenu.addItem(withTitle: L("下一个星标   ⌥→"), action: #selector(PlayerWindowController.nextBookmark(_:)), keyEquivalent: "")
+        let list = playMenu.addItem(withTitle: L("星标列表"), action: #selector(PlayerWindowController.toggleBookmarkList(_:)), keyEquivalent: "b")
         list.keyEquivalentModifierMask = [.command, .shift]
         playMenu.addItem(.separator())
-        playMenu.addItem(withTitle: "切换字幕轨", action: #selector(PlayerWindowController.cycleSubtitle(_:)), keyEquivalent: "s")
-        playMenu.addItem(withTitle: "AI 字幕…", action: #selector(PlayerWindowController.generateAISubtitles(_:)), keyEquivalent: "t")
-        playMenu.addItem(withTitle: "切换音轨", action: #selector(PlayerWindowController.cycleAudio(_:)), keyEquivalent: "a")
-        playMenu.addItem(withTitle: "静音", action: #selector(PlayerWindowController.toggleMute(_:)), keyEquivalent: "m")
-        let outputItem = playMenu.addItem(withTitle: "声音输出", action: nil, keyEquivalent: "")
-        let outputMenu = NSMenu(title: "声音输出")
+        playMenu.addItem(withTitle: L("切换字幕轨"), action: #selector(PlayerWindowController.cycleSubtitle(_:)), keyEquivalent: "s")
+        playMenu.addItem(withTitle: L("AI 字幕…"), action: #selector(PlayerWindowController.generateAISubtitles(_:)), keyEquivalent: "t")
+        playMenu.addItem(withTitle: L("切换音轨"), action: #selector(PlayerWindowController.cycleAudio(_:)), keyEquivalent: "a")
+        playMenu.addItem(withTitle: L("静音"), action: #selector(PlayerWindowController.toggleMute(_:)), keyEquivalent: "m")
+        let outputItem = playMenu.addItem(withTitle: L("声音输出"), action: nil, keyEquivalent: "")
+        let outputMenu = NSMenu(title: L("声音输出"))
         outputMenu.delegate = self               // filled when opened: devices come and go (AirPlay, headphones)
         outputItem.submenu = outputMenu
         audioOutputMenu = outputMenu
         playItem.submenu = playMenu
 
         let viewItem = NSMenuItem(); main.addItem(viewItem)
-        let viewMenu = NSMenu(title: "视图")
-        let fs = viewMenu.addItem(withTitle: "全屏", action: #selector(NSWindow.toggleFullScreen(_:)), keyEquivalent: "f")
+        let viewMenu = NSMenu(title: L("视图"))
+        let fs = viewMenu.addItem(withTitle: L("全屏"), action: #selector(NSWindow.toggleFullScreen(_:)), keyEquivalent: "f")
         fs.keyEquivalentModifierMask = [.command, .control]
         viewItem.submenu = viewMenu
 
         let windowItem = NSMenuItem(); main.addItem(windowItem)
-        let windowMenu = NSMenu(title: "窗口")
-        windowMenu.addItem(withTitle: "视频库", action: #selector(showLibrary(_:)), keyEquivalent: "l")
+        let windowMenu = NSMenu(title: L("窗口"))
+        windowMenu.addItem(withTitle: L("视频库"), action: #selector(showLibrary(_:)), keyEquivalent: "l")
         windowMenu.addItem(.separator())
-        windowMenu.addItem(withTitle: "最小化", action: #selector(NSWindow.performMiniaturize(_:)), keyEquivalent: "m")
+        windowMenu.addItem(withTitle: L("最小化"), action: #selector(NSWindow.performMiniaturize(_:)), keyEquivalent: "m")
         windowItem.submenu = windowMenu
         NSApp.windowsMenu = windowMenu
 
         let helpItem = NSMenuItem(); main.addItem(helpItem)
-        let helpMenu = NSMenu(title: "帮助")
-        helpMenu.addItem(withTitle: "发送反馈…", action: #selector(sendFeedback(_:)), keyEquivalent: "")
+        let helpMenu = NSMenu(title: L("帮助"))
+        helpMenu.addItem(withTitle: L("发送反馈…"), action: #selector(sendFeedback(_:)), keyEquivalent: "")
         helpItem.submenu = helpMenu
         NSApp.helpMenu = helpMenu
 
@@ -173,7 +173,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
         panel.allowsMultipleSelection = false
         panel.canChooseDirectories = false
         panel.allowedContentTypes = MediaTypes.utTypes
-        panel.message = "选择要播放的视频或音频"
+        panel.message = L("选择要播放的视频或音频")
         if panel.runModal() == .OK, let url = panel.url {
             ensureWindow()
             open(url)
@@ -221,14 +221,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
         guard menu === audioOutputMenu else { return }
         menu.removeAllItems()
         let items = playerWindow?.audioOutputItems() ?? []
-        if items.isEmpty { menu.addItem(withTitle: "（播放器未就绪）", action: nil, keyEquivalent: "") }
+        if items.isEmpty { menu.addItem(withTitle: L("（播放器未就绪）"), action: nil, keyEquivalent: "") }
         items.forEach(menu.addItem)
     }
 
     @objc private func makeDefaultPlayer(_ sender: Any?) {
         DefaultAppRegistrar.makeDefault { summary in
             let alert = NSAlert()
-            alert.messageText = "设为默认播放器"
+            alert.messageText = L("设为默认播放器")
             alert.informativeText = summary.message
             alert.runModal()
         }

@@ -116,7 +116,7 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
 
         playButton.bezelStyle = .texturedRounded
         playButton.isBordered = false
-        playButton.image = NSImage(systemSymbolName: "play.fill", accessibilityDescription: "播放")
+        playButton.image = NSImage(systemSymbolName: "play.fill", accessibilityDescription: L("播放"))
         playButton.symbolConfiguration = .init(pointSize: 17, weight: .black)
         playButton.contentTintColor = Theme.textPrimary
         playButton.target = self
@@ -133,7 +133,7 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         speedChip.layer?.backgroundColor = Theme.accent.withAlphaComponent(0.18).cgColor
         speedChip.contentTintColor = Theme.accent
         speedChip.font = Theme.digits(12, .heavy)
-        speedChip.toolTip = "选择播放速度"
+        speedChip.toolTip = L("选择播放速度")
         showSpeed(speedStore.speed)                                  // before the player reports in
         speedChip.setContentHuggingPriority(.required, for: .horizontal)
         speedChip.widthAnchor.constraint(greaterThanOrEqualToConstant: 48).isActive = true
@@ -145,8 +145,8 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         slider.controlSize = .small
 
         for (button, symbol, tip, action) in [
-            (starButton, "star", "打星标（B）", #selector(toggleBookmark(_:))),
-            (listButton, "list.star", "星标列表（⇧⌘B）", #selector(toggleBookmarkList(_:))),
+            (starButton, "star", L("打星标（B）"), #selector(toggleBookmark(_:))),
+            (listButton, "list.star", L("星标列表（⇧⌘B）"), #selector(toggleBookmarkList(_:))),
         ] {
             button.isBordered = false
             button.image = NSImage(systemSymbolName: symbol, accessibilityDescription: tip)
@@ -214,7 +214,7 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
             }
             playerView.showsPlaceholder = true
         } else {
-            let error = NSTextField(labelWithString: "播放引擎初始化失败（libmpv）")
+            let error = NSTextField(labelWithString: L("播放引擎初始化失败（libmpv）"))
             error.textColor = .systemRed
             error.translatesAutoresizingMaskIntoConstraints = false
             content.addSubview(error)
@@ -279,19 +279,19 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         guard let bookmarks else { return }
         switch bookmarks.toggleAtCurrentTime() {
         case .added(let b)?: playerView?.hud.flash(text: "★ " + TimeFormatting.string(b.time))
-        case .undone?: playerView?.hud.flash(text: "已撤销星标")
-        case .notReady?: playerView?.hud.flash(text: "正在识别文件…")
-        case .unavailable?: playerView?.hud.flash(text: "此文件无法打星标")
+        case .undone?: playerView?.hud.flash(text: L("已撤销星标"))
+        case .notReady?: playerView?.hud.flash(text: L("正在识别文件…"))
+        case .unavailable?: playerView?.hud.flash(text: L("此文件无法打星标"))
         case nil: break
         }
     }
 
     @objc func nextBookmark(_ sender: Any?) {
-        if bookmarks?.jumpToNext() == false { playerView?.hud.flash(text: "后面没有星标了") }
+        if bookmarks?.jumpToNext() == false { playerView?.hud.flash(text: L("后面没有星标了")) }
     }
 
     @objc func previousBookmark(_ sender: Any?) {
-        if bookmarks?.jumpToPrevious() == false { playerView?.hud.flash(text: "前面没有星标了") }
+        if bookmarks?.jumpToPrevious() == false { playerView?.hud.flash(text: L("前面没有星标了")) }
     }
 
     @objc func toggleBookmarkList(_ sender: Any?) {
@@ -312,7 +312,7 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     private func render(_ state: PlayerState) {
         guard let window else { return }
         playButton.image = NSImage(systemSymbolName: state.isPaused ? "play.fill" : "pause.fill",
-                                   accessibilityDescription: state.isPaused ? "播放" : "暂停")
+                                   accessibilityDescription: state.isPaused ? L("播放") : L("暂停"))
         if !isScrubbing {
             slider.maxValue = max(state.duration, 0.001)
             slider.doubleValue = min(state.timePos, slider.maxValue)
@@ -507,7 +507,7 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
             item.state = (item.representedObject as? Double).map { abs($0 - preferredSpeed) < 0.001 } == true ? .on : .off
             return engine != nil
         case #selector(generateAISubtitles(_:)):
-            guard #available(macOS 26.0, *) else { item.toolTip = "需要 macOS 26 或更新版本"; return false }
+            guard #available(macOS 26.0, *) else { item.toolTip = L("需要 macOS 26 或更新版本"); return false }
             return currentURL?.isFileURL == true && aiTask == nil && !aiDialogPending
         case #selector(toggleBookmarkList(_:)):
             item.state = listPanel.isHidden ? .off : .on
@@ -557,7 +557,7 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     func startAISubtitles(video: String, choice: AISubtitleDialog.Choice, pipeline: AISubtitlePipeline) {
         cancelAISubtitles()                       // never two jobs at once
         aiPipeline = pipeline
-        aiCard.onCancel = { [weak self] in self?.cancelAISubtitles(showing: "已取消生成字幕") }
+        aiCard.onCancel = { [weak self] in self?.cancelAISubtitles(showing: L("已取消生成字幕")) }
         aiCard.show(.extracting, 0)
         let request = AISubtitlePipeline.Request(video: video, source: choice.source, target: choice.target)
         aiTask = Task { @MainActor [weak self] in
@@ -573,7 +573,7 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
                 guard self.currentURL?.path == video else { return }
                 self.engine?.addSubtitle(path: out.srt.path, title: Self.subtitleTitle(request, translated: !out.translationSkipped))
                 message = out.translationSkipped ? AISubtitleError.translationUnavailable.message
-                                                 : "字幕已生成，共 \(out.cueCount) 句（按 S 可切换字幕）"
+                                                 : L("字幕已生成，共 %@ 句（按 S 可切换字幕）", String(describing: out.cueCount))
             } catch let error as AISubtitleError {
                 guard error != .cancelled else { return }
                 message = error.message
@@ -613,9 +613,9 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
 
     static func subtitleTitle(_ r: AISubtitlePipeline.Request, translated: Bool) -> String {
         let from = SubtitleLanguages.sources.first { $0.id == r.source }?.name ?? r.source
-        guard translated, let t = r.target else { return "AI 字幕（\(from)）" }
+        guard translated, let t = r.target else { return L("AI 字幕（%@）", String(describing: from)) }
         let to = SubtitleLanguages.targets.first { $0.id == t }?.name ?? t
-        return "AI 字幕（\(from) → \(to)）"
+        return L("AI 字幕（%1$@ → %2$@）", String(describing: from), String(describing: to))
     }
 
     // MARK: keyboard

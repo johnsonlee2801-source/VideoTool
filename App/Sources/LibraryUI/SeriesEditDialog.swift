@@ -33,22 +33,22 @@ enum SeriesEditDialog {
         let title: NSTextField
         let season: NSTextField
         let episode: NSTextField
-        let renameAll = NSButton(checkboxWithTitle: "同一部剧的其他集也改用这个剧名", target: nil, action: nil)
+        let renameAll = NSButton(checkboxWithTitle: L("同一部剧的其他集也改用这个剧名"), target: nil, action: nil)
         let view: NSGridView
 
         init(current: EpisodeInfo?) {
             title = NSTextField(string: current?.title ?? "")
             season = NSTextField(string: current?.season.map(String.init) ?? "")
             episode = NSTextField(string: current.map { String($0.episode) } ?? "")
-            title.placeholderString = "剧名"
-            season.placeholderString = "可不填"
-            episode.placeholderString = "必填"
+            title.placeholderString = L("剧名")
+            season.placeholderString = L("可不填")
+            episode.placeholderString = L("必填")
             renameAll.state = .on
             for f in [title, season, episode] { f.widthAnchor.constraint(equalToConstant: 220).isActive = true }
             view = NSGridView(views: [
-                [NSTextField(labelWithString: "剧名："), title],
-                [NSTextField(labelWithString: "第几季："), season],
-                [NSTextField(labelWithString: "第几集："), episode],
+                [NSTextField(labelWithString: L("剧名：")), title],
+                [NSTextField(labelWithString: L("第几季：")), season],
+                [NSTextField(labelWithString: L("第几集：")), episode],
                 [NSGridCell.emptyContentView, renameAll],
             ])
             view.rowSpacing = 8
@@ -76,12 +76,12 @@ enum SeriesEditDialog {
                     completion: @escaping (Result) -> Void) {
         let form = Form(current: current)
         let alert = NSAlert()
-        alert.messageText = "修改剧集信息"
-        alert.informativeText = "「\(item.name)」\n改过的信息会记住，文件改名或移动后也有效。"
+        alert.messageText = L("修改剧集信息")
+        alert.informativeText = L("「%@」\n改过的信息会记住，文件改名或移动后也有效。", String(describing: item.name))
         alert.accessoryView = form.view
-        alert.addButton(withTitle: "保存")
-        alert.addButton(withTitle: "取消")
-        alert.addButton(withTitle: "不是剧集")
+        alert.addButton(withTitle: L("保存"))
+        alert.addButton(withTitle: L("取消"))
+        alert.addButton(withTitle: L("不是剧集"))
         alert.beginSheetModal(for: window) { response in
             let result = form.result(for: response)
             if response == .alertFirstButtonReturn, result == .cancel { NSSound.beep() }

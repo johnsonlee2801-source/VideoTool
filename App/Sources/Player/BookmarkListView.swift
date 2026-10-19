@@ -8,9 +8,9 @@ final class BookmarkListView: NSView, NSTableViewDataSource, NSTableViewDelegate
     var onDelete: ((UUID) -> Void)?
 
     private(set) var bookmarks: [Bookmark] = []
-    private let titleLabel = NSTextField(labelWithString: "星标")
+    private let titleLabel = NSTextField(labelWithString: L("星标"))
     private let table = NSTableView()
-    private let empty = NSTextField(wrappingLabelWithString: "还没有星标。\n播放时按 B 把当前时刻标上星。")
+    private let empty = NSTextField(wrappingLabelWithString: L("还没有星标。\n播放时按 B 把当前时刻标上星。"))
 
     init() {
         super.init(frame: .zero)
@@ -80,7 +80,7 @@ final class BookmarkListView: NSView, NSTableViewDataSource, NSTableViewDelegate
     func show(_ bookmarks: [Bookmark]) {
         if isEditingNote { pending = bookmarks; return }
         self.bookmarks = bookmarks
-        titleLabel.stringValue = bookmarks.isEmpty ? "星标" : "星标  \(bookmarks.count)"
+        titleLabel.stringValue = bookmarks.isEmpty ? L("星标") : L("星标  %@", String(describing: bookmarks.count))
         empty.isHidden = !bookmarks.isEmpty
         table.reloadData()
     }
@@ -106,10 +106,10 @@ final class BookmarkListView: NSView, NSTableViewDataSource, NSTableViewDelegate
         time.contentTintColor = Theme.star
         time.font = Theme.digits(13, .heavy)
         time.tag = row
-        time.toolTip = "跳到这里（提前 2 秒）"
+        time.toolTip = L("跳到这里（提前 2 秒）")
 
         let note = NSTextField(string: b.note)
-        note.placeholderAttributedString = NSAttributedString(string: "添加备注…", attributes: [
+        note.placeholderAttributedString = NSAttributedString(string: L("添加备注…"), attributes: [
             .foregroundColor: Theme.textTertiary, .font: NSFont.systemFont(ofSize: 12, weight: .medium)])
         note.isBordered = false
         note.drawsBackground = false
@@ -119,7 +119,7 @@ final class BookmarkListView: NSView, NSTableViewDataSource, NSTableViewDelegate
         note.delegate = self
         note.tag = row
 
-        let trash = NSButton(image: NSImage(systemSymbolName: "trash", accessibilityDescription: "删除星标")!,
+        let trash = NSButton(image: NSImage(systemSymbolName: "trash", accessibilityDescription: L("删除星标"))!,
                              target: self, action: #selector(deleteClicked(_:)))
         trash.isBordered = false
         trash.contentTintColor = Theme.textSecondary

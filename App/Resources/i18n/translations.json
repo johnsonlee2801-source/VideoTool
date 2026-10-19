@@ -1,0 +1,930 @@
+{
+ " · 仅这一层": {
+  "en": " · This Level Only",
+  "ja": " · この階層のみ"
+ },
+ "%1$@ 年 %2$@ 月": {
+  "en": "%1$@-%2$@",
+  "ja": "%1$@年%2$@月"
+ },
+ "%1$@ 等 %2$@ 份相同内容": {
+  "en": "%1$@ · %2$@ identical copies",
+  "ja": "%1$@ など同じ内容が%2$@件"
+ },
+ "%@ 个信息不全": {
+  "en": "%@ with incomplete info",
+  "ja": "情報不足 %@件"
+ },
+ "%@ 个在 iCloud 未下载": {
+  "en": "%@ not downloaded from iCloud",
+  "ja": "iCloud未ダウンロード %@件"
+ },
+ "%@ 个文件夹暂时无法访问": {
+  "en": "%@ folders can't be accessed right now",
+  "ja": "%@個のフォルダに一時的にアクセスできません"
+ },
+ "%@ 个无法读取": {
+  "en": "%@ unreadable",
+  "ja": "読み込めないファイル %@件"
+ },
+ "%@ 集": {
+  "en": "%@ episodes",
+  "ja": "%@話"
+ },
+ "**我遇到的问题 / 我的建议**\n\n\n**怎样能重现（如果是问题）**\n1.\n2.\n\n---\nVideoTool %1$@ · %2$@": {
+  "en": "**The problem I ran into / My suggestion**\n\n\n**How to reproduce it (if it's a problem)**\n1.\n2.\n\n---\nVideoTool %1$@ · %2$@",
+  "ja": "**発生した問題 / ご提案**\n\n\n**再現手順（問題の場合）**\n1.\n2.\n\n---\nVideoTool %1$@ · %2$@"
+ },
+ "1 分钟以内": {
+  "en": "Under 1 Minute",
+  "ja": "1分未満"
+ },
+ "1 小时以上": {
+  "en": "Over 1 Hour",
+  "ja": "1時間以上"
+ },
+ "10–30 分钟": {
+  "en": "10–30 Minutes",
+  "ja": "10〜30分"
+ },
+ "1–10 分钟": {
+  "en": "1–10 Minutes",
+  "ja": "1〜10分"
+ },
+ "30–60 分钟": {
+  "en": "30–60 Minutes",
+  "ja": "30〜60分"
+ },
+ "4K 及以上": {
+  "en": "4K and Above",
+  "ja": "4K以上"
+ },
+ "AI 字幕…": {
+  "en": "AI Subtitles…",
+  "ja": "AI字幕…"
+ },
+ "AI 字幕（%1$@ → %2$@）": {
+  "en": "AI Subtitles (%1$@ → %2$@)",
+  "ja": "AI字幕（%1$@ → %2$@）"
+ },
+ "AI 字幕（%@）": {
+  "en": "AI Subtitles (%@)",
+  "ja": "AI字幕（%@）"
+ },
+ "AI 正在听写字幕…": {
+  "en": "AI is transcribing subtitles…",
+  "ja": "AIが字幕を書き起こしています…"
+ },
+ "B  打星标": {
+  "en": "B  Star",
+  "ja": "B  スターを付ける"
+ },
+ "iCloud 未下载": {
+  "en": "Not Downloaded from iCloud",
+  "ja": "iCloud未ダウンロード"
+ },
+ "⌘O 打开文件  ·  ⌘L 打开视频库": {
+  "en": "⌘O Open File  ·  ⌘L Open Video Library",
+  "ja": "⌘O ファイルを開く  ·  ⌘L ビデオライブラリを開く"
+ },
+ "✓ 已看完": {
+  "en": "✓ Watched",
+  "ja": "✓ 視聴済み"
+ },
+ "「%1$@」已在视频库的「%2$@」里，不用重复添加。": {
+  "en": "“%1$@” is already in “%2$@” in your library, so there's no need to add it again.",
+  "ja": "「%1$@」はビデオライブラリの「%2$@」にすでに入っています。追加し直す必要はありません。"
+ },
+ "「%@」\n改过的信息会记住，文件改名或移动后也有效。": {
+  "en": "“%@”\nYour changes are remembered, even if the file is renamed or moved.",
+  "ja": "「%@」\n変更した情報は、ファイル名の変更や移動後も保持されます。"
+ },
+ "上一个星标   ⌥←": {
+  "en": "Previous Star   ⌥←",
+  "ja": "前のスター   ⌥←"
+ },
+ "下一个星标   ⌥→": {
+  "en": "Next Star   ⌥→",
+  "ja": "次のスター   ⌥→"
+ },
+ "不再询问": {
+  "en": "Don't Ask Again",
+  "ja": "今後確認しない"
+ },
+ "不加": {
+  "en": "Not Now",
+  "ja": "追加しない"
+ },
+ "不是剧集": {
+  "en": "Not a Series",
+  "ja": "シリーズではない"
+ },
+ "不翻译（只要原文）": {
+  "en": "Don't Translate (Original Only)",
+  "ja": "翻訳しない（原文のみ）"
+ },
+ "两份内容完全一样的视频会出现在这里。": {
+  "en": "Videos with identical content will appear here.",
+  "ja": "内容がまったく同じビデオがここに表示されます。"
+ },
+ "中文（普通话）": {
+  "en": "Chinese (Mandarin)",
+  "ja": "中国語（普通話）"
+ },
+ "乐器": {
+  "en": "Musical Instrument",
+  "ja": "楽器"
+ },
+ "交通工具": {
+  "en": "Vehicle",
+  "ja": "乗り物"
+ },
+ "人像": {
+  "en": "Portrait",
+  "ja": "ポートレート"
+ },
+ "人物": {
+  "en": "People",
+  "ja": "人物"
+ },
+ "人群": {
+  "en": "Crowd",
+  "ja": "人混み"
+ },
+ "从视频库移除（不删除文件）": {
+  "en": "Remove from Library (Keep File)",
+  "ja": "ビデオライブラリから削除（ファイルは削除しない）"
+ },
+ "体育场": {
+  "en": "Stadium",
+  "ja": "スタジアム"
+ },
+ "保存": {
+  "en": "Save",
+  "ja": "保存"
+ },
+ "修改剧集信息": {
+  "en": "Edit Series Info",
+  "ja": "シリーズ情報を編集"
+ },
+ "修改剧集信息…": {
+  "en": "Edit Series Info…",
+  "ja": "シリーズ情報を編集…"
+ },
+ "儿童": {
+  "en": "Kids",
+  "ja": "子ども"
+ },
+ "全屏": {
+  "en": "Full Screen",
+  "ja": "フルスクリーン"
+ },
+ "全部视频": {
+  "en": "All Videos",
+  "ja": "すべてのビデオ"
+ },
+ "共 %@ 个视频": {
+  "en": "%@ videos",
+  "ja": "%@本のビデオ"
+ },
+ "关于 VideoTool": {
+  "en": "About VideoTool",
+  "ja": "VideoToolについて"
+ },
+ "关闭": {
+  "en": "Close",
+  "ja": "閉じる"
+ },
+ "其他视频": {
+  "en": "Other Videos",
+  "ja": "その他のビデオ"
+ },
+ "减速 0.1×": {
+  "en": "Slow Down 0.1×",
+  "ja": "0.1×遅く"
+ },
+ "切换字幕轨": {
+  "en": "Switch Subtitle Track",
+  "ja": "字幕トラックを切り替え"
+ },
+ "切换音轨": {
+  "en": "Switch Audio Track",
+  "ja": "音声トラックを切り替え"
+ },
+ "删除星标": {
+  "en": "Delete Star",
+  "ja": "スターを削除"
+ },
+ "前面没有星标了": {
+  "en": "No earlier stars",
+  "ja": "これより前にスターはありません"
+ },
+ "剧名": {
+  "en": "Series Title",
+  "ja": "シリーズ名"
+ },
+ "剧名：": {
+  "en": "Series Title:",
+  "ja": "シリーズ名："
+ },
+ "加入": {
+  "en": "Add",
+  "ja": "追加"
+ },
+ "加速 0.1×": {
+  "en": "Speed Up 0.1×",
+  "ja": "0.1×速く"
+ },
+ "动物": {
+  "en": "Animal",
+  "ja": "動物"
+ },
+ "动画": {
+  "en": "Animation",
+  "ja": "アニメ"
+ },
+ "厨房": {
+  "en": "Kitchen",
+  "ja": "キッチン"
+ },
+ "发送反馈…": {
+  "en": "Send Feedback…",
+  "ja": "フィードバックを送信…"
+ },
+ "取消": {
+  "en": "Cancel",
+  "ja": "キャンセル"
+ },
+ "可不填": {
+  "en": "Optional",
+  "ja": "省略可"
+ },
+ "同一部剧的其他集也改用这个剧名": {
+  "en": "Use this title for other episodes of the same series too",
+  "ja": "同じシリーズの他の話にもこのシリーズ名を使う"
+ },
+ "后面没有星标了": {
+  "en": "No later stars",
+  "ja": "これより後にスターはありません"
+ },
+ "在 Finder 中显示": {
+  "en": "Show in Finder",
+  "ja": "Finderに表示"
+ },
+ "在播放器中打开": {
+  "en": "Open in Player",
+  "ja": "プレーヤーで開く"
+ },
+ "在这台 Mac 上离线完成，视频和声音不会上传。第一次使用某种语言时，系统会自动下载语音模型。": {
+  "en": "Everything runs offline on this Mac; your video and audio are never uploaded. The first time you use a language, macOS downloads its speech model automatically.",
+  "ja": "処理はこのMac上でオフラインで行われ、ビデオや音声はアップロードされません。ある言語を初めて使うときは、音声モデルが自動的にダウンロードされます。"
+ },
+ "城市": {
+  "en": "City",
+  "ja": "街"
+ },
+ "声音输出": {
+  "en": "Audio Output",
+  "ja": "サウンド出力"
+ },
+ "夜晚": {
+  "en": "Night",
+  "ja": "夜"
+ },
+ "夜景": {
+  "en": "Night View",
+  "ja": "夜景"
+ },
+ "天空": {
+  "en": "Sky",
+  "ja": "空"
+ },
+ "婚礼": {
+  "en": "Wedding",
+  "ja": "結婚式"
+ },
+ "婴儿": {
+  "en": "Baby",
+  "ja": "赤ちゃん"
+ },
+ "字幕已生成": {
+  "en": "Subtitles ready",
+  "ja": "字幕を作成しました"
+ },
+ "字幕已生成，共 %@ 句（按 S 可切换字幕）": {
+  "en": "Subtitles ready: %@ lines (press S to switch subtitles)",
+  "ja": "字幕を作成しました：%@行（Sキーで字幕を切り替え）"
+ },
+ "室内": {
+  "en": "Indoors",
+  "ja": "屋内"
+ },
+ "屏幕": {
+  "en": "Screen",
+  "ja": "画面"
+ },
+ "山": {
+  "en": "Mountain",
+  "ja": "山"
+ },
+ "已加入「%@」，正在后台整理": {
+  "en": "Added “%@”. Organizing in the background.",
+  "ja": "「%@」を追加しました。バックグラウンドで整理しています"
+ },
+ "已取消。": {
+  "en": "Canceled.",
+  "ja": "キャンセルしました。"
+ },
+ "已取消生成字幕": {
+  "en": "Subtitle generation canceled",
+  "ja": "字幕の作成をキャンセルしました"
+ },
+ "已把 %1$@ 个子文件夹合并进「%2$@」。": {
+  "en": "Merged %1$@ subfolders into “%2$@”.",
+  "ja": "%1$@個のサブフォルダを「%2$@」にまとめました。"
+ },
+ "已把 %@ 种视频格式的默认打开方式设为 VideoTool。": {
+  "en": "VideoTool is now the default app for %@ video formats.",
+  "ja": "%@種類のビデオ形式で、VideoToolをデフォルトのアプリに設定しました。"
+ },
+ "已撤销星标": {
+  "en": "Star removed",
+  "ja": "スターを取り消しました"
+ },
+ "帮助": {
+  "en": "Help",
+  "ja": "ヘルプ"
+ },
+ "庆祝": {
+  "en": "Celebration",
+  "ja": "お祝い"
+ },
+ "建筑": {
+  "en": "Building",
+  "ja": "建物"
+ },
+ "开始": {
+  "en": "Start",
+  "ja": "開始"
+ },
+ "德语": {
+  "en": "German",
+  "ja": "ドイツ語"
+ },
+ "必填": {
+  "en": "Required",
+  "ja": "必須"
+ },
+ "快进 5 秒": {
+  "en": "Forward 5 Seconds",
+  "ja": "5秒進む"
+ },
+ "快退 5 秒": {
+  "en": "Back 5 Seconds",
+  "ja": "5秒戻る"
+ },
+ "恢复 1.0×": {
+  "en": "Reset to 1.0×",
+  "ja": "1.0×に戻す"
+ },
+ "意大利语": {
+  "en": "Italian",
+  "ja": "イタリア語"
+ },
+ "成功 %1$@ 种，失败 %2$@ 种：\n": {
+  "en": "%1$@ succeeded, %2$@ failed:\n",
+  "ja": "成功 %1$@種類、失敗 %2$@種類：\n"
+ },
+ "户外": {
+  "en": "Outdoors",
+  "ja": "屋外"
+ },
+ "房屋": {
+  "en": "House",
+  "ja": "家"
+ },
+ "打开…": {
+  "en": "Open…",
+  "ja": "開く…"
+ },
+ "打开视频库": {
+  "en": "Open Video Library",
+  "ja": "ビデオライブラリを開く"
+ },
+ "打开视频时询问加入视频库": {
+  "en": "Offer to Add Videos to Library When Opening",
+  "ja": "ビデオを開くときにライブラリへの追加を確認"
+ },
+ "打星标 / 撤销   B": {
+  "en": "Star / Unstar   B",
+  "ja": "スターを付ける / 取り消す   B"
+ },
+ "打星标（B）": {
+  "en": "Star (B)",
+  "ja": "スターを付ける（B）"
+ },
+ "把「%@」加入视频库？自动整理里面的视频": {
+  "en": "Add “%@” to your library? The videos inside will be organized automatically.",
+  "ja": "「%@」をビデオライブラリに追加しますか？中のビデオを自動で整理します"
+ },
+ "把「%@」里的视频加入视频库？只整理这一层，不含子文件夹": {
+  "en": "Add the videos in “%@” to your library? This level only (no subfolders).",
+  "ja": "「%@」のビデオをビデオライブラリに追加しますか？この階層のみで、サブフォルダは含みません"
+ },
+ "把视频文件夹交给我": {
+  "en": "Hand Me Your Video Folders",
+  "ja": "ビデオフォルダをおまかせください"
+ },
+ "拖入视频开始播放": {
+  "en": "Drop a video here to play",
+  "ja": "ビデオをドロップして再生"
+ },
+ "按住左右拖  调速 0.5–6×": {
+  "en": "Hold and drag left/right: 0.5–6×",
+  "ja": "長押しして左右にドラッグ  速度 0.5–6×"
+ },
+ "按住画面  2× 加速": {
+  "en": "Hold to play 2× faster",
+  "ja": "長押しで 2× 速く再生"
+ },
+ "按内容标签": {
+  "en": "By Content",
+  "ja": "内容別"
+ },
+ "按剧集": {
+  "en": "By Series",
+  "ja": "シリーズ別"
+ },
+ "按文件夹": {
+  "en": "By Folder",
+  "ja": "フォルダ別"
+ },
+ "按日期": {
+  "en": "By Date",
+  "ja": "日付別"
+ },
+ "按时长": {
+  "en": "By Length",
+  "ja": "長さ別"
+ },
+ "按清晰度": {
+  "en": "By Resolution",
+  "ja": "画質別"
+ },
+ "换个关键词试试。": {
+  "en": "Try a different keyword.",
+  "ja": "別のキーワードで試してください。"
+ },
+ "插画": {
+  "en": "Illustration",
+  "ja": "イラスト"
+ },
+ "搜索文件名或标签": {
+  "en": "Search file names or tags",
+  "ja": "ファイル名やタグを検索"
+ },
+ "播放": {
+  "en": "Play",
+  "ja": "再生"
+ },
+ "播放 / 暂停": {
+  "en": "Play / Pause",
+  "ja": "再生 / 一時停止"
+ },
+ "播放引擎初始化失败（libmpv）": {
+  "en": "The playback engine failed to start (libmpv)",
+  "ja": "再生エンジンを初期化できませんでした（libmpv）"
+ },
+ "播放速度": {
+  "en": "Playback Speed",
+  "ja": "再生速度"
+ },
+ "整理方式": {
+  "en": "Organize By",
+  "ja": "整理方法"
+ },
+ "文件": {
+  "en": "File",
+  "ja": "ファイル"
+ },
+ "文件夹": {
+  "en": "Folder",
+  "ja": "フォルダ"
+ },
+ "文字": {
+  "en": "Text",
+  "ja": "文字"
+ },
+ "新增 %@": {
+  "en": "%@ added",
+  "ja": "追加 %@"
+ },
+ "无法读取这个视频的声音。": {
+  "en": "Can't read the audio in this video.",
+  "ja": "このビデオの音声を読み込めません。"
+ },
+ "日出日落": {
+  "en": "Sunrise & Sunset",
+  "ja": "日の出・日の入り"
+ },
+ "日期未知": {
+  "en": "Unknown Date",
+  "ja": "日付不明"
+ },
+ "日语": {
+  "en": "Japanese",
+  "ja": "日本語"
+ },
+ "时长未知": {
+  "en": "Unknown Length",
+  "ja": "長さ不明"
+ },
+ "星标": {
+  "en": "Stars",
+  "ja": "スター"
+ },
+ "星标  %@": {
+  "en": "Stars  %@",
+  "ja": "スター  %@"
+ },
+ "星标列表": {
+  "en": "Star List",
+  "ja": "スター一覧"
+ },
+ "星标列表（⇧⌘B）": {
+  "en": "Star List (⇧⌘B)",
+  "ja": "スター一覧（⇧⌘B）"
+ },
+ "暂停": {
+  "en": "Pause",
+  "ja": "一時停止"
+ },
+ "暂时无法打开视频库数据库，请稍后点「重新扫描」。": {
+  "en": "Can't open the library database right now. Please click “Rescan” in a moment.",
+  "ja": "ビデオライブラリのデータベースを開けません。しばらくしてから「再スキャン」をクリックしてください。"
+ },
+ "更新 %@": {
+  "en": "%@ updated",
+  "ja": "更新 %@"
+ },
+ "最小化": {
+  "en": "Minimize",
+  "ja": "しまう"
+ },
+ "未识别": {
+  "en": "Unrecognized",
+  "ja": "未識別"
+ },
+ "标清": {
+  "en": "SD",
+  "ja": "SD"
+ },
+ "树木": {
+  "en": "Tree",
+  "ja": "木"
+ },
+ "森林": {
+  "en": "Forest",
+  "ja": "森"
+ },
+ "植物": {
+  "en": "Plant",
+  "ja": "植物"
+ },
+ "正在扫描 %1$@… %2$@/%3$@": {
+  "en": "Scanning %1$@… %2$@/%3$@",
+  "ja": "%1$@をスキャン中… %2$@/%3$@"
+ },
+ "正在扫描…": {
+  "en": "Scanning…",
+  "ja": "スキャン中…"
+ },
+ "正在翻译字幕…": {
+  "en": "Translating subtitles…",
+  "ja": "字幕を翻訳中…"
+ },
+ "正在识别文件…": {
+  "en": "Identifying files…",
+  "ja": "ファイルを識別中…"
+ },
+ "正在读取声音…": {
+  "en": "Reading audio…",
+  "ja": "音声を読み込み中…"
+ },
+ "此文件无法打星标": {
+  "en": "This file can't be starred",
+  "ja": "このファイルにはスターを付けられません"
+ },
+ "汽车": {
+  "en": "Car",
+  "ja": "車"
+ },
+ "没有符合条件的视频": {
+  "en": "No Matching Videos",
+  "ja": "条件に合うビデオはありません"
+ },
+ "没有识别到说话的声音，可能选错了视频语言。": {
+  "en": "No speech was detected. The video language may be set wrong.",
+  "ja": "話し声を認識できませんでした。ビデオの言語の選択が間違っている可能性があります。"
+ },
+ "没有重复文件": {
+  "en": "No Duplicates",
+  "ja": "重複ファイルはありません"
+ },
+ "河流": {
+  "en": "River",
+  "ja": "川"
+ },
+ "法语": {
+  "en": "French",
+  "ja": "フランス語"
+ },
+ "海": {
+  "en": "Sea",
+  "ja": "海"
+ },
+ "海滩": {
+  "en": "Beach",
+  "ja": "ビーチ"
+ },
+ "添加到视频库": {
+  "en": "Add to Library",
+  "ja": "ビデオライブラリに追加"
+ },
+ "添加备注…": {
+  "en": "Add Note…",
+  "ja": "メモを追加…"
+ },
+ "添加文件夹…": {
+  "en": "Add Folder…",
+  "ja": "フォルダを追加…"
+ },
+ "清晰度未知": {
+  "en": "Unknown Resolution",
+  "ja": "画質不明"
+ },
+ "游戏": {
+  "en": "Game",
+  "ja": "ゲーム"
+ },
+ "湖": {
+  "en": "Lake",
+  "ja": "湖"
+ },
+ "演出": {
+  "en": "Concert",
+  "ja": "コンサート"
+ },
+ "火车": {
+  "en": "Train",
+  "ja": "電車"
+ },
+ "点左上角「添加文件夹…」，VideoTool 会按文件夹、日期、时长、清晰度和画面内容自动整理。\n只建索引，不会移动你的文件。": {
+  "en": "Click “Add Folder…” at the top left, and VideoTool will organize your videos by folder, date, length, resolution and content.\nIt only builds an index and never moves your files.",
+  "ja": "左上の「フォルダを追加…」をクリックすると、VideoToolがフォルダ・日付・長さ・画質・内容別に自動で整理します。\nインデックスを作るだけで、ファイルは移動しません。"
+ },
+ "烟花": {
+  "en": "Fireworks",
+  "ja": "花火"
+ },
+ "狗": {
+  "en": "Dog",
+  "ja": "犬"
+ },
+ "猫": {
+  "en": "Cat",
+  "ja": "猫"
+ },
+ "玩具": {
+  "en": "Toy",
+  "ja": "おもちゃ"
+ },
+ "球类": {
+  "en": "Ball Games",
+  "ja": "球技"
+ },
+ "生成 AI 字幕": {
+  "en": "Generate AI Subtitles",
+  "ja": "AI字幕を作成"
+ },
+ "生成字幕失败：%@": {
+  "en": "Couldn't generate subtitles: %@",
+  "ja": "字幕を作成できませんでした：%@"
+ },
+ "移除 %@": {
+  "en": "%@ removed",
+  "ja": "削除 %@"
+ },
+ "窗口": {
+  "en": "Window",
+  "ja": "ウインドウ"
+ },
+ "第 %@ 季": {
+  "en": "Season %@",
+  "ja": "シーズン%@"
+ },
+ "第几季：": {
+  "en": "Season:",
+  "ja": "シーズン："
+ },
+ "第几集：": {
+  "en": "Episode:",
+  "ja": "話数："
+ },
+ "简体中文": {
+  "en": "Simplified Chinese",
+  "ja": "簡体字中国語"
+ },
+ "粤语": {
+  "en": "Cantonese",
+  "ja": "広東語"
+ },
+ "繁體中文": {
+  "en": "Traditional Chinese",
+  "ja": "繁体字中国語"
+ },
+ "继续观看": {
+  "en": "Continue Watching",
+  "ja": "続きから見る"
+ },
+ "美食": {
+  "en": "Food",
+  "ja": "料理"
+ },
+ "翻译成：": {
+  "en": "Translate to:",
+  "ja": "翻訳先："
+ },
+ "聚会": {
+  "en": "Party",
+  "ja": "パーティー"
+ },
+ "自行车": {
+  "en": "Bicycle",
+  "ja": "自転車"
+ },
+ "舞台": {
+  "en": "Stage",
+  "ja": "ステージ"
+ },
+ "船": {
+  "en": "Boat",
+  "ja": "船"
+ },
+ "艺术": {
+  "en": "Art",
+  "ja": "アート"
+ },
+ "花": {
+  "en": "Flower",
+  "ja": "花"
+ },
+ "英语": {
+  "en": "English",
+  "ja": "英語"
+ },
+ "草地": {
+  "en": "Grass",
+  "ja": "草原"
+ },
+ "葡萄牙语": {
+  "en": "Portuguese",
+  "ja": "ポルトガル語"
+ },
+ "街道": {
+  "en": "Street",
+  "ja": "通り"
+ },
+ "西班牙语": {
+  "en": "Spanish",
+  "ja": "スペイン語"
+ },
+ "视图": {
+  "en": "View",
+  "ja": "表示"
+ },
+ "视频多的话需要一会儿，可以先去看片。": {
+  "en": "With lots of videos this can take a while, so feel free to start watching.",
+  "ja": "ビデオが多いと少し時間がかかります。先に視聴していても大丈夫です。"
+ },
+ "视频库": {
+  "en": "Video Library",
+  "ja": "ビデオライブラリ"
+ },
+ "视频里说的是：": {
+  "en": "Language spoken in the video:",
+  "ja": "ビデオで話されている言語："
+ },
+ "设为默认播放器": {
+  "en": "Set as Default Player",
+  "ja": "デフォルトのプレーヤーに設定"
+ },
+ "设为默认视频播放器…": {
+  "en": "Set as Default Video Player…",
+  "ja": "デフォルトのビデオプレーヤーに設定…"
+ },
+ "跟随系统": {
+  "en": "System Default",
+  "ja": "システム設定に従う"
+ },
+ "跳到这里（提前 2 秒）": {
+  "en": "Jump Here (2 Seconds Before)",
+  "ja": "ここへジャンプ（2秒前から）"
+ },
+ "运动": {
+  "en": "Sports",
+  "ja": "スポーツ"
+ },
+ "还没有星标。\n播放时按 B 把当前时刻标上星。": {
+  "en": "No stars yet.\nPress B while playing to star the current moment.",
+  "ja": "スターはまだありません。\n再生中にBキーを押すと、その場面にスターを付けられます。"
+ },
+ "这个视频没有声音，无法生成字幕。": {
+  "en": "This video has no audio, so subtitles can't be generated.",
+  "ja": "このビデオには音声がないため、字幕を作成できません。"
+ },
+ "这台 Mac 暂不支持识别这种语言。": {
+  "en": "This Mac can't recognize this language yet.",
+  "ja": "このMacはこの言語の認識にまだ対応していません。"
+ },
+ "这台 Mac 暂不支持这组语言的翻译，已生成原文字幕。": {
+  "en": "This Mac can't translate between these languages yet, so subtitles were created in the original language.",
+  "ja": "このMacはこの言語の組み合わせの翻訳にまだ対応していないため、原文の字幕を作成しました。"
+ },
+ "退出 VideoTool": {
+  "en": "Quit VideoTool",
+  "ja": "VideoToolを終了"
+ },
+ "选择播放速度": {
+  "en": "Choose Playback Speed",
+  "ja": "再生速度を選択"
+ },
+ "选择放视频的文件夹。VideoTool 只读取、建索引，不会移动或修改文件。": {
+  "en": "Choose the folder with your videos. VideoTool only reads and indexes them; it never moves or changes your files.",
+  "ja": "ビデオが入っているフォルダを選んでください。VideoToolは読み込んでインデックスを作るだけで、ファイルを移動・変更することはありません。"
+ },
+ "选择要播放的视频或音频": {
+  "en": "Choose a video or audio file to play",
+  "ja": "再生するビデオまたはオーディオを選択"
+ },
+ "重复文件": {
+  "en": "Duplicates",
+  "ja": "重複ファイル"
+ },
+ "重新扫描": {
+  "en": "Rescan",
+  "ja": "再スキャン"
+ },
+ "隐藏 VideoTool": {
+  "en": "Hide VideoTool",
+  "ja": "VideoToolを隠す"
+ },
+ "雪": {
+  "en": "Snow",
+  "ja": "雪"
+ },
+ "需要 macOS 26 或更新版本": {
+  "en": "Requires macOS 26 or later",
+  "ja": "macOS 26以降が必要です"
+ },
+ "静音": {
+  "en": "Mute",
+  "ja": "消音"
+ },
+ "韩语": {
+  "en": "Korean",
+  "ja": "韓国語"
+ },
+ "音乐": {
+  "en": "Music",
+  "ja": "音楽"
+ },
+ "飞机": {
+  "en": "Airplane",
+  "ja": "飛行機"
+ },
+ "饮品": {
+  "en": "Drink",
+  "ja": "飲み物"
+ },
+ "马": {
+  "en": "Horse",
+  "ja": "馬"
+ },
+ "鱼": {
+  "en": "Fish",
+  "ja": "魚"
+ },
+ "鸟": {
+  "en": "Bird",
+  "ja": "鳥"
+ },
+ "（播放器未就绪）": {
+  "en": "(Player not ready)",
+  "ja": "（プレーヤーの準備ができていません）"
+ },
+ "（根目录）": {
+  "en": "(Root Folder)",
+  "ja": "（ルートフォルダ）"
+ }
+}

@@ -8,8 +8,8 @@ enum DefaultAppRegistrar {
         var total: Int
         var failures: [String]
         var message: String {
-            if failures.isEmpty { return "已把 \(total) 种视频格式的默认打开方式设为 VideoTool。" }
-            return "成功 \(total - failures.count) 种，失败 \(failures.count) 种：\n" + failures.prefix(8).joined(separator: "\n")
+            if failures.isEmpty { return L("已把 %@ 种视频格式的默认打开方式设为 VideoTool。", String(describing: total)) }
+            return L("成功 %1$@ 种，失败 %2$@ 种：\n", String(describing: total - failures.count), String(describing: failures.count)) + failures.prefix(8).joined(separator: "\n")
         }
     }
 

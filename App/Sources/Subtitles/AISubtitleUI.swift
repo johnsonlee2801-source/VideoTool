@@ -9,7 +9,7 @@ final class AISubtitleCard: NSView {
 
     private let label = NSTextField(labelWithString: "")
     private let bar = NSProgressIndicator()
-    private let cancelButton = NSButton(title: "取消", target: nil, action: nil)
+    private let cancelButton = NSButton(title: L("取消"), target: nil, action: nil)
     private let stack = NSStackView()
     private var hideTimer: Timer?
 
@@ -62,10 +62,10 @@ final class AISubtitleCard: NSView {
         hideTimer?.invalidate()
         let (text, from, to): (String, Double, Double) = {
             switch phase {
-            case .extracting: return ("正在读取声音…", 0, 0.1)
-            case .recognizing: return ("AI 正在听写字幕…", 0.1, 0.8)
-            case .translating: return ("正在翻译字幕…", 0.8, 1)
-            case .done: return ("字幕已生成", 1, 1)
+            case .extracting: return (L("正在读取声音…"), 0, 0.1)
+            case .recognizing: return (L("AI 正在听写字幕…"), 0.1, 0.8)
+            case .translating: return (L("正在翻译字幕…"), 0.8, 1)
+            case .done: return (L("字幕已生成"), 1, 1)
             }
         }()
         label.stringValue = text
@@ -117,7 +117,7 @@ enum AISubtitleDialog {
             tgt.lastItem?.representedObject = t.id
         }
         tgt.menu?.addItem(.separator())
-        tgt.addItem(withTitle: "不翻译（只要原文）")
+        tgt.addItem(withTitle: L("不翻译（只要原文）"))
         tgt.lastItem?.representedObject = AISubtitlePreferences.noTranslation
         let wanted = target ?? AISubtitlePreferences.noTranslation
         tgt.selectItem(at: tgt.itemArray.firstIndex { ($0.representedObject as? String) == wanted } ?? 0)
@@ -135,19 +135,19 @@ enum AISubtitleDialog {
                     completion: @escaping (Choice?) -> Void) {
         let p = popups(sources: sources, source: preferences.source, target: preferences.target)
         let grid = NSGridView(views: [
-            [NSTextField(labelWithString: "视频里说的是："), p.source],
-            [NSTextField(labelWithString: "翻译成："), p.target],
+            [NSTextField(labelWithString: L("视频里说的是：")), p.source],
+            [NSTextField(labelWithString: L("翻译成：")), p.target],
         ])
         grid.rowSpacing = 10
         grid.column(at: 0).xPlacement = .trailing
         grid.frame = NSRect(x: 0, y: 0, width: 320, height: 64)
 
         let alert = NSAlert()
-        alert.messageText = "生成 AI 字幕"
-        alert.informativeText = "在这台 Mac 上离线完成，视频和声音不会上传。第一次使用某种语言时，系统会自动下载语音模型。"
+        alert.messageText = L("生成 AI 字幕")
+        alert.informativeText = L("在这台 Mac 上离线完成，视频和声音不会上传。第一次使用某种语言时，系统会自动下载语音模型。")
         alert.accessoryView = grid
-        alert.addButton(withTitle: "开始")
-        alert.addButton(withTitle: "取消")
+        alert.addButton(withTitle: L("开始"))
+        alert.addButton(withTitle: L("取消"))
         alert.beginSheetModal(for: window) { response in
             guard response == .alertFirstButtonReturn else { return completion(nil) }
             let c = choice(from: p)

@@ -88,3 +88,8 @@ goals, layout, build and test commands. `CLAUDE.md` only imports this file.
   live in `.git/info/secret-patterns`, never in the repo.
 - The prototype's mpv writes `prototype/mpv-config/watch_later/` (local video
   paths) and `prototype/last-run.log`; both are gitignored, keep it that way.
+- Interface text is Chinese wrapped in `L("…")`; English and Japanese live in
+  `App/Resources/i18n/translations.json` → `tools/i18n.py extract && build`.
+  `LocalizationTests` fail on any untranslated string. Content tags are stored in
+  Chinese and translated at display time. Tests run with `-AppleLanguages (zh-Hans)`.
+- README screenshots: `tools/make_docs_screens.sh` (all three languages, generated footage).

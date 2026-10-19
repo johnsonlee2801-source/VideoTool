@@ -19,17 +19,7 @@ enum Feedback {
     }
 
     static func template(appVersion: String, system: String) -> String {
-        """
-        **我遇到的问题 / 我的建议**
-
-
-        **怎样能重现（如果是问题）**
-        1.
-        2.
-
-        ---
-        VideoTool \(appVersion) · \(system)
-        """
+        L("**我遇到的问题 / 我的建议**\n\n\n**怎样能重现（如果是问题）**\n1.\n2.\n\n---\nVideoTool %1$@ · %2$@", appVersion, system)
     }
 
     static func newIssueURL(appVersion: String = appVersion, system: String = systemVersion) -> URL {

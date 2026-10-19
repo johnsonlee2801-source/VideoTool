@@ -7,6 +7,7 @@ options:
   deploymentTarget:
     macOS: '14.0'
   createIntermediateGroups: true
+  developmentLanguage: zh-Hans
   generateEmptyDirectories: true
 packages:
   MPVKit:
@@ -31,6 +32,8 @@ targets:
     - path: App/Sources
     - path: App/Resources
       optional: true
+      excludes:
+      - i18n/**          # translation sources (tools/i18n.py), not app resources
     dependencies:
     - package: MPVKit
       product: MPVKit
@@ -73,6 +76,10 @@ schemes:
       config: Debug
       targets:
       - VideoToolTests
+      # Tests read the Chinese (source) interface text whatever the Mac's language is.
+      commandLineArguments:
+        "-AppleLanguages (zh-Hans)": true
+        "-AppleLocale zh_CN": true
 x-info-properties:
   CFBundleName: VideoTool
   CFBundleDisplayName: VideoTool
@@ -291,6 +298,10 @@ x-info-properties:
   CFBundleExecutable: $(EXECUTABLE_NAME)
   CFBundleInfoDictionaryVersion: '6.0'
   CFBundlePackageType: $(PRODUCT_BUNDLE_PACKAGE_TYPE)
-  CFBundleDevelopmentRegion: $(DEVELOPMENT_LANGUAGE)
+  CFBundleDevelopmentRegion: zh-Hans
+  CFBundleLocalizations:
+  - zh-Hans
+  - en
+  - ja
   CFBundleIconFile: AppIcon
   NSHumanReadableCopyright: VideoTool

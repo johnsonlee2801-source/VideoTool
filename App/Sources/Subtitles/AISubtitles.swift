@@ -29,13 +29,13 @@ enum AISubtitleError: Error, Equatable {
 
     var message: String {
         switch self {
-        case .cannotOpen: return "无法读取这个视频的声音。"
-        case .noAudio: return "这个视频没有声音，无法生成字幕。"
-        case .noSpeech: return "没有识别到说话的声音，可能选错了视频语言。"
-        case .unsupportedLanguage: return "这台 Mac 暂不支持识别这种语言。"
-        case .translationUnavailable: return "这台 Mac 暂不支持这组语言的翻译，已生成原文字幕。"
-        case .cancelled: return "已取消。"
-        case .failed(let why): return "生成字幕失败：\(why)"
+        case .cannotOpen: return L("无法读取这个视频的声音。")
+        case .noAudio: return L("这个视频没有声音，无法生成字幕。")
+        case .noSpeech: return L("没有识别到说话的声音，可能选错了视频语言。")
+        case .unsupportedLanguage: return L("这台 Mac 暂不支持识别这种语言。")
+        case .translationUnavailable: return L("这台 Mac 暂不支持这组语言的翻译，已生成原文字幕。")
+        case .cancelled: return L("已取消。")
+        case .failed(let why): return L("生成字幕失败：%@", String(describing: why))
         }
     }
 }
@@ -48,15 +48,15 @@ enum SubtitleLanguages {
     }
 
     static let sources: [Choice] = [
-        .init(id: "en-US", name: "英语"), .init(id: "ja-JP", name: "日语"), .init(id: "zh-CN", name: "中文（普通话）"),
-        .init(id: "yue-CN", name: "粤语"), .init(id: "ko-KR", name: "韩语"), .init(id: "fr-FR", name: "法语"),
-        .init(id: "de-DE", name: "德语"), .init(id: "es-ES", name: "西班牙语"), .init(id: "it-IT", name: "意大利语"),
-        .init(id: "pt-BR", name: "葡萄牙语"),
+        .init(id: "en-US", name: L("英语")), .init(id: "ja-JP", name: L("日语")), .init(id: "zh-CN", name: L("中文（普通话）")),
+        .init(id: "yue-CN", name: L("粤语")), .init(id: "ko-KR", name: L("韩语")), .init(id: "fr-FR", name: L("法语")),
+        .init(id: "de-DE", name: L("德语")), .init(id: "es-ES", name: L("西班牙语")), .init(id: "it-IT", name: L("意大利语")),
+        .init(id: "pt-BR", name: L("葡萄牙语")),
     ]
 
     static let targets: [Choice] = [
-        .init(id: "zh-Hans", name: "简体中文"), .init(id: "zh-Hant", name: "繁體中文"), .init(id: "en", name: "英语"),
-        .init(id: "ja", name: "日语"), .init(id: "ko", name: "韩语"),
+        .init(id: "zh-Hans", name: L("简体中文")), .init(id: "zh-Hant", name: L("繁體中文")), .init(id: "en", name: L("英语")),
+        .init(id: "ja", name: L("日语")), .init(id: "ko", name: L("韩语")),
     ]
 
     /// "zh-CN" and "zh-Hans" are the same language; "yue" is not "zh".

@@ -22,7 +22,7 @@ enum PlaybackSpeed {
 
     /// One item per preset, the current speed ticked; each item carries its speed.
     static func menu(current: Double, target: AnyObject?, action: Selector?) -> NSMenu {
-        let menu = NSMenu(title: "播放速度")
+        let menu = NSMenu(title: L("播放速度"))
         for p in presets {
             let item = NSMenuItem(title: label(p), action: action, keyEquivalent: "")
             item.target = target

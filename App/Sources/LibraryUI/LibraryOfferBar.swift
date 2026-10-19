@@ -16,10 +16,10 @@ final class LibraryOfferBar: NSView {
 
     private let label = NSTextField(labelWithString: "")
     private let stack = NSStackView()
-    private let addButton = NSButton(title: "加入", target: nil, action: nil)
-    private let declineButton = NSButton(title: "不加", target: nil, action: nil)
-    private let neverButton = NSButton(title: "不再询问", target: nil, action: nil)
-    private let openButton = NSButton(title: "打开视频库", target: nil, action: nil)
+    private let addButton = NSButton(title: L("加入"), target: nil, action: nil)
+    private let declineButton = NSButton(title: L("不加"), target: nil, action: nil)
+    private let neverButton = NSButton(title: L("不再询问"), target: nil, action: nil)
+    private let openButton = NSButton(title: L("打开视频库"), target: nil, action: nil)
     private var proposal: LibraryOffer.Proposal?
     private var hideTimer: Timer?
 
@@ -69,8 +69,8 @@ final class LibraryOfferBar: NSView {
         self.proposal = proposal
         let name = Self.name(proposal.path)
         label.stringValue = proposal.wholeFolder
-            ? "把「\(name)」加入视频库？自动整理里面的视频"
-            : "把「\(name)」里的视频加入视频库？只整理这一层，不含子文件夹"
+            ? L("把「%@」加入视频库？自动整理里面的视频", String(describing: name))
+            : L("把「%@」里的视频加入视频库？只整理这一层，不含子文件夹", String(describing: name))
         label.toolTip = proposal.path
         show([label, addButton, declineButton, neverButton], for: Self.offerSeconds)
     }
@@ -88,7 +88,7 @@ final class LibraryOfferBar: NSView {
         case .add:
             guard let proposal else { return }
             onAdd?(proposal)
-            label.stringValue = "已加入「\(Self.name(proposal.path))」，正在后台整理"
+            label.stringValue = L("已加入「%@」，正在后台整理", String(describing: Self.name(proposal.path)))
             show([label, openButton], for: Self.confirmSeconds)
         case .decline:
             if let proposal { onDecline?(proposal.path) }

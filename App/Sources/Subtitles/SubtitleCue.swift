@@ -95,7 +95,7 @@ enum CueShaper {
 
     private static func endsClause(_ token: String) -> Bool {
         guard let c = token.last else { return false }
-        return ",.;:?!，。；：？！、…".contains(c)
+        return ",.;:?!，。；：？！、…".contains(c)          // logic, not interface text
     }
 
     /// Greedy fill; when the next token would overflow, break at the last clause end

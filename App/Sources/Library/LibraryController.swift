@@ -93,11 +93,11 @@ final class LibraryController {
         let target = LibraryStore.normalized(path)
         switch (try? store.addRoot(target, recursive: recursive)) ?? .added {
         case .alreadyCovered(let parent):
-            notice = "「\((target as NSString).lastPathComponent)」已在视频库的「\((parent as NSString).lastPathComponent)」里，不用重复添加。"
+            notice = L("「%1$@」已在视频库的「%2$@」里，不用重复添加。", String(describing: (target as NSString).lastPathComponent), String(describing: (parent as NSString).lastPathComponent))
             onChange?()
             return
         case .absorbed(let children):
-            notice = "已把 \(children.count) 个子文件夹合并进「\((target as NSString).lastPathComponent)」。"
+            notice = L("已把 %1$@ 个子文件夹合并进「%2$@」。", String(describing: children.count), String(describing: (target as NSString).lastPathComponent))
         case .added:
             break
         }
@@ -143,20 +143,20 @@ final class LibraryController {
 
     var statusText: String {
         if isIndexing {
-            guard let p = progress, p.total > 0 else { return "正在扫描…" }
-            return "正在扫描 \((p.root as NSString).lastPathComponent)… \(p.done)/\(p.total)"
+            guard let p = progress, p.total > 0 else { return L("正在扫描…") }
+            return L("正在扫描 %1$@… %2$@/%3$@", String(describing: (p.root as NSString).lastPathComponent), String(describing: p.done), String(describing: p.total))
         }
-        var parts = ["共 \(items.count) 个视频"]
+        var parts = [L("共 %@ 个视频", String(describing: items.count))]
         if let s = lastSummary {
-            if s.added > 0 { parts.append("新增 \(s.added)") }
-            if s.updated > 0 { parts.append("更新 \(s.updated)") }
-            if s.removed > 0 { parts.append("移除 \(s.removed)") }
-            if s.unreadable > 0 { parts.append("\(s.unreadable) 个无法读取") }
-            if s.probeFailed > 0 { parts.append("\(s.probeFailed) 个信息不全") }
+            if s.added > 0 { parts.append(L("新增 %@", String(describing: s.added))) }
+            if s.updated > 0 { parts.append(L("更新 %@", String(describing: s.updated))) }
+            if s.removed > 0 { parts.append(L("移除 %@", String(describing: s.removed))) }
+            if s.unreadable > 0 { parts.append(L("%@ 个无法读取", String(describing: s.unreadable))) }
+            if s.probeFailed > 0 { parts.append(L("%@ 个信息不全", String(describing: s.probeFailed))) }
         }
-        if !unavailableRoots.isEmpty { parts.append("\(unavailableRoots.count) 个文件夹暂时无法访问") }
+        if !unavailableRoots.isEmpty { parts.append(L("%@ 个文件夹暂时无法访问", String(describing: unavailableRoots.count))) }
         let cloud = items.filter { $0.record.status == .cloudOnly }.count
-        if cloud > 0 { parts.append("\(cloud) 个在 iCloud 未下载") }
+        if cloud > 0 { parts.append(L("%@ 个在 iCloud 未下载", String(describing: cloud))) }
         return parts.joined(separator: " · ")
     }
 
@@ -172,7 +172,7 @@ final class LibraryController {
         guard !isIndexing, !queuedRoots.isEmpty else { return }
         guard let indexer = makeIndexer() else {
             queuedRoots.removeAll()
-            notice = "暂时无法打开视频库数据库，请稍后点「重新扫描」。"
+            notice = L("暂时无法打开视频库数据库，请稍后点「重新扫描」。")
             onChange?()
             return
         }

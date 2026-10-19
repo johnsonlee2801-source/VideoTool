@@ -9,18 +9,18 @@ final class EmptyStateView: NSView {
         icon.symbolConfiguration = .init(pointSize: 56, weight: .bold)
         icon.contentTintColor = Theme.accent
 
-        let title = NSTextField(labelWithString: "拖入视频开始播放")
+        let title = NSTextField(labelWithString: L("拖入视频开始播放"))
         title.font = Theme.display(26, .heavy)
         title.textColor = Theme.textPrimary
 
-        let subtitle = NSTextField(labelWithString: "⌘O 打开文件  ·  ⌘L 打开视频库")
+        let subtitle = NSTextField(labelWithString: L("⌘O 打开文件  ·  ⌘L 打开视频库"))
         subtitle.font = .systemFont(ofSize: 14, weight: .medium)
         subtitle.textColor = Theme.textSecondary
 
         let chips = NSStackView(views: [
-            Theme.chip("按住画面  2× 加速", color: Theme.textPrimary),
-            Theme.chip("按住左右拖  调速 0.5–6×", color: Theme.textPrimary),
-            Theme.chip("B  打星标", color: Theme.star),
+            Theme.chip(L("按住画面  2× 加速"), color: Theme.textPrimary),
+            Theme.chip(L("按住左右拖  调速 0.5–6×"), color: Theme.textPrimary),
+            Theme.chip(L("B  打星标"), color: Theme.star),
         ])
         chips.spacing = 8
         for case let c as NSTextField in chips.views { c.font = .systemFont(ofSize: 12, weight: .bold) }
