@@ -87,6 +87,14 @@ final class AISubtitlePreferences {
         set { defaults.set(newValue, forKey: Self.sourceKey) }
     }
     /// A target language id, or nil for "don't translate".
+    /// AI subtitle size: 0.8 small, 1 medium, 1.25 large.
+    static let scaleKey = "videotool.ai-subtitles.scale"
+    static let scales: [Double] = [0.8, 1, 1.25]
+    var scale: Double {
+        get { let v = defaults.double(forKey: Self.scaleKey); return Self.scales.contains(v) ? v : 1 }
+        set { defaults.set(newValue, forKey: Self.scaleKey) }
+    }
+
     /// The dark band behind AI subtitles that hides subtitles burnt into the picture.
     static let bandKey = "videotool.ai-subtitles.band"
     var band: Bool {
@@ -108,10 +116,10 @@ final class AISubtitlePreferences {
 enum SubtitleCache {
     /// Writes the .ass the player shows for a cached .srt, and returns it.
     @discardableResult
-    static func display(for srt: URL, bilingual: Bool, band: Bool) -> URL? {
+    static func display(for srt: URL, bilingual: Bool, band: Bool, scale: Double = 1) -> URL? {
         guard let text = try? String(contentsOf: srt, encoding: .utf8) else { return nil }
         let ass = srt.deletingPathExtension().appendingPathExtension("ass")
-        let doc = ASS.document(SRT.parse(text, bilingual: bilingual), band: band)
+        let doc = ASS.document(SRT.parse(text, bilingual: bilingual), band: band, scale: scale)
         return (try? doc.write(to: ass, atomically: true, encoding: .utf8)) == nil ? nil : ass
     }
 
@@ -135,7 +143,12 @@ final class AISubtitlePipeline {
         var video: String
         var source: String
         var target: String?
+        /// Where the viewer is: recognition starts here, then fills in the beginning.
+        var startAt: Double = 0
     }
+
+    /// Splitting only pays off with at least this much on both sides of the start point.
+    static let minimumSplit = 60.0
 
     struct Output: Equatable {
         var srt: URL
@@ -226,16 +239,43 @@ final class AISubtitlePipeline {
 
         // 2. speech → cues → (translation), handed over in batches while recognition runs
         progress(.recognizing, 0)
+        // From where the viewer is to the end first, then the beginning (each part its
+        // own WAV; recognised times are shifted back to times in the video).
+        var passes: [(start: Double, end: Double, audio: URL)] = [(0, duration, wav)]
+        if request.startAt >= Self.minimumSplit, duration - request.startAt >= Self.minimumSplit {
+            let later = cacheDirectory.appendingPathComponent("audio-\(UUID().uuidString)-b.wav")
+            let earlier = cacheDirectory.appendingPathComponent("audio-\(UUID().uuidString)-a.wav")
+            try AudioExtractor.slice(wav, from: request.startAt, to: duration, into: later)
+            try AudioExtractor.slice(wav, from: 0, to: request.startAt, into: earlier)
+            passes = [(request.startAt, duration, later), (0, request.startAt, earlier)]
+        }
+        defer { for pass in passes where pass.audio != wav { try? FileManager.default.removeItem(at: pass.audio) } }
         let (stream, feed) = AsyncStream<SpeechSegment>.makeStream()
         let recognizer = self.recognizer
         let recognition = Task { () throws -> [SpeechSegment] in
             defer { feed.finish() }
-            if let streaming = recognizer as? StreamingSpeechRecognizing {
-                return try await streaming.transcribe(audio: wav, locale: request.source, duration: duration,
-                                                      progress: { progress(.recognizing, $0) }, onSegment: { feed.yield($0) })
+            var all: [SpeechSegment] = [], done = 0.0
+            for pass in passes {
+                let length = pass.end - pass.start, before = done
+                let report: @Sendable (Double) -> Void = { f in
+                    progress(.recognizing, duration > 0 ? min((before + f * length) / duration, 1) : f)
+                }
+                let shift: (SpeechSegment) -> SpeechSegment = { s in
+                    SpeechSegment(text: s.text, start: s.start + pass.start, end: s.end + pass.start,
+                                  words: s.words.map { SpeechWord(text: $0.text, start: $0.start + pass.start, end: $0.end + pass.start) })
+                }
+                let part: [SpeechSegment]
+                if let streaming = recognizer as? StreamingSpeechRecognizing {
+                    part = try await streaming.transcribe(audio: pass.audio, locale: request.source, duration: length,
+                                                          progress: report, onSegment: { feed.yield(shift($0)) })
+                } else {
+                    part = try await recognizer.transcribe(audio: pass.audio, locale: request.source, duration: length,
+                                                           progress: report)
+                }
+                all += part.map(shift)
+                done += length
             }
-            return try await recognizer.transcribe(audio: wav, locale: request.source, duration: duration,
-                                                   progress: { progress(.recognizing, $0) })
+            return all
         }
         var pending: [SpeechSegment] = []
         var streamed = 0
@@ -314,16 +354,10 @@ final class LiveCues {
         self.translator = translator
     }
 
+    /// New lines may come from later or earlier in the video (subtitles start where
+    /// the viewer is); the list stays in time order without overlaps.
     func add(_ new: [SubtitleCue]) async throws {
         var batch = new
-        var previousEnd = cues.last?.end ?? -.infinity
-        for i in batch.indices {
-            if batch[i].start < previousEnd {
-                batch[i].start = previousEnd
-                batch[i].end = max(batch[i].end, previousEnd + CueShaper.minDuration)
-            }
-            previousEnd = batch[i].end
-        }
         if let target, !translationSkipped, !batch.isEmpty {
             do {
                 guard let translator else { throw AISubtitleError.translationUnavailable }
@@ -336,6 +370,10 @@ final class LiveCues {
                 for i in cues.indices { cues[i].translation = nil }
             }
         }
-        cues += batch
+        cues = (cues + batch).sorted { $0.start != $1.start ? $0.start < $1.start : $0.end < $1.end }
+        for i in cues.indices.dropFirst() where cues[i].start < cues[i - 1].end {
+            cues[i].start = cues[i - 1].end
+            cues[i].end = max(cues[i].end, cues[i].start + CueShaper.minDuration)
+        }
     }
 }

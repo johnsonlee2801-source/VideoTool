@@ -78,7 +78,8 @@ final class AISubtitleCard: NSView {
     /// While subtitles are already showing: how far they reach, and the overall bar.
     func showLive(upTo seconds: Double, fraction: Double) {
         hideTimer?.invalidate()
-        label.stringValue = L("字幕生成中 · 已到 %@（可以边看边等）", TimeFormatting.string(seconds))
+        // Shown from where the viewer started, then the beginning: report the share done.
+        label.stringValue = L("字幕生成中 · 已完成 %@（可以边看边等）", "\(Int((min(max(fraction, 0), 1) * 100).rounded()))%")
         bar.doubleValue = 0.1 + 0.9 * min(max(fraction, 0), 1)
         bar.isHidden = false
         cancelButton.isHidden = false

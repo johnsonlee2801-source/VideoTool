@@ -216,7 +216,9 @@ enum ASS {
         2 * padding + max(lines, 1) * 60
     }
 
-    static func document(_ cues: [SubtitleCue], band: Bool) -> String {
+    /// `scale`: subtitle size (small 0.8, medium 1, large 1.25); the band scales with it.
+    static func document(_ cues: [SubtitleCue], band: Bool, scale: Double = 1) -> String {
+        func px(_ v: Double) -> Int { Int((v * scale).rounded()) }
         var out = """
         [Script Info]
         ScriptType: v4.00+
@@ -227,7 +229,7 @@ enum ASS {
 
         [V4+ Styles]
         Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-        Style: Text,PingFang SC,56,&H00FFFFFF,&H000000FF,&H00000000,&H64000000,-1,0,0,0,100,100,0,0,1,2.6,0.6,2,80,80,\(marginBottom),1
+        Style: Text,PingFang SC,\(px(56)),&H00FFFFFF,&H000000FF,&H00000000,&H64000000,-1,0,0,0,100,100,0,0,1,\(String(format: "%.1f", 2.6 * scale)),0.6,2,80,80,\(marginBottom),1
         Style: Band,Arial,20,&H00000000,&H00000000,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,0,0,7,0,0,0,1
 
         [Events]
@@ -239,15 +241,15 @@ enum ASS {
             for (i, c) in cues.enumerated() {
                 let next = i + 1 < cues.count ? cues[i + 1].start : .infinity
                 let end = next - c.end < bridge ? max(next, c.end) : c.end
-                let h = bandHeight(lines: lineCount(c))
-                let top = 1080 - marginBottom + padding - h
+                let h = px(Double(bandHeight(lines: lineCount(c))))
+                let top = 1080 - marginBottom + px(Double(padding)) - h
                 out += "Dialogue: 0,\(time(c.start)),\(time(end)),Band,,0,0,0,,{\\an7\\pos(0,\(top))\\bord0\\shad0\\1c&H000000&\\1a&H\(alpha)&\\p1}"
                     + "m 0 0 l 1920 0 l 1920 \(h) l 0 \(h){\\p0}\n"
             }
         }
         for c in cues {
             let original = escape(c.text)
-            let text = c.translation.map { "{\\fs64}\(escape($0))\\N{\\fs52\\c&HE0E0E0&}\(original)" } ?? original
+            let text = c.translation.map { "{\\fs\(px(64))}\(escape($0))\\N{\\fs\(px(52))\\c&HE0E0E0&}\(original)" } ?? original
             out += "Dialogue: 1,\(time(c.start)),\(time(c.end)),Text,,0,0,0,,\(text)\n"
         }
         return out

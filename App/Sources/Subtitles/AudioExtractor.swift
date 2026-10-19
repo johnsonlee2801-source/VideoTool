@@ -93,4 +93,41 @@ enum AudioExtractor {
         guard loaded, endError >= 0 else { return .failure(.cannotOpen(String(cString: mpv_error_string(endError)))) }
         return .success(())
     }
+
+    // MARK: WAV helpers (16 kHz mono 16-bit, what `extract` writes)
+
+    static let bytesPerSecond = 32_000
+
+    /// Writes PCM samples as a WAV file.
+    static func writeWAV(pcm: Data, to url: URL) throws {
+        var h = Data()
+        func u32(_ v: UInt32) { withUnsafeBytes(of: v.littleEndian) { h.append(contentsOf: $0) } }
+        func u16(_ v: UInt16) { withUnsafeBytes(of: v.littleEndian) { h.append(contentsOf: $0) } }
+        h.append(contentsOf: Array("RIFF".utf8)); u32(UInt32(36 + pcm.count)); h.append(contentsOf: Array("WAVE".utf8))
+        h.append(contentsOf: Array("fmt ".utf8)); u32(16); u16(1); u16(1); u32(16_000); u32(UInt32(bytesPerSecond)); u16(2); u16(16)
+        h.append(contentsOf: Array("data".utf8)); u32(UInt32(pcm.count))
+        try (h + pcm).write(to: url)
+    }
+
+    /// The part of a WAV between two times, as its own WAV (subtitles from the current position).
+    static func slice(_ wav: URL, from start: Double, to end: Double, into out: URL) throws {
+        let data = try Data(contentsOf: wav, options: .mappedIfSafe)
+        guard let pcm = pcmRange(in: data) else { throw Failure.cannotOpen("not a WAV file") }
+        func offset(_ t: Double) -> Int { min(max(Int(t * Double(bytesPerSecond)) & ~1, 0), pcm.count) }
+        let a = pcm.lowerBound + offset(start), b = pcm.lowerBound + offset(end)
+        try writeWAV(pcm: data.subdata(in: a..<max(a, b)), to: out)
+    }
+
+    /// Where the samples are (the "data" chunk).
+    private static func pcmRange(in data: Data) -> Range<Int>? {
+        guard data.count >= 12, data.prefix(4) == Data("RIFF".utf8) else { return nil }
+        var i = 12
+        while i + 8 <= data.count {
+            let id = data.subdata(in: i..<i + 4)
+            let size = data.subdata(in: i + 4..<i + 8).withUnsafeBytes { Int(UInt32(littleEndian: $0.loadUnaligned(as: UInt32.self))) }
+            if id == Data("data".utf8) { return (i + 8)..<min(i + 8 + size, data.count) }
+            i += 8 + size + (size & 1)
+        }
+        return nil
+    }
 }

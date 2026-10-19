@@ -183,7 +183,7 @@ struct LiveSubtitlePipelineTests {
         w.startAISubtitles(video: sample.path, choice: .init(source: "en-US", target: nil), pipeline: pipeline(rec, nil, dir: dir))
         #expect(await waitUntil { engine.trackCounts().subtitle == 1 }, "no live subtitles while the job runs")
         #expect(w.isMakingAISubtitles)
-        #expect(w.aiCard.message.contains("已到"), "card: \(w.aiCard.message)")
+        #expect(w.aiCard.message.contains("已完成"), "card: \(w.aiCard.message)")
         rec.open()
         #expect(await waitUntil { !w.isMakingAISubtitles })
         // Removing the live track and adding the finished one are two async player commands.

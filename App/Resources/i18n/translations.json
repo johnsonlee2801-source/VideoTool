@@ -63,6 +63,10 @@
   "en": "AI Subtitles…",
   "ja": "AI字幕…"
  },
+ "AI 字幕大小": {
+  "en": "AI Subtitle Size",
+  "ja": "AI字幕のサイズ"
+ },
  "AI 字幕背景条": {
   "en": "Background Band Behind AI Subtitles",
   "ja": "AI字幕の背景帯"
@@ -138,6 +142,10 @@
  "两份内容完全一样的视频会出现在这里。": {
   "en": "Videos with identical content will appear here.",
   "ja": "内容がまったく同じビデオがここに表示されます。"
+ },
+ "中": {
+  "en": "Medium",
+  "ja": "中"
  },
  "中文（普通话）": {
   "en": "Chinese (Mandarin)",
@@ -307,6 +315,10 @@
   "en": "Night View",
   "ja": "夜景"
  },
+ "大": {
+  "en": "Large",
+  "ja": "大"
+ },
  "天空": {
   "en": "Sky",
   "ja": "空"
@@ -327,13 +339,21 @@
   "en": "Subtitles ready: %@ lines (press S to switch subtitles)",
   "ja": "字幕を作成しました：%@行（Sキーで字幕を切り替え）"
  },
- "字幕生成中 · 已到 %@（可以边看边等）": {
-  "en": "Making subtitles · ready up to %@ (keep watching)",
-  "ja": "字幕を作成中 · %@ まで完了（見ながら待てます）"
+ "字幕生成中 · 已完成 %@（可以边看边等）": {
+  "en": "Making subtitles · %@ done (keep watching)",
+  "ja": "字幕を作成中 · %@ 完了（見ながら待てます）"
  },
  "室内": {
   "en": "Indoors",
   "ja": "屋内"
+ },
+ "导出 AI 字幕…": {
+  "en": "Export AI Subtitles…",
+  "ja": "AI字幕を書き出す…"
+ },
+ "小": {
+  "en": "Small",
+  "ja": "小"
  },
  "屏幕": {
   "en": "Screen",

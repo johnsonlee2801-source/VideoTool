@@ -137,6 +137,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
         playMenu.addItem(withTitle: L("切换字幕轨"), action: #selector(PlayerWindowController.cycleSubtitle(_:)), keyEquivalent: "s")
         playMenu.addItem(withTitle: L("AI 字幕…"), action: #selector(PlayerWindowController.generateAISubtitles(_:)), keyEquivalent: "t")
         playMenu.addItem(withTitle: L("AI 字幕背景条"), action: #selector(PlayerWindowController.toggleSubtitleBand(_:)), keyEquivalent: "")
+        let sizeItem = playMenu.addItem(withTitle: L("AI 字幕大小"), action: nil, keyEquivalent: "")
+        let sizeMenu = NSMenu(title: L("AI 字幕大小"))
+        for (title, scale) in [(L("小"), 0.8), (L("中"), 1.0), (L("大"), 1.25)] {
+            let item = sizeMenu.addItem(withTitle: title, action: #selector(PlayerWindowController.chooseSubtitleSize(_:)), keyEquivalent: "")
+            item.representedObject = scale
+        }
+        sizeItem.submenu = sizeMenu
+        playMenu.addItem(withTitle: L("导出 AI 字幕…"), action: #selector(PlayerWindowController.exportAISubtitles(_:)), keyEquivalent: "")
         playMenu.addItem(withTitle: L("切换音轨"), action: #selector(PlayerWindowController.cycleAudio(_:)), keyEquivalent: "a")
         playMenu.addItem(withTitle: L("静音"), action: #selector(PlayerWindowController.toggleMute(_:)), keyEquivalent: "m")
         let outputItem = playMenu.addItem(withTitle: L("声音输出"), action: nil, keyEquivalent: "")

@@ -514,6 +514,11 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         case #selector(chooseSpeedPreset(_:)):
             item.state = (item.representedObject as? Double).map { abs($0 - preferredSpeed) < 0.001 } == true ? .on : .off
             return engine != nil
+        case #selector(chooseSubtitleSize(_:)):
+            item.state = (item.representedObject as? Double) == aiPrefs.scale ? .on : .off
+            return true
+        case #selector(exportAISubtitles(_:)):
+            return aiShown != nil
         case #selector(toggleSubtitleBand(_:)):
             item.state = aiPrefs.band ? .on : .off
             return true
@@ -572,7 +577,8 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         aiPipeline = pipeline
         aiCard.onCancel = { [weak self] in self?.cancelAISubtitles(showing: L("已取消生成字幕")) }
         aiCard.show(.extracting, 0)
-        let request = AISubtitlePipeline.Request(video: video, source: choice.source, target: choice.target)
+        let request = AISubtitlePipeline.Request(video: video, source: choice.source, target: choice.target,
+                                                 startAt: engine?.state.timePos ?? 0)
         let title = Self.subtitleTitle(request, translated: request.target != nil)
         var liveShown = false, liveUpTo = 0.0
         aiTask = Task { @MainActor [weak self] in
@@ -592,7 +598,7 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
                     DispatchQueue.main.async {
                         guard let self, self.aiPipeline === pipeline, !pipeline.isCancelled,
                               self.currentURL?.path == video, let engine = self.engine else { return }
-                        try? ASS.document(cues, band: self.aiPrefs.band)
+                        try? ASS.document(cues, band: self.aiPrefs.band, scale: self.aiPrefs.scale)
                             .write(to: pipeline.liveFile, atomically: true, encoding: .utf8)
                         if liveShown { engine.reloadSubtitle(path: pipeline.liveFile.path) }
                         else { engine.addSubtitle(path: pipeline.liveFile.path, title: title); liveShown = true }
@@ -666,7 +672,8 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
 
     /// Shows finished AI subtitles through their .ass (with or without the band).
     private func showAISubtitles(srt: URL, bilingual: Bool, title: String) {
-        guard let engine, let display = SubtitleCache.display(for: srt, bilingual: bilingual, band: aiPrefs.band) else { return }
+        guard let engine, let display = SubtitleCache.display(for: srt, bilingual: bilingual, band: aiPrefs.band,
+                                                               scale: aiPrefs.scale) else { return }
         engine.addSubtitle(path: display.path, title: title)
         aiShown = (srt, display, bilingual)
     }
@@ -674,9 +681,45 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     /// Play › AI 字幕背景条: on by default; redraws the subtitles on screen right away.
     @objc func toggleSubtitleBand(_ sender: Any?) {
         aiPrefs.band.toggle()
+        redrawAISubtitles()
+    }
+
+    /// Play › AI 字幕大小 › 小 / 中 / 大 (the item carries the scale).
+    @objc func chooseSubtitleSize(_ sender: NSMenuItem) {
+        guard let scale = sender.representedObject as? Double else { return }
+        aiPrefs.scale = scale
+        redrawAISubtitles()
+    }
+
+    private func redrawAISubtitles() {
         guard let shown = aiShown, let engine else { return }
-        SubtitleCache.display(for: shown.srt, bilingual: shown.bilingual, band: aiPrefs.band)
+        SubtitleCache.display(for: shown.srt, bilingual: shown.bilingual, band: aiPrefs.band, scale: aiPrefs.scale)
         engine.reloadSubtitle(path: shown.display.path)
+    }
+
+    /// Default name for an export: the video's name with .srt, which players pick up by themselves.
+    var suggestedExportName: String? {
+        currentURL.map { $0.deletingPathExtension().lastPathComponent + ".srt" }
+    }
+
+    /// Writes the AI subtitles on screen as .srt (bilingual if translated).
+    func exportAISubtitles(to url: URL) throws {
+        guard let shown = aiShown else { return }
+        if FileManager.default.fileExists(atPath: url.path) { try FileManager.default.removeItem(at: url) }
+        try FileManager.default.copyItem(at: shown.srt, to: url)
+    }
+
+    /// Play › 导出 AI 字幕…: saves next to the video by default.
+    @objc func exportAISubtitles(_ sender: Any?) {
+        guard aiShown != nil, let window else { return }
+        let panel = NSSavePanel()
+        panel.nameFieldStringValue = suggestedExportName ?? "subtitles.srt"
+        panel.directoryURL = currentURL?.deletingLastPathComponent()
+        panel.allowedContentTypes = [.init(filenameExtension: "srt") ?? .plainText]
+        panel.beginSheetModal(for: window) { [weak self] response in
+            guard response == .OK, let url = panel.url else { return }
+            do { try self?.exportAISubtitles(to: url) } catch { NSSound.beep() }
+        }
     }
 
     static func subtitleTitle(_ r: AISubtitlePipeline.Request, translated: Bool) -> String {
