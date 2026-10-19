@@ -195,17 +195,28 @@ enum SRT {
 
 /// Advanced SubStation (.ass), what the player shows for AI subtitles: the
 /// translation above the original in one block, and optionally a semi-transparent
-/// band over the bottom of the picture that hides subtitles burnt into the video
-/// (user request 2026-10-19). Coordinates are in a 1920×1080 frame the player
-/// scales to the picture, so the band always fits the video, not the window.
+/// band behind that block that hides subtitles burnt into the video (user request
+/// 2026-10-19). Coordinates are in a 1920×1080 frame the player scales to the
+/// picture, so the band fits the video, not the window.
+///
+/// Revised the same evening from a real screenshot: a fixed band over the bottom
+/// 23% for the whole video covered too much of the picture. The band now hugs the
+/// text (two lines ≈ 15%, one ≈ 9%) and is there only while a line is shown;
+/// pauses under a second are bridged so it does not blink between lines.
 enum ASS {
-    /// Band: bottom 23% of the picture, black at ~87% opacity (alpha 0x22; 0xFF = transparent).
-    /// Tuned 2026-10-19 on white burnt-in text with a black outline: at 78% it still
-    /// competed with the AI lines; at ~87% it fades to a trace while the picture shows through.
-    static let bandTop = 830, bandHeight = 250
-    static let bandAlpha = 0x22
+    /// ~81% opaque black (alpha 0x30; 0xFF = transparent).
+    static let bandAlpha = 0x30
+    /// The text block's bottom margin, and the band's padding around it.
+    static let marginBottom = 48, padding = 18
+    /// Gaps shorter than this keep the band up.
+    static let bridge = 1.0
 
-    static func document(_ cues: [SubtitleCue], band: Bool, until videoEnd: Double) -> String {
+    /// Band height for a block of `lines` lines (translation ~64 px, original ~52 px tall).
+    static func bandHeight(lines: Int) -> Int {
+        2 * padding + max(lines, 1) * 60
+    }
+
+    static func document(_ cues: [SubtitleCue], band: Bool) -> String {
         var out = """
         [Script Info]
         ScriptType: v4.00+
@@ -216,17 +227,23 @@ enum ASS {
 
         [V4+ Styles]
         Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-        Style: Text,PingFang SC,56,&H00FFFFFF,&H000000FF,&H00000000,&H64000000,-1,0,0,0,100,100,0,0,1,2.6,0.6,2,80,80,48,1
+        Style: Text,PingFang SC,56,&H00FFFFFF,&H000000FF,&H00000000,&H64000000,-1,0,0,0,100,100,0,0,1,2.6,0.6,2,80,80,\(marginBottom),1
         Style: Band,Arial,20,&H00000000,&H00000000,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,0,0,7,0,0,0,1
 
         [Events]
         Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 
         """
-        if band, let last = [videoEnd, cues.map(\.end).max() ?? 0].max(), last > 0 {
+        if band {
             let alpha = String(format: "%02X", bandAlpha)
-            out += "Dialogue: 0,\(time(0)),\(time(last)),Band,,0,0,0,,{\\an7\\pos(0,\(bandTop))\\bord0\\shad0\\1c&H000000&\\1a&H\(alpha)&\\p1}"
-                + "m 0 0 l 1920 0 l 1920 \(bandHeight) l 0 \(bandHeight){\\p0}\n"
+            for (i, c) in cues.enumerated() {
+                let next = i + 1 < cues.count ? cues[i + 1].start : .infinity
+                let end = next - c.end < bridge ? max(next, c.end) : c.end
+                let h = bandHeight(lines: lineCount(c))
+                let top = 1080 - marginBottom + padding - h
+                out += "Dialogue: 0,\(time(c.start)),\(time(end)),Band,,0,0,0,,{\\an7\\pos(0,\(top))\\bord0\\shad0\\1c&H000000&\\1a&H\(alpha)&\\p1}"
+                    + "m 0 0 l 1920 0 l 1920 \(h) l 0 \(h){\\p0}\n"
+            }
         }
         for c in cues {
             let original = escape(c.text)
@@ -234,6 +251,10 @@ enum ASS {
             out += "Dialogue: 1,\(time(c.start)),\(time(c.end)),Text,,0,0,0,,\(text)\n"
         }
         return out
+    }
+
+    private static func lineCount(_ c: SubtitleCue) -> Int {
+        c.text.components(separatedBy: .newlines).filter { !$0.isEmpty }.count + (c.translation == nil ? 0 : 1)
     }
 
     /// H:MM:SS.cc

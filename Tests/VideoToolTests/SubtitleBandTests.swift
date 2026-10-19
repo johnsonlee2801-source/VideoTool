@@ -11,14 +11,17 @@ struct SubtitleBandFormatTests {
     private let cues = [SubtitleCue(start: 1, end: 2.5, text: "Hello {there}", translation: "你好"),
                         SubtitleCue(start: 3, end: 4, text: "Line one\nline two")]
 
-    @Test("BA1 an ASS file: a band over the bottom of the picture for the whole video, then the lines above it")
+    private func bands(_ doc: String) -> [Substring] { doc.split(separator: "\n").filter { $0.hasPrefix("Dialogue: 0,") } }
+
+    @Test("BA1 a thin band only while a line is on screen, the translation above the original")
     func withBand() {
-        let doc = ASS.document(cues, band: true, until: 1500)
+        let doc = ASS.document(cues, band: true)
         #expect(doc.contains("PlayResX: 1920") && doc.contains("PlayResY: 1080"))
-        let band = doc.split(separator: "\n").filter { $0.hasPrefix("Dialogue: 0,") }
-        #expect(band.count == 1)
-        #expect(band[0].contains("0:00:00.00,0:25:00.00") && band[0].contains("\\p1"), "covers the whole video")
-        #expect(band[0].contains("\\1a&H\(String(format: "%02X", ASS.bandAlpha))&"), "semi-transparent")
+        let b = bands(doc)
+        #expect(b.count == 2, "one band per line, none for the whole video")
+        #expect(b[0].contains("0:00:01.00,0:00:03.00"), "a gap under 1 s is bridged, so the band does not blink")
+        #expect(b[1].contains("0:00:03.00,0:00:04.00"))
+        #expect(b[0].contains("\\1a&H\(String(format: "%02X", ASS.bandAlpha))&"), "semi-transparent")
         let lines = doc.split(separator: "\n").filter { $0.hasPrefix("Dialogue: 1,") }
         #expect(lines.count == 2)
         #expect(lines[0].contains("0:00:01.00,0:00:02.50"))
@@ -27,9 +30,20 @@ struct SubtitleBandFormatTests {
         #expect(lines[1].contains("Line one\\Nline two"))
     }
 
+    @Test("BA1b the band is only as tall as the text: two lines ~15% of the picture, one line ~9% (was 23%)")
+    func bandHeight() {
+        #expect(ASS.bandHeight(lines: 2) <= 170 && ASS.bandHeight(lines: 2) >= 130)
+        #expect(ASS.bandHeight(lines: 1) <= 105 && ASS.bandHeight(lines: 1) >= 80)
+        #expect(ASS.bandHeight(lines: 3) > ASS.bandHeight(lines: 2))
+        let one = ASS.document([SubtitleCue(start: 0, end: 1, text: "Hi")], band: true)
+        #expect(bands(one).first?.contains("l 1920 \(ASS.bandHeight(lines: 1))") == true)
+        let far = ASS.document([SubtitleCue(start: 0, end: 1, text: "a"), SubtitleCue(start: 5, end: 6, text: "b")], band: true)
+        #expect(bands(far).first?.contains("0:00:00.00,0:00:01.00") == true, "a real pause shows the picture")
+    }
+
     @Test("BA2 without the band (switched off) only the lines are drawn") func withoutBand() {
-        let doc = ASS.document(cues, band: false, until: 1500)
-        #expect(!doc.contains("Dialogue: 0,"))
+        let doc = ASS.document(cues, band: false)
+        #expect(bands(doc).isEmpty)
         #expect(doc.split(separator: "\n").filter { $0.hasPrefix("Dialogue: 1,") }.count == 2)
     }
 
@@ -87,19 +101,28 @@ struct SubtitleBandFormatTests {
     func rendered() throws {
         let picture = try burntInPicture()
         let cues = [SubtitleCue(start: 0, end: 60, text: "Press and hold the picture to speed up.", translation: "按住画面，就能加速播放。")]
-        func render(band: Bool) throws -> URL {
+        let quiet = [SubtitleCue(start: 0.6, end: 0.9, text: "Later.", translation: "稍后。")]   // nothing on screen at 0 s (the still shows for 1 s)
+        func render(band: Bool, _ cues: [SubtitleCue]) throws -> URL {
             let ass = TestTemp.directory.appendingPathComponent("band-\(band)-\(UUID().uuidString).ass")
-            try ASS.document(cues, band: band, until: 60).write(to: ass, atomically: true, encoding: .utf8)
-            let out = TestTemp.directory.appendingPathComponent("band-\(band).jpg")
-            let r = MPVFrameGrabber.grab(source: picture.path, start: "0", thumbnailTo: out, subtitles: ass.path)
+            try ASS.document(cues, band: band).write(to: ass, atomically: true, encoding: .utf8)
+            let out = TestTemp.directory.appendingPathComponent("band-\(band)-\(UUID().uuidString).jpg")
+            // A still image with a subtitle file occasionally yields no frame under load
+            // (seen once in a full run); a grab is cheap, so try again before judging.
+            var r = MPVFrameGrabber.grab(source: picture.path, start: "0", thumbnailTo: out, subtitles: ass.path)
+            for _ in 0..<2 where r.failure != nil {
+                r = MPVFrameGrabber.grab(source: picture.path, start: "0", thumbnailTo: out, subtitles: ass.path)
+            }
             #expect(r.failure == nil, "\(r.failure ?? "")")
             return out
         }
-        let on = try render(band: true), off = try render(band: false)
-        let bottomOn = try brightness(on, from: 0.8, to: 0.98), bottomOff = try brightness(off, from: 0.8, to: 0.98)
-        let topOn = try brightness(on, from: 0.05, to: 0.5), topOff = try brightness(off, from: 0.05, to: 0.5)
-        #expect(bottomOn < bottomOff * 0.5, "band: bottom \(bottomOn) vs \(bottomOff) without")
-        #expect(abs(topOn - topOff) < 0.02, "the picture above the band is untouched: \(topOn) vs \(topOff)")
+        let on = try render(band: true, cues), off = try render(band: false, cues), idle = try render(band: true, quiet)
+        // The text block sits at ~85-95% of the height; the band hugs it.
+        let bottomOn = try brightness(on, from: 0.86, to: 0.94), bottomOff = try brightness(off, from: 0.86, to: 0.94)
+        #expect(bottomOn < bottomOff * 0.6, "band: \(bottomOn) vs \(bottomOff) without")
+        let aboveOn = try brightness(on, from: 0.05, to: 0.78), aboveOff = try brightness(off, from: 0.05, to: 0.78)
+        #expect(abs(aboveOn - aboveOff) < 0.02, "the picture above the band is untouched: \(aboveOn) vs \(aboveOff)")
+        let idleBottom = try brightness(idle, from: 0.86, to: 0.94)
+        #expect(abs(idleBottom - bottomOff) < 0.08, "no line on screen, no band: \(idleBottom) vs \(bottomOff)")
         for (src, name) in [(on, "videotool-tests-band-on.jpg"), (off, "videotool-tests-band-off.jpg")] {   // for a look by eye
             let dst = FileManager.default.temporaryDirectory.appendingPathComponent(name)
             try? FileManager.default.removeItem(at: dst)

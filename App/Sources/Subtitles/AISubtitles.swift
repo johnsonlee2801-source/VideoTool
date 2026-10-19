@@ -108,10 +108,10 @@ final class AISubtitlePreferences {
 enum SubtitleCache {
     /// Writes the .ass the player shows for a cached .srt, and returns it.
     @discardableResult
-    static func display(for srt: URL, bilingual: Bool, band: Bool, until videoEnd: Double) -> URL? {
+    static func display(for srt: URL, bilingual: Bool, band: Bool) -> URL? {
         guard let text = try? String(contentsOf: srt, encoding: .utf8) else { return nil }
         let ass = srt.deletingPathExtension().appendingPathExtension("ass")
-        let doc = ASS.document(SRT.parse(text, bilingual: bilingual), band: band, until: videoEnd)
+        let doc = ASS.document(SRT.parse(text, bilingual: bilingual), band: band)
         return (try? doc.write(to: ass, atomically: true, encoding: .utf8)) == nil ? nil : ass
     }
 

@@ -592,7 +592,7 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
                     DispatchQueue.main.async {
                         guard let self, self.aiPipeline === pipeline, !pipeline.isCancelled,
                               self.currentURL?.path == video, let engine = self.engine else { return }
-                        try? ASS.document(cues, band: self.aiPrefs.band, until: engine.state.duration)
+                        try? ASS.document(cues, band: self.aiPrefs.band)
                             .write(to: pipeline.liveFile, atomically: true, encoding: .utf8)
                         if liveShown { engine.reloadSubtitle(path: pipeline.liveFile.path) }
                         else { engine.addSubtitle(path: pipeline.liveFile.path, title: title); liveShown = true }
@@ -666,8 +666,7 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
 
     /// Shows finished AI subtitles through their .ass (with or without the band).
     private func showAISubtitles(srt: URL, bilingual: Bool, title: String) {
-        guard let engine, let display = SubtitleCache.display(for: srt, bilingual: bilingual, band: aiPrefs.band,
-                                                               until: engine.state.duration) else { return }
+        guard let engine, let display = SubtitleCache.display(for: srt, bilingual: bilingual, band: aiPrefs.band) else { return }
         engine.addSubtitle(path: display.path, title: title)
         aiShown = (srt, display, bilingual)
     }
@@ -676,7 +675,7 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     @objc func toggleSubtitleBand(_ sender: Any?) {
         aiPrefs.band.toggle()
         guard let shown = aiShown, let engine else { return }
-        SubtitleCache.display(for: shown.srt, bilingual: shown.bilingual, band: aiPrefs.band, until: engine.state.duration)
+        SubtitleCache.display(for: shown.srt, bilingual: shown.bilingual, band: aiPrefs.band)
         engine.reloadSubtitle(path: shown.display.path)
     }
 
