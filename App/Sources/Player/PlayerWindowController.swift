@@ -13,6 +13,9 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     /// Subtitle timing of the current video, kept here: the player applies changes
     /// asynchronously, so quick Z/X presses must not each start from its stale value.
     private var subtitleDelay = 0.0
+    private let skipStore = SkipStore()
+    /// The outro of the current file was handled (skipped once per pass).
+    private var outroDone = false
     private lazy var resumeTracker = ResumeTracker(storedPosition: { [resumeStore] path in
         resumeStore.position(for: URL(fileURLWithPath: path))
     })
@@ -92,6 +95,7 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         buildContent()
         wireEngine()
         engine?.setSpeed(speedStore.speed)          // start at the speed chosen last time
+        if NightMode.isOn { engine?.setNightMode(true) }
         if let engine {                             // and the sound output chosen last time, if it is still there
             let device = audioOutput.resolved(among: engine.audioDevices())
             if device != AudioOutput.followSystem { engine.setAudioDevice(device) }
@@ -372,6 +376,7 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         playerView?.showsPlaceholder = state.isIdle
 
         if state.eofReached { playerView?.gesture.cancel() }
+        skipOutroIfReached(state)
         resumeTracker.update(state).forEach(apply)
     }
 
@@ -391,7 +396,11 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         guard let engine else { return }
         switch event {
         case .fileLoaded(let path, let duration):
-            resumeTracker.fileLoaded(path: path, duration: duration).forEach(apply)
+            let resume = resumeTracker.fileLoaded(path: path, duration: duration)
+            resume.forEach(apply)
+            outroDone = false
+            skipIntro(path: path, duration: duration,
+                      resumingAt: resume.compactMap { if case .seek(let t) = $0 { return t } else { return nil } }.first)
             bookmarks?.open(path: path)         // identifies the file off the main thread
             engine.setPaused(false)
             restoreMemory(for: path)
@@ -418,6 +427,7 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         aiShown = nil
         hover.setSource(url.isFileURL ? url.path : nil)
         currentURL = url
+        loadedPath = nil
         defer { updateAIButton() }
         NSDocumentController.shared.noteNewRecentDocumentURL(url)
         engine.load(url)
@@ -479,6 +489,59 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     @objc func cycleAudio(_ sender: Any?) { perform(.cycleAudio) }
     @objc func subtitleEarlier(_ sender: Any?) { perform(.subtitleDelay(-0.1)) }
     @objc func subtitleLater(_ sender: Any?) { perform(.subtitleDelay(0.1)) }
+
+    // MARK: intro / outro
+
+    private var skipKey: String? { currentURL.flatMap { $0.isFileURL ? SkipStore.key(for: $0.path) : nil } }
+
+    /// Play › 片头片尾 › 片头到这里结束: for every episode of this series.
+    @objc func markIntroEnd(_ sender: Any?) {
+        guard let key = skipKey, let t = engine?.state.timePos else { return }
+        skipStore.update(key) { $0.introEnd = t }
+        playerView?.hud.flash(text: L("片头到 %@ 结束，本系列会自动跳过", TimeFormatting.string(t)))
+    }
+
+    @objc func markOutroStart(_ sender: Any?) {
+        guard let key = skipKey, let t = engine?.state.timePos else { return }
+        skipStore.update(key) { $0.outroStart = t }
+        outroDone = true                                  // not right now: from the next pass on
+        playerView?.hud.flash(text: L("片尾从 %@ 开始，本系列会自动跳过", TimeFormatting.string(t)))
+    }
+
+    @objc func clearSkips(_ sender: Any?) {
+        guard let key = skipKey else { return }
+        skipStore.clear(key)
+        playerView?.hud.flash(text: L("已清除本系列的片头片尾"))
+    }
+
+    /// From the start (or resuming before the intro's end): jump past the intro.
+    private func skipIntro(path: String, duration: Double, resumingAt resume: Double?) {
+        guard let intro = skipStore.skips(for: SkipStore.key(for: path))?.introEnd,
+              (resume ?? 0) < intro - 0.5, duration <= 0 || intro < duration - 1 else { return }
+        engine?.seek(to: intro)
+        playerView?.hud.flash(text: L("已跳过片头"))
+    }
+
+    /// Reaching the outro while playing: on to the next episode, or to the end.
+    private func skipOutroIfReached(_ state: PlayerState) {
+        guard let path = currentURL?.path, state.path == path, !state.isPaused, !outroDone, loadedPath == path,
+              let outro = skipStore.skips(for: SkipStore.key(for: path))?.outroStart, state.timePos >= outro else { return }
+        outroDone = true
+        playerView?.hud.flash(text: L("已跳过片尾"))
+        if let next = SeriesNavigator.nextEpisode(after: path) {
+            open(URL(fileURLWithPath: next))
+        } else {
+            engine?.seek(to: max(state.duration - 0.2, 0))
+        }
+    }
+
+    // MARK: night mode
+
+    @objc func toggleNightMode(_ sender: Any?) {
+        NightMode.isOn.toggle()
+        engine?.setNightMode(NightMode.isOn)
+        playerView?.hud.flash(text: NightMode.isOn ? L("夜间模式：人声更清楚，轰鸣声更小") : L("夜间模式已关闭"))
+    }
 
     // MARK: per-video memory
 
@@ -594,6 +657,11 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
             return true
         case #selector(exportAISubtitles(_:)):
             return aiShown != nil
+        case #selector(toggleNightMode(_:)):
+            item.state = NightMode.isOn ? .on : .off
+            return engine != nil
+        case #selector(markIntroEnd(_:)), #selector(markOutroStart(_:)), #selector(clearSkips(_:)):
+            return currentURL?.isFileURL == true
         case #selector(toggleSubtitleBand(_:)):
             item.state = aiPrefs.band ? .on : .off
             return true

@@ -315,6 +315,18 @@
   "en": "Night View",
   "ja": "夜景"
  },
+ "夜间模式已关闭": {
+  "en": "Night mode off",
+  "ja": "ナイトモードをオフにしました"
+ },
+ "夜间模式（对白更清楚）": {
+  "en": "Night Mode (Clearer Dialogue)",
+  "ja": "ナイトモード（セリフを聞きやすく）"
+ },
+ "夜间模式：人声更清楚，轰鸣声更小": {
+  "en": "Night mode: clearer voices, less rumble",
+  "ja": "ナイトモード：声はより聞きやすく、重低音は控えめに"
+ },
  "大": {
   "en": "Large",
   "ja": "大"
@@ -398,6 +410,18 @@
  "已撤销星标": {
   "en": "Star removed",
   "ja": "スターを取り消しました"
+ },
+ "已清除本系列的片头片尾": {
+  "en": "Intro and credits cleared for this series",
+  "ja": "このシリーズのオープニングとエンディングの設定を消去しました"
+ },
+ "已跳过片头": {
+  "en": "Intro skipped",
+  "ja": "オープニングをスキップしました"
+ },
+ "已跳过片尾": {
+  "en": "Credits skipped",
+  "ja": "エンディングをスキップしました"
  },
  "帮助": {
   "en": "Help",
@@ -711,6 +735,10 @@
   "en": "Unknown Resolution",
   "ja": "画質不明"
  },
+ "清除本系列的片头片尾": {
+  "en": "Clear Intro & Credits for This Series",
+  "ja": "このシリーズの設定を消去"
+ },
  "游戏": {
   "en": "Game",
   "ja": "ゲーム"
@@ -734,6 +762,26 @@
  "烟花": {
   "en": "Fireworks",
   "ja": "花火"
+ },
+ "片头到 %@ 结束，本系列会自动跳过": {
+  "en": "Intro ends at %@ — skipped for this series",
+  "ja": "オープニングは %@ まで。このシリーズでは自動でスキップします"
+ },
+ "片头到这里结束（本系列自动跳过）": {
+  "en": "Intro Ends Here (Skip for This Series)",
+  "ja": "オープニングはここまで（このシリーズでスキップ）"
+ },
+ "片头片尾": {
+  "en": "Intro & Credits",
+  "ja": "オープニングとエンディング"
+ },
+ "片尾从 %@ 开始，本系列会自动跳过": {
+  "en": "Credits start at %@ — skipped for this series",
+  "ja": "エンディングは %@ から。このシリーズでは自動でスキップします"
+ },
+ "片尾从这里开始（本系列自动跳过）": {
+  "en": "Credits Start Here (Skip for This Series)",
+  "ja": "エンディングはここから（このシリーズでスキップ）"
  },
  "狗": {
   "en": "Dog",

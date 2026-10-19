@@ -124,6 +124,11 @@ final class MPVEngine: PlayerEngine {
         command(["sub-add", path, select ? "select" : "auto", title])
     }
 
+    /// Night mode on/off (see NightMode.filter).
+    func setNightMode(_ on: Bool) {
+        command(on ? ["af", "add", NightMode.filter] : ["af", "remove", "@night"])
+    }
+
     func adjustSubtitleDelay(to seconds: Double) { command(["set", "sub-delay", String(seconds)]) }
 
     /// Track choice and timing for one video: "auto", "no" or a track id. These are
