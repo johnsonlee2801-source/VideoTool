@@ -114,7 +114,7 @@ final class LibraryOfferBar: NSView {
     }
 
     /// Compact version of the library window's buttons: sized to their label.
-    private static func style(_ button: NSButton, primary: Bool, symbol: String) {
+    static func style(_ button: NSButton, primary: Bool, symbol: String) {
         button.isBordered = false
         button.wantsLayer = true
         button.layer?.cornerRadius = Theme.radiusSmall + 1

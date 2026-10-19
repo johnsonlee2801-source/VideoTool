@@ -134,6 +134,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         list.keyEquivalentModifierMask = [.command, .shift]
         playMenu.addItem(.separator())
         playMenu.addItem(withTitle: "切换字幕轨", action: #selector(PlayerWindowController.cycleSubtitle(_:)), keyEquivalent: "s")
+        playMenu.addItem(withTitle: "AI 字幕…", action: #selector(PlayerWindowController.generateAISubtitles(_:)), keyEquivalent: "t")
         playMenu.addItem(withTitle: "切换音轨", action: #selector(PlayerWindowController.cycleAudio(_:)), keyEquivalent: "a")
         playMenu.addItem(withTitle: "静音", action: #selector(PlayerWindowController.toggleMute(_:)), keyEquivalent: "m")
         playItem.submenu = playMenu

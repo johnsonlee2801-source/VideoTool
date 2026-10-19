@@ -36,6 +36,27 @@ private func waitUntil(_ timeout: Double = 5, _ condition: () -> Bool) async -> 
         engine.shutdown()
     }
 
+    @Test("I-AI an AI subtitle file is added to the playing video, selected and shown at its time")
+    func addsGeneratedSubtitle() async throws {
+        let srt = FileManager.default.temporaryDirectory.appendingPathComponent("ai-\(UUID().uuidString).srt")
+        try SRT.document([SubtitleCue(start: 0, end: 30, text: "Hello, everyone.", translation: "大家好。")])
+            .write(to: srt, atomically: true, encoding: .utf8)
+        let engine = try MPVEngine()
+        let layer = MPVRenderLayer(engine: engine)
+        var loaded = false
+        engine.onEvent = { if case .fileLoaded = $0 { loaded = true } }
+        engine.loadTarget(sample)
+        #expect(await waitUntil { loaded })
+        engine.addSubtitle(path: srt.path, title: "AI 字幕（英语 → 简体中文）")
+        #expect(await waitUntil { engine.trackCounts().subtitle == 1 }, "the subtitle track was not added")
+        #expect(await waitUntil { engine.property("current-tracks/sub/title") == "AI 字幕（英语 → 简体中文）" })
+        engine.seek(to: 1)
+        #expect(await waitUntil { engine.property("sub-text") == "大家好。\nHello, everyone." },
+                "shown text: \(engine.property("sub-text") ?? "nil")")
+        layer.teardown()
+        engine.shutdown()
+    }
+
     @Test("I2 a file loaded right after setup starts playing (no 'No render context set')")
     func loadsAndPlays() async throws {
         let engine = try MPVEngine()

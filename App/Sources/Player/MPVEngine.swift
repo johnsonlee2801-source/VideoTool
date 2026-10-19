@@ -98,6 +98,8 @@ final class MPVEngine: PlayerEngine {
     func setVolume(_ volume: Double) { setDouble("volume", min(max(volume, 0), 100)) }
     func toggleMute() { command(["cycle", "mute"]) }
     func cycleSubtitle() { command(["cycle", "sub"]) }
+    /// Adds an external subtitle file and shows it (AI subtitles).
+    func addSubtitle(path: String, title: String) { command(["sub-add", path, "select", title]) }
     func cycleAudio() { command(["cycle", "audio"]) }
 
     // MARK: commands & properties

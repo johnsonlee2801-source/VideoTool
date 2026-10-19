@@ -14,6 +14,12 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     private let controlBar = NSView()
     /// "Add this folder to the library?" card (the app delegate decides when to offer).
     let libraryOffer = LibraryOfferBar()
+    /// Progress of AI subtitles over the video (top left).
+    let aiCard = AISubtitleCard()
+    private let aiPrefs = AISubtitlePreferences()
+    private var aiPipeline: AISubtitlePipeline?
+    private var aiTask: Task<Void, Never>?
+    var isMakingAISubtitles: Bool { aiTask != nil }
     /// A file was opened here (menu, Finder, drop or library); used for the library offer.
     var onFileOpened: ((URL) -> Void)?
     private let playButton = NSButton(title: "", target: nil, action: nil)
@@ -207,6 +213,13 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
             constraints += [error.centerXAnchor.constraint(equalTo: content.centerXAnchor),
                             error.centerYAnchor.constraint(equalTo: content.centerYAnchor)]
         }
+        aiCard.translatesAutoresizingMaskIntoConstraints = false
+        content.addSubview(aiCard)
+        constraints += [
+            aiCard.leadingAnchor.constraint(equalTo: content.leadingAnchor, constant: 16),
+            aiCard.topAnchor.constraint(equalTo: content.topAnchor, constant: 16),
+            aiCard.widthAnchor.constraint(lessThanOrEqualTo: content.widthAnchor, constant: -32),
+        ]
         libraryOffer.translatesAutoresizingMaskIntoConstraints = false
         content.addSubview(libraryOffer)
         constraints += [
@@ -327,6 +340,7 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
             resumeTracker.fileLoaded(path: path, duration: duration).forEach(apply)
             bookmarks?.open(path: path)         // identifies the file off the main thread
             engine.setPaused(false)
+            loadCachedAISubtitles(for: path)
         case .endFile:
             // With keep-open, natural EOF does not end the file; eofReached in
             // render() handles that. This fires on replace/stop/errors.
@@ -344,6 +358,7 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         bookmarks?.fileClosed()
         preview.hide()
         libraryOffer.hide()
+        cancelAISubtitles()
         currentURL = url
         NSDocumentController.shared.noteNewRecentDocumentURL(url)
         engine.load(url)
@@ -355,6 +370,7 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     func shutdown() {
         guard !isShutDown else { return }
         isShutDown = true
+        cancelAISubtitles()
         saveResumeNow()
         keyMonitor.map(NSEvent.removeMonitor)
         keyMonitor = nil
@@ -478,12 +494,91 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         case #selector(chooseSpeedPreset(_:)):
             item.state = (item.representedObject as? Double).map { abs($0 - preferredSpeed) < 0.001 } == true ? .on : .off
             return engine != nil
+        case #selector(generateAISubtitles(_:)):
+            guard #available(macOS 26.0, *) else { item.toolTip = "需要 macOS 26 或更新版本"; return false }
+            return currentURL?.isFileURL == true && aiTask == nil
         case #selector(toggleBookmarkList(_:)):
             item.state = listPanel.isHidden ? .off : .on
             return bookmarks != nil
         default:
             return true
         }
+    }
+
+    // MARK: AI subtitles
+
+    /// Play › AI 字幕…: pick languages, then make subtitles on this Mac and show them.
+    @objc func generateAISubtitles(_ sender: Any?) {
+        guard #available(macOS 26.0, *), let url = currentURL, url.isFileURL, let window, aiTask == nil else { return }
+        Task { @MainActor [weak self] in
+            let sources = await AppleSpeechRecognizer.availableSources()
+            guard let self else { return }
+            AISubtitleDialog.run(on: window, sources: sources, preferences: self.aiPrefs) { [weak self] choice in
+                guard let self, let choice, self.currentURL == url else { return }
+                self.startAISubtitles(video: url.path, choice: choice)
+            }
+        }
+    }
+
+    @available(macOS 26.0, *)
+    private func startAISubtitles(video: String, choice: AISubtitleDialog.Choice) {
+        let pipeline = AISubtitlePipeline(recognizer: AppleSpeechRecognizer(),
+                                          translator: AppleTranslator(window: { [weak self] in self?.window }))
+        aiPipeline = pipeline
+        aiCard.onCancel = { [weak self] in self?.cancelAISubtitles(showing: "已取消生成字幕") }
+        aiCard.show(.extracting, 0)
+        let request = AISubtitlePipeline.Request(video: video, source: choice.source, target: choice.target)
+        aiTask = Task { @MainActor [weak self] in
+            let message: String
+            do {
+                let out = try await pipeline.run(request) { phase, fraction in
+                    DispatchQueue.main.async { if !pipeline.isCancelled { self?.aiCard.show(phase, fraction) } }
+                }
+                guard let self, self.currentURL?.path == video else { return }
+                self.engine?.addSubtitle(path: out.srt.path, title: Self.subtitleTitle(request, translated: !out.translationSkipped))
+                message = out.translationSkipped ? AISubtitleError.translationUnavailable.message
+                                                 : "字幕已生成，共 \(out.cueCount) 句（按 S 可切换字幕）"
+            } catch let error as AISubtitleError {
+                guard error != .cancelled else { return }
+                message = error.message
+            } catch {
+                message = AISubtitleError.failed(error.localizedDescription).message
+            }
+            self?.aiCard.finish(message)
+            self?.aiTask = nil
+            self?.aiPipeline = nil
+        }
+    }
+
+    /// Stops a running job (new file, window closing, or 取消).
+    func cancelAISubtitles(showing message: String? = nil) {
+        guard aiTask != nil else { return }
+        aiPipeline?.cancel()
+        aiTask?.cancel()
+        aiTask = nil
+        aiPipeline = nil
+        if let message { aiCard.finish(message) } else { aiCard.hide() }
+    }
+
+    /// Subtitles made earlier for this file (same languages as last time) come back by themselves.
+    private func loadCachedAISubtitles(for path: String) {
+        let source = aiPrefs.source
+        let target = aiPrefs.target.flatMap { SubtitleLanguages.sameLanguage(source, $0) ? nil : $0 }
+        for (t, translated) in [(target, target != nil), (nil, false)] {
+            let url = SubtitleCache.url(forVideo: path, source: source, target: t)
+            if FileManager.default.fileExists(atPath: url.path) {
+                let request = AISubtitlePipeline.Request(video: path, source: source, target: t)
+                engine?.addSubtitle(path: url.path, title: Self.subtitleTitle(request, translated: translated))
+                return
+            }
+        }
+    }
+
+    static func subtitleTitle(_ r: AISubtitlePipeline.Request, translated: Bool) -> String {
+        let from = SubtitleLanguages.sources.first { $0.id == r.source }?.name ?? r.source
+        guard translated, let t = r.target else { return "AI 字幕（\(from)）" }
+        let to = SubtitleLanguages.targets.first { $0.id == t }?.name ?? t
+        return "AI 字幕（\(from) → \(to)）"
     }
 
     // MARK: keyboard
