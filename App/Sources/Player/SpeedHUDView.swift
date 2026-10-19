@@ -5,6 +5,8 @@ import AppKit
 final class SpeedHUDView: NSView, SpeedHUD {
     private let icon = NSImageView()
     private let label = NSTextField(labelWithString: "")
+    /// What the HUD says right now (tests).
+    var text: String { label.stringValue }
     private let bar = NSView()
     private let fill = NSView()
     private var fillWidth: NSLayoutConstraint?
@@ -68,7 +70,7 @@ final class SpeedHUDView: NSView, SpeedHUD {
         icon.image = NSImage(systemSymbolName: faster ? "forward.fill" : "backward.fill", accessibilityDescription: nil)
         icon.contentTintColor = tint
         icon.isHidden = false
-        label.stringValue = String(format: "%.1f×", speed)
+        label.stringValue = PlaybackSpeed.label(speed)
         label.font = Theme.digits(38, .heavy)
         fill.layer?.backgroundColor = tint.cgColor
         let fraction = max(0, min(1, (speed - minSpeed) / (maxSpeed - minSpeed)))
@@ -84,7 +86,7 @@ final class SpeedHUDView: NSView, SpeedHUD {
     }
 
     func flash(speed: Double) {
-        flash(text: String(format: "%.1f×", speed), symbol: "play.fill")
+        flash(text: PlaybackSpeed.label(speed), symbol: "play.fill")      // 1.25×, not 1.3×
     }
 
     /// Brief message, e.g. "★ 12:34" after starring.

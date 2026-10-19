@@ -41,7 +41,9 @@ goals, layout, build and test commands. `CLAUDE.md` only imports this file.
 - Review UI changes with `scripts/xcb.sh test -only-testing:VideoToolTests/UISnapshotTests`;
   PNGs land in `~/Library/Developer/Xcode/DerivedData/VideoTool-cli.noindex/snapshots/current/`.
 - `scripts/coverage.sh` runs every test with coverage and lists files weakest first;
-  it fails below 85% lines (2026-10-18: 87.4%). AppKit glue is tested by feeding
+  it fails below 90% lines (2026-10-19: 92.2%). Code that only opens system UI
+  (open panel, browser, default-app prompts, pop-up menu tracking) and real
+  translation with an installed language pack stay manual checks. AppKit glue is tested by feeding
   synthesized events to `PlayerWindowController.handleKeyDown` and `PlayerView`
   (`PlayerEventGlueTests`); keep new event handling reachable that way.
 - `tools/stress_library.sh N` measures indexing N files (2026-10-18: 1000 in 31 s,

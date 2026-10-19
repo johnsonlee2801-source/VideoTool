@@ -326,20 +326,36 @@ final class LibraryWindowController: NSWindowController, NSWindowDelegate,
     func menuNeedsUpdate(_ menu: NSMenu) {
         menu.removeAllItems()
         if menu === sidebar.menu {
-            let row = sidebar.clickedRow
-            guard sidebarRows.indices.contains(row), case .root(let path) = sidebarRows[row] else { return }
-            menu.addItem(ClosureMenuItem("在 Finder 中显示") { NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: path) })
-            menu.addItem(ClosureMenuItem("从视频库移除（不删除文件）") { [weak self] in self?.controller.removeRoot(path) })
+            sidebarMenuItems(row: sidebar.clickedRow).forEach(menu.addItem)
         } else if menu === grid.menu {
             let point = grid.convert(grid.window?.mouseLocationOutsideOfEventStream ?? .zero, from: nil)
             guard let ip = grid.indexPathForItem(at: point), let item = item(at: ip) else { return }
-            menu.addItem(ClosureMenuItem("在播放器中打开") { [weak self] in self?.open(item) })
-            menu.addItem(ClosureMenuItem("修改剧集信息…") { [weak self] in self?.editSeries(item) })
-            menu.addItem(ClosureMenuItem("在 Finder 中显示") {
-                NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: item.record.path)])
-            })
+            cardMenuItems(for: item).forEach(menu.addItem)
         }
     }
+
+    /// Right-click on a folder in the sidebar (nothing for the mode rows).
+    func sidebarMenuItems(row: Int) -> [NSMenuItem] {
+        guard sidebarRows.indices.contains(row), case .root(let path) = sidebarRows[row] else { return [] }
+        return [ClosureMenuItem("在 Finder 中显示") { NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: path) },
+                ClosureMenuItem("从视频库移除（不删除文件）") { [weak self] in self?.controller.removeRoot(path) }]
+    }
+
+    /// Right-click on a video card.
+    func cardMenuItems(for item: LibraryItem) -> [NSMenuItem] {
+        [ClosureMenuItem("在播放器中打开") { [weak self] in self?.open(item) },
+         ClosureMenuItem("修改剧集信息…") { [weak self] in self?.editSeries(item) },
+         ClosureMenuItem("在 Finder 中显示") {
+             NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: item.record.path)])
+         }]
+    }
+
+    /// Row of a sidebar entry (tests select modes and folders by it).
+    func sidebarRow(mode: LibraryGroupingMode) -> Int? { sidebarRows.firstIndex { if case .mode(mode) = $0 { return true } else { return false } } }
+    func sidebarRow(root: String) -> Int? { sidebarRows.firstIndex { if case .root(root) = $0 { return true } else { return false } } }
+    var sidebarForTesting: NSTableView { sidebar }
+    var searchFieldForTesting: NSSearchField { searchField }
+    var emptyMessage: (title: String, detail: String) { (emptyTitle.stringValue, empty.stringValue) }
 
     /// Back from the player: progress may have changed (继续观看, progress stripes).
     /// Only re-reads the index; no rescan.

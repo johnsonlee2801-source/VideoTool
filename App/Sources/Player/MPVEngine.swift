@@ -99,7 +99,9 @@ final class MPVEngine: PlayerEngine {
     func seek(to seconds: Double) { command(["seek", "\(max(0, seconds))", "absolute"]) }
     /// Fast keyframe seek for live scrubbing; the final position uses an exact seek.
     func scrub(to seconds: Double) { command(["seek", "\(max(0, seconds))", "absolute+keyframes"]) }
-    func seek(by delta: Double) { command(["seek", "\(delta)", "relative"]) }
+    /// Exact, like the bar: a keyframe seek can miss ±5 s by several seconds when
+    /// keyframes are far apart (found 2026-10-19: "back 5 s" from 0:07 landed at 0:00).
+    func seek(by delta: Double) { command(["seek", "\(delta)", "relative+exact"]) }
     func setSpeed(_ speed: Double) { setDouble("speed", min(max(speed, 0.1), 10)) }
     func setVolume(_ volume: Double) { setDouble("volume", min(max(volume, 0), 100)) }
     func toggleMute() { command(["cycle", "mute"]) }

@@ -1,13 +1,13 @@
 #!/bin/zsh
 # Runs every app test with code coverage on and prints line coverage per file of
 # VideoTool.app, weakest first. Fails if total line coverage drops below the floor.
-# Usage: scripts/coverage.sh [floor-percent]   (default 85; 2026-10-18 baseline: 87.3)
+# Usage: scripts/coverage.sh [floor-percent]   (default 90; 2026-10-19: 92.2)
 # Run outside the agent sandbox (xcodebuild writes to ~/Library).
 set -e
 cd "${0:A:h:h}"
 export DEVELOPER_DIR=${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}
 DD="${VIDEOTOOL_DERIVED_DATA:-$HOME/Library/Developer/Xcode/DerivedData/VideoTool-cli.noindex}"
-floor=${1:-85}
+floor=${1:-90}
 set +e
 scripts/xcb.sh test -enableCodeCoverage YES > "$DD/coverage-last.log" 2>&1
 rc=$?

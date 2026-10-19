@@ -28,7 +28,7 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     private let playButton = NSButton(title: "", target: nil, action: nil)
     private let timeLabel = NSTextField(labelWithString: "0:00")
     private let durationLabel = NSTextField(labelWithString: "0:00")
-    private let slider: NSSlider = {
+    let slider: NSSlider = {          // internal: tests click the bar
         let s = NSSlider(value: 0, minValue: 0, maxValue: 1, target: nil, action: nil)
         s.cell = PlayerSliderCell()
         return s
@@ -46,7 +46,7 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     private let bookmarks: BookmarkController?
     private let markers = BookmarkMarkersView()
     private let preview = BookmarkPreviewView()
-    private let listPanel = BookmarkListView()
+    let listPanel = BookmarkListView()    // internal: tests use the list
     private var listWidth: NSLayoutConstraint?
     private let starButton = NSButton(title: "", target: nil, action: nil)
     private let listButton = NSButton(title: "", target: nil, action: nil)

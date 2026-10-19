@@ -2,10 +2,10 @@ import AppKit
 import UniformTypeIdentifiers
 
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, NSMenuDelegate {
-    private var playerWindow: PlayerWindowController?
+    private(set) var playerWindow: PlayerWindowController?
     private var libraryWindow: LibraryWindowController?
     /// One library model for the window and for folders added from the player.
-    private lazy var libraryController: LibraryController? = {
+    private(set) lazy var libraryController: LibraryController? = {
         guard let store = try? LibraryStore() else { return nil }
         let path = SQLiteDatabase.defaultPath
         return LibraryController(
