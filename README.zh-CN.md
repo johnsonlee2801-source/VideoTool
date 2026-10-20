@@ -3,6 +3,8 @@
 <p align="center"><b>看得快，看得懂，留得住。</b><br>
 免费开源的 Mac 视频播放器。</p>
 
+<p align="center">由 <b>ChengNuo</b> 制作 — <a href="https://github.com/johnsonlee2801-source">GitHub</a> · <a href="https://blog.flowhunt.net/">blog.flowhunt.net</a></p>
+
 <p align="center"><a href="README.md">English</a> · <b>简体中文</b> · <a href="README.ja.md">日本語</a></p>
 
 ---
@@ -83,8 +85,12 @@ VideoTool 只做好三件事，这三件事别的播放器都没这样做。
 
 界面有 English、简体中文、日本語：默认跟随系统，也可以在 **VideoTool › 语言** 里自己选。欢迎提建议、报问题：在 App 里选 **帮助 › 发送反馈…**，会打开一个已填好基本信息的问题页面。
 
+## 作者
+
+VideoTool 由 **ChengNuo** 设计和开发。从「按住加速」到「本机 AI 字幕」，每个功能都来自对大家真实看视频习惯的观察。欢迎在 [GitHub](https://github.com/johnsonlee2801-source) 和 [blog.flowhunt.net](https://blog.flowhunt.net/) 关注或交流。
+
 ## 致谢
 
-[mpv](https://mpv.io) 和 [FFmpeg](https://ffmpeg.org)（经 [MPVKit](https://github.com/mpvkit/MPVKit) 使用的 LGPL 版本），以及 Apple 的 Speech、Translation。完整清单和许可证见 [THIRD_PARTY_NOTICES.md](App/Resources/THIRD_PARTY_NOTICES.md)。VideoTool 以 [Mozilla Public License 2.0](LICENSE) 开源。
+[mpv](https://mpv.io) 和 [FFmpeg](https://ffmpeg.org)（经 [MPVKit](https://github.com/mpvkit/MPVKit) 使用的 LGPL 版本），以及 Apple 的 Speech、Translation。完整清单和许可证见 [THIRD_PARTY_NOTICES.md](App/Resources/THIRD_PARTY_NOTICES.md)。© 2026 ChengNuo。VideoTool 以 [Mozilla Public License 2.0](LICENSE) 开源。
 
 画面：[Tears of Steel](https://mango.blender.org)（CC BY 3.0）© Blender Foundation。图中字幕由 VideoTool 实际生成。

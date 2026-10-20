@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.8 (2026-10-20)
+
+- Made by ChengNuo: the About window, the first screen and the copyright line
+  say who makes VideoTool, with links to GitHub and blog.flowhunt.net.
+- The README is English + Chinese on the main page, with feature pictures.
+
 ## 0.3.7 (2026-10-20)
 
 Fixes from a review of the clip feature:

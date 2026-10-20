@@ -236,12 +236,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
     /// Standard About panel, with the third-party licences as its credits.
     @objc func showAbout(_ sender: Any?) {
         var options: [NSApplication.AboutPanelOptionKey: Any] = [:]
-        if let url = Bundle.main.url(forResource: "THIRD_PARTY_NOTICES", withExtension: "md"),
-           let text = try? String(contentsOf: url, encoding: .utf8) {
-            options[.credits] = NSAttributedString(string: text, attributes: [
-                .font: NSFont.monospacedSystemFont(ofSize: 10, weight: .regular),
-                .foregroundColor: NSColor.labelColor])
-        }
+        let notices = Bundle.main.url(forResource: "THIRD_PARTY_NOTICES", withExtension: "md")
+            .flatMap { try? String(contentsOf: $0, encoding: .utf8) } ?? ""
+        options[.credits] = About.credits(notices: notices)
         NSApp.orderFrontStandardAboutPanel(options: options)
         NSApp.activate(ignoringOtherApps: true)
     }

@@ -3,6 +3,8 @@
 <p align="center"><b>速く見て、どの言語もわかって、いい場面を残す。</b><br>
 無料でオープンソースの Mac 用ビデオプレーヤー。</p>
 
+<p align="center">制作：<b>ChengNuo</b> — <a href="https://github.com/johnsonlee2801-source">GitHub</a> · <a href="https://blog.flowhunt.net/">blog.flowhunt.net</a></p>
+
 <p align="center"><a href="README.md">English</a> · <a href="README.zh-CN.md">简体中文</a> · <b>日本語</b></p>
 
 ---
@@ -83,8 +85,12 @@ macOS 26 以降が必要です。言語ごとのデータは、システムが�
 
 表示言語は English、简体中文、日本語 です。Mac の言語設定に合わせるほか、**VideoTool › 言語** で選ぶこともできます。ご意見や不具合の報告をお待ちしています。アプリの **ヘルプ › フィードバックを送信…** から、必要な情報が入力済みの Issue を開けます。
 
+## 作者
+
+VideoTool は **ChengNuo** が設計・開発しています。「長押しで速く」から「Mac の中で作る AI字幕」まで、どの機能も、人が実際にどうビデオを見ているかの観察から生まれました。[GitHub](https://github.com/johnsonlee2801-source) と [blog.flowhunt.net](https://blog.flowhunt.net/) でフォローや連絡をどうぞ。
+
 ## 使用している技術
 
-[mpv](https://mpv.io) と [FFmpeg](https://ffmpeg.org)（[MPVKit](https://github.com/mpvkit/MPVKit) 経由の LGPL ビルド）、Apple の Speech と Translation。ライセンスを含む一覧は [THIRD_PARTY_NOTICES.md](App/Resources/THIRD_PARTY_NOTICES.md) にあります。VideoTool は [Mozilla Public License 2.0](LICENSE) のオープンソースです。
+[mpv](https://mpv.io) と [FFmpeg](https://ffmpeg.org)（[MPVKit](https://github.com/mpvkit/MPVKit) 経由の LGPL ビルド）、Apple の Speech と Translation。ライセンスを含む一覧は [THIRD_PARTY_NOTICES.md](App/Resources/THIRD_PARTY_NOTICES.md) にあります。© 2026 ChengNuo。VideoTool は [Mozilla Public License 2.0](LICENSE) のオープンソースです。
 
 映像：[Tears of Steel](https://mango.blender.org)（CC BY 3.0）© Blender Foundation。字幕は VideoTool が実際に生成したものです。

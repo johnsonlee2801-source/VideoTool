@@ -33,9 +33,17 @@ final class EmptyStateView: NSView {
         stack.setCustomSpacing(18, after: subtitle)
         stack.translatesAutoresizingMaskIntoConstraints = false
         addSubview(stack)
+        // Who made it, quietly at the bottom.
+        let byline = NSTextField(labelWithString: L("由 %@ 制作", About.author))
+        byline.font = .systemFont(ofSize: 11, weight: .medium)
+        byline.textColor = Theme.textTertiary
+        byline.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(byline)
         NSLayoutConstraint.activate([
             stack.centerXAnchor.constraint(equalTo: centerXAnchor),
             stack.centerYAnchor.constraint(equalTo: centerYAnchor),
+            byline.centerXAnchor.constraint(equalTo: centerXAnchor),
+            byline.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -20),
         ])
     }
     required init?(coder: NSCoder) { fatalError("not supported") }

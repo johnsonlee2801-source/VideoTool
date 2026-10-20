@@ -98,6 +98,7 @@
 		8FF66CB5C16EF1EDA14A4BCB /* TimeFormatting.swift in Sources */ = {isa = PBXBuildFile; fileRef = EEBBE5076C043949C4A15B3F /* TimeFormatting.swift */; };
 		90FC4D02F237FC9EEE5D6374 /* MPVKit in Frameworks */ = {isa = PBXBuildFile; productRef = 0CA225FD018C17245BE81A16 /* MPVKit */; };
 		931FFD49F1E1722963DA5EA7 /* mpeg4_mp3.avi in Resources */ = {isa = PBXBuildFile; fileRef = EDE7DED60CE07C528268436B /* mpeg4_mp3.avi */; };
+		9598251BFA021A5F33C203DE /* AuthorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AC9B5C3BFBE21D67CDA74C3 /* AuthorTests.swift */; };
 		96A86622B4572EE3ECFE25CB /* LanguageMenuTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00074D954ADF91DB047A87BF /* LanguageMenuTests.swift */; };
 		9C99062E12BEA2035D137AFB /* PlaybackMemory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AD872C3686DC4CE462AA2FD /* PlaybackMemory.swift */; };
 		9FA83ADE118E0547C6A3CAE2 /* CoverageRound2Tests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A8644B955E4DEF8D28FE2622 /* CoverageRound2Tests.swift */; };
@@ -133,6 +134,7 @@
 		D5827AD5DDC9FC7EA8BB62E5 /* h264_aac.mp4 in Resources */ = {isa = PBXBuildFile; fileRef = 8F7A02415B1058C76D191DBD /* h264_aac.mp4 */; };
 		D7E7ADF87AE1587CFB0FC6CA /* SeriesEditDialog.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4CFD15BEAC9FB9A263D0C69 /* SeriesEditDialog.swift */; };
 		D8012149DCE69A7E413AF3F3 /* AISubtitleUI.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF122F2B1C9C344DF28DB4EB /* AISubtitleUI.swift */; };
+		D99BF8D66DC7FA9E7D0B2D87 /* About.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE5E10EB13B134C70CB37A98 /* About.swift */; };
 		DB80FB1A7D75112B78A7EAFA /* PlayerWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73F72CE394289093319DFBA6 /* PlayerWindowController.swift */; };
 		DCBACB39555247892642A408 /* FeedbackTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23AF3169BAF18FA412190E50 /* FeedbackTests.swift */; };
 		DEB21E5B7AF01CB616CFEB66 /* PlayerEventGlueTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 658B07ED93AB18EC7D871641 /* PlayerEventGlueTests.swift */; };
@@ -240,6 +242,7 @@
 		7843163AEC985C1E217B5FB2 /* ClipExporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipExporter.swift; sourceTree = "<group>"; };
 		7A4C40E0F5412FC4F180E25C /* LiveSubtitleTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveSubtitleTests.swift; sourceTree = "<group>"; };
 		7AAC64859934FD89CEC61B05 /* AppleSpeech.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleSpeech.swift; sourceTree = "<group>"; };
+		7AC9B5C3BFBE21D67CDA74C3 /* AuthorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthorTests.swift; sourceTree = "<group>"; };
 		7F72FEB279668ADBDC94CEAE /* SubtitleFromHereTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubtitleFromHereTests.swift; sourceTree = "<group>"; };
 		80160D36611FC50CE96CB1D5 /* UISnapshotTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UISnapshotTests.swift; sourceTree = "<group>"; };
 		822B01872C21504126E831C5 /* rotated_90.mp4 */ = {isa = PBXFileReference; path = rotated_90.mp4; sourceTree = "<group>"; };
@@ -292,6 +295,7 @@
 		D6FA1C8B4916A539972D4970 /* AudioOutputTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioOutputTests.swift; sourceTree = "<group>"; };
 		D8022AC5547965F24F57EE06 /* av1_opus.mkv */ = {isa = PBXFileReference; path = av1_opus.mkv; sourceTree = "<group>"; };
 		D847EF4D7823E96BBD60E9ED /* hfr_60fps.mp4 */ = {isa = PBXFileReference; path = hfr_60fps.mp4; sourceTree = "<group>"; };
+		DE5E10EB13B134C70CB37A98 /* About.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = About.swift; sourceTree = "<group>"; };
 		DFBD04978F6C9F15CD0BD375 /* hevc_aac.mp4 */ = {isa = PBXFileReference; path = hevc_aac.mp4; sourceTree = "<group>"; };
 		E09C1C2CD89F41D9E6A87AF2 /* vp9_opus.webm */ = {isa = PBXFileReference; path = vp9_opus.webm; sourceTree = "<group>"; };
 		E204FEE3947F3589ECCA356F /* TimeFormattingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimeFormattingTests.swift; sourceTree = "<group>"; };
@@ -370,6 +374,7 @@
 				22F38DEE10B3DC875C5F6621 /* AISubtitleUITests.swift */,
 				9C361EDDD61E7184C16640E2 /* AppDataTests.swift */,
 				D6FA1C8B4916A539972D4970 /* AudioOutputTests.swift */,
+				7AC9B5C3BFBE21D67CDA74C3 /* AuthorTests.swift */,
 				CE041B0D788D7BFEF4C306C0 /* BookmarkControllerTests.swift */,
 				35A675DD65131807384C7730 /* BookmarkMarkersViewTests.swift */,
 				CB30483F2E3CB42090D1C8AE /* BookmarkNavigatorTests.swift */,
@@ -532,6 +537,7 @@
 		8C9588508D4611DAEB83FC14 /* Sources */ = {
 			isa = PBXGroup;
 			children = (
+				DE5E10EB13B134C70CB37A98 /* About.swift */,
 				965349F88968DDB1D8518072 /* AppData.swift */,
 				E4972D1B8FF63C366A16D203 /* AppDelegate.swift */,
 				1EC6170500CD12EC055E6A9C /* DefaultAppRegistrar.swift */,
@@ -748,6 +754,7 @@
 				FD6BACD7F548947CA19BBCD1 /* AISubtitleUITests.swift in Sources */,
 				05AFDE994CE9A12E73981699 /* AppDataTests.swift in Sources */,
 				138E5B3823998406AA2BF1B9 /* AudioOutputTests.swift in Sources */,
+				9598251BFA021A5F33C203DE /* AuthorTests.swift in Sources */,
 				FB8C61A77881DCA9820A0BB5 /* BookmarkControllerTests.swift in Sources */,
 				3A0214AF327F2D1FCD56B139 /* BookmarkMarkersViewTests.swift in Sources */,
 				B346B132AA0B69515EE20EAA /* BookmarkNavigatorTests.swift in Sources */,
@@ -811,6 +818,7 @@
 			files = (
 				D8012149DCE69A7E413AF3F3 /* AISubtitleUI.swift in Sources */,
 				09A18CBFB63ED29273F5FFC8 /* AISubtitles.swift in Sources */,
+				D99BF8D66DC7FA9E7D0B2D87 /* About.swift in Sources */,
 				268D5AF55242B8FD642561BB /* AppData.swift in Sources */,
 				F7A7815265095A0941A829EF /* AppDelegate.swift in Sources */,
 				64BE2300325A4F9CBC2B7682 /* AppleSpeech.swift in Sources */,

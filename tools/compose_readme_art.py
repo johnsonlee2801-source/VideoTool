@@ -218,6 +218,8 @@ def hero(lang):
     canvas.paste(icon, (80, 64), icon)
     d = ImageDraw.Draw(canvas)
     d.text((222, 72), "VideoTool", font=font(76, "Semibold", False), fill=WHITE)
+    name_w = d.textlength("VideoTool", font=font(76, "Semibold", False))
+    d.text((222 + name_w + 22, 140), "by ChengNuo", font=font(30, "Medium", False), fill=GREY, anchor="ls")
     big, small = t["tagline"]
     d.text((222, 166), big, font=font(34, "Medium", lang != "en"), fill=WHITE)
     d.text((80, 224), small, font=font(26, "Regular", lang == "en"), fill=GREY)

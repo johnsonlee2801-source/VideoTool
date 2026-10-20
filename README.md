@@ -5,6 +5,8 @@
 <p align="center"><b>The Mac video player that keeps up with you. Free and open source.</b><br>
 <b>跟得上你节奏的 Mac 视频播放器。免费、开源。</b></p>
 
+<p align="center">Made by <b>ChengNuo</b> · 由 <b>ChengNuo</b> 制作 — <a href="https://github.com/johnsonlee2801-source">GitHub</a> · <a href="https://blog.flowhunt.net/">blog.flowhunt.net</a></p>
+
 <p align="center"><a href="https://github.com/johnsonlee2801-source/VideoTool/releases/latest"><b>⬇︎ Download for Mac · 下载 Mac 版</b></a></p>
 
 ---
@@ -88,8 +90,14 @@ Build it yourself · 自己编译: [CONTRIBUTING.md](CONTRIBUTING.md)
 
 Interface in English, 简体中文 and 日本語: **VideoTool › Language · 语言**. Feedback · 反馈: **Help › Send Feedback… · 帮助 › 发送反馈…**
 
+## Author · 作者
+
+VideoTool is designed and built by **ChengNuo**: every feature, from the hold-to-speed gesture to the on-device subtitles, came out of watching how people really watch videos. Follow along, or say hello, on [GitHub](https://github.com/johnsonlee2801-source) and [blog.flowhunt.net](https://blog.flowhunt.net/).
+
+VideoTool 由 **ChengNuo** 设计和开发。从「按住加速」到「本机 AI 字幕」，每个功能都来自对大家真实看视频习惯的观察。欢迎在 [GitHub](https://github.com/johnsonlee2801-source) 和 [blog.flowhunt.net](https://blog.flowhunt.net/) 关注或交流。
+
 ## Built with · 致谢
 
-[mpv](https://mpv.io) and [FFmpeg](https://ffmpeg.org) (LGPL builds via [MPVKit](https://github.com/mpvkit/MPVKit)), Apple Speech and Translation · 完整清单见 [THIRD_PARTY_NOTICES.md](App/Resources/THIRD_PARTY_NOTICES.md). VideoTool: [Mozilla Public License 2.0](LICENSE).
+[mpv](https://mpv.io) and [FFmpeg](https://ffmpeg.org) (LGPL builds via [MPVKit](https://github.com/mpvkit/MPVKit)), Apple Speech and Translation · 完整清单见 [THIRD_PARTY_NOTICES.md](App/Resources/THIRD_PARTY_NOTICES.md). © 2026 ChengNuo. VideoTool: [Mozilla Public License 2.0](LICENSE).
 
 Pictures · 画面: [Tears of Steel](https://mango.blender.org) (CC BY 3.0) © Blender Foundation. The subtitles in them were made by VideoTool · 图中字幕由 VideoTool 生成。

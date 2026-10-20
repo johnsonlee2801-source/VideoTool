@@ -251,6 +251,7 @@
 "球类" = "Ball Games";
 "生成 AI 字幕" = "Generate AI Subtitles";
 "生成字幕失败：%@" = "Couldn't generate subtitles: %@";
+"由 %@ 制作" = "Made by %@";
 "移除 %@" = "%@ removed";
 "稍后" = "Later";
 "窗口" = "Window";

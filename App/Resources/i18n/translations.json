@@ -1007,6 +1007,10 @@
   "en": "Couldn't generate subtitles: %@",
   "ja": "字幕を作成できませんでした：%@"
  },
+ "由 %@ 制作": {
+  "en": "Made by %@",
+  "ja": "制作：%@"
+ },
  "移除 %@": {
   "en": "%@ removed",
   "ja": "削除 %@"
