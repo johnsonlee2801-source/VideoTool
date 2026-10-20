@@ -10,6 +10,7 @@ final class ClipBar: NSView {
     private let label = NSTextField(labelWithString: "")
     private let stack = NSStackView()
     private var buttons: [Action: NSButton] = [:]
+    private var titles: [Action: String] = [:]
 
     init() {
         super.init(frame: .zero)
@@ -37,6 +38,7 @@ final class ClipBar: NSView {
             b.tag = action.rawValue
             b.refusesFirstResponder = true                  // keys keep going to the player
             buttons[action] = b
+            titles[action] = title
             views.append(b)
         }
         buttons[.close]?.toolTip = L("取消片段选择")
@@ -57,12 +59,25 @@ final class ClipBar: NSView {
 
     var textForTesting: String { label.stringValue }
     func isEnabled(_ action: Action) -> Bool { buttons[action]?.isEnabled ?? false }
+    func title(of action: Action) -> String { titles[action] ?? "" }
+
+    /// Changes a button's words, keeping the style LibraryOfferBar.style gave it.
+    private func setTitle(_ title: String, of action: Action) {
+        guard let b = buttons[action], titles[action] != title else { return }
+        titles[action] = title
+        let attrs = b.attributedTitle.attributes(at: 0, effectiveRange: nil)
+        b.attributedTitle = NSAttributedString(string: " \(title)   ", attributes: attrs)
+    }
 
     /// GIFs are capped (ClipExporter.maxGIFLength): longer clips offer video only.
     func show(_ range: ClipRange) {
         let (a, b) = range.fieldTexts
-        label.stringValue = L("片段 %1$@ – %2$@ · %3$@ 秒", a, b, String(Int(range.length.rounded())))
         let gifOK = range.length <= ClipExporter.maxGIFLength
+        let limit = String(Int(ClipExporter.maxGIFLength))
+        // Say what Copy will give, and why there is no GIF (asked 2026-10-20: "拷贝后没有 GIF").
+        label.stringValue = L("片段 %1$@ – %2$@ · %3$@ 秒", a, b, String(Int(range.length.rounded())))
+            + (gifOK ? "" : " · " + L("超过 %@ 秒，只能导出视频", limit))
+        setTitle(gifOK ? L("拷贝 GIF") : L("拷贝视频"), of: .copy)
         buttons[.gif]?.isEnabled = gifOK
         buttons[.gif]?.alphaValue = gifOK ? 1 : 0.4
         buttons[.gif]?.toolTip = gifOK ? nil : L("动图最长 %@ 秒", String(Int(ClipExporter.maxGIFLength)))

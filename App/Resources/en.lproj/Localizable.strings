@@ -151,6 +151,8 @@
 "把视频文件夹交给我" = "Hand Me Your Video Folders";
 "拖入视频开始播放" = "Drop a video here to play";
 "拷贝" = "Copy";
+"拷贝 GIF" = "Copy GIF";
+"拷贝视频" = "Copy Video";
 "按住左右拖  调速 0.5–6×" = "Hold and drag left/right: 0.5–6×";
 "按住画面  2× 加速" = "Hold to play 2× faster";
 "按内容标签" = "By Content";
@@ -286,6 +288,7 @@
 "设为默认视频播放器…" = "Set as Default Video Player…";
 "语言 · Language" = "Language";
 "请填写剧名和集数（集数是数字）。" = "Enter a show name and an episode number.";
+"超过 %@ 秒，只能导出视频" = "over %@ s: video only";
 "跟随系统" = "Follow System";
 "跳到这里（提前 2 秒）" = "Jump Here (2 Seconds Before)";
 "运动" = "Sports";

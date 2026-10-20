@@ -607,6 +607,14 @@
   "en": "Copy",
   "ja": "コピー"
  },
+ "拷贝 GIF": {
+  "en": "Copy GIF",
+  "ja": "GIF をコピー"
+ },
+ "拷贝视频": {
+  "en": "Copy Video",
+  "ja": "ビデオをコピー"
+ },
  "按住左右拖  调速 0.5–6×": {
   "en": "Hold and drag left/right: 0.5–6×",
   "ja": "長押しして左右にドラッグ  速度 0.5–6×"
@@ -1146,6 +1154,10 @@
  "请填写剧名和集数（集数是数字）。": {
   "en": "Enter a show name and an episode number.",
   "ja": "番組名と話数（数字）を入力してください。"
+ },
+ "超过 %@ 秒，只能导出视频": {
+  "en": "over %@ s: video only",
+  "ja": "%@ 秒を超えるためビデオのみ"
  },
  "跟随系统": {
   "en": "Follow System",

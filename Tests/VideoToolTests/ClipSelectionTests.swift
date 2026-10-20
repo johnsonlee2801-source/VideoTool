@@ -80,6 +80,17 @@ struct ClipSelectionTests {
         #expect(bar.isEnabled(.video) && bar.isEnabled(.copy))
     }
 
+    @Test("CB3 Copy says what it will copy, and a long clip says why there is no GIF")
+    func copySaysWhat() {
+        let bar = ClipBar()
+        bar.show(ClipRange(start: 65, end: 75))
+        #expect(bar.title(of: .copy) == L("拷贝 GIF"))
+        #expect(!bar.textForTesting.contains(L("超过 %@ 秒，只能导出视频", "20")))
+        bar.show(ClipRange(start: 65, end: 125))
+        #expect(bar.title(of: .copy) == L("拷贝视频"))
+        #expect(bar.textForTesting.contains(L("超过 %@ 秒，只能导出视频", "20")))
+    }
+
     @Test("CB2 each button reports its action")
     func actions() {
         let bar = ClipBar()

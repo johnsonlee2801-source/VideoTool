@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.6 (2026-10-20)
+
+- The clip bar says what Copy gives ("Copy GIF" / "Copy Video") and, for clips over
+  20 s, that they export as video only.
+
 ## 0.3.5 (2026-10-20)
 
 - **C marks a clip**: C at the start, C at the end; the stretch lights up and a
