@@ -530,6 +530,9 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
               let outro = skipStore.skips(for: SkipStore.key(for: path))?.outroStart, state.timePos >= outro else { return }
         outroDone = true
         playerView?.hud.flash(text: L("已跳过片尾"))
+        // Done with this episode: forget the position (it is in the credits) and mark it watched.
+        resumeTracker.markFinished()
+        apply(.clear(path: path))
         if let next = SeriesNavigator.nextEpisode(after: path) {
             open(URL(fileURLWithPath: next))
         } else {
@@ -555,9 +558,8 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     @objc func exportClip(_ sender: Any?) {
         guard let window, let source = currentURL, source.isFileURL, let range = suggestedClipRange() else { return }
         let duration = engine?.state.duration ?? 0
-        let startField = NSTextField(string: TimeFormatting.string(range.start))
-        let endField = NSTextField(string: range.end >= duration - 0.05 && duration > 0
-                                   ? TimeFormatting.string(duration.rounded(.up)) : TimeFormatting.string(range.end))
+        let startField = NSTextField(string: range.fieldTexts.0)
+        let endField = NSTextField(string: range.fieldTexts.1)
         let formats: [(String, ClipExporter.Format, String)] = [
             (L("视频（MP4）"), .video, "mp4"), (L("动图（GIF）"), .gif, "gif"), (L("截图组（8 张 JPEG）"), .stills(count: 8), ""),
         ]
@@ -606,21 +608,33 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         }
     }
 
+    private var exportTask: Task<Void, Never>?
+    var isExportingClip: Bool { exportTask != nil }
+
+    /// Play › 取消导出片段.
+    @objc func cancelClipExport(_ sender: Any?) { exportTask?.cancel() }
+
     /// Shows exported files; tests replace it so no Finder window opens.
     var revealExported: ([URL]) -> Void = { NSWorkspace.shared.activateFileViewerSelecting($0) }
 
+    /// One export at a time; Play › 取消导出片段 stops it.
     func runClipExport(source: URL, range: ClipRange, format: ClipExporter.Format, subtitles: URL?, to url: URL) {
+        guard exportTask == nil else { playerView?.hud.flash(text: L("已有片段正在导出")); return }
         playerView?.hud.flash(text: L("正在导出片段…"))
-        Task { @MainActor [weak self] in
+        exportTask = Task { @MainActor [weak self] in
+            defer { self?.exportTask = nil }
             do {
                 let files = try await ClipExporter.export(source: source, range: range, format: format, subtitles: subtitles, to: url,
                                                           progress: { f in
                     DispatchQueue.main.async { [weak self] in
+                        guard self?.exportTask != nil else { return }      // finished or cancelled meanwhile
                         self?.playerView?.hud.flash(text: L("正在导出片段… %@", "\(Int(f * 100))%"))
                     }
                 })
                 self?.playerView?.hud.flash(text: L("已导出：%@", files.first?.lastPathComponent ?? ""))
                 self?.revealExported(files)
+            } catch is CancellationError {
+                self?.playerView?.hud.flash(text: L("已取消导出"))
             } catch {
                 self?.playerView?.hud.flash(text: L("导出失败：%@", error.localizedDescription))
             }
@@ -749,6 +763,8 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
             return true
         case #selector(exportAISubtitles(_:)):
             return aiShown != nil
+        case #selector(cancelClipExport(_:)):
+            return isExportingClip
         case #selector(exportClip(_:)):
             return currentURL?.isFileURL == true && loadedPath != nil
         case #selector(toggleNightMode(_:)):

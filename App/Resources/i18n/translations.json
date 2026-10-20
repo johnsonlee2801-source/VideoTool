@@ -287,6 +287,10 @@
   "en": "Cancel",
   "ja": "キャンセル"
  },
+ "取消导出片段": {
+  "en": "Cancel Clip Export",
+  "ja": "クリップの書き出しをキャンセル"
+ },
  "可不填": {
   "en": "Optional",
   "ja": "省略可"
@@ -427,6 +431,10 @@
   "en": "Canceled.",
   "ja": "キャンセルしました。"
  },
+ "已取消导出": {
+  "en": "Export cancelled",
+  "ja": "書き出しをキャンセルしました"
+ },
  "已取消生成字幕": {
   "en": "Subtitle generation canceled",
   "ja": "字幕の作成をキャンセルしました"
@@ -446,6 +454,10 @@
  "已撤销星标": {
   "en": "Star removed",
   "ja": "スターを取り消しました"
+ },
+ "已有片段正在导出": {
+  "en": "A clip is already being exported",
+  "ja": "すでにクリップを書き出しています"
  },
  "已清除本系列的片头片尾": {
   "en": "Intro and credits cleared for this series",

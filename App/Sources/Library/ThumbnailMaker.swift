@@ -57,11 +57,14 @@ enum MPVFrameGrabber {
             // (mp_image_crop, found by FormatMatrixTests with a phone-style 90° flag).
             // Render unrotated and rotate the bitmap ourselves.
             ("video-rotate", "no"),
-        ] + (subtitles.map { [("sid", "auto"), ("sub-files", $0)] } ?? [])
+        ] + (subtitles != nil ? [("sid", "auto")] : [])
         for (k, v) in options {
             let r = mpv_set_option_string(h, k, v)
             if r < 0 { return (nil, "option \(k)=\(v): \(String(cString: mpv_error_string(r)))") }
         }
+        // As a one-element list: given as a string, sub-files splits on ":", so a subtitle
+        // file in "Season 1: Pilot/" would be lost (audit 2026-10-20).
+        if let subtitles, !setStringList(h, "sub-files", [subtitles]) { return (nil, "option sub-files=\(subtitles)") }
         mpv_request_log_messages(h, "warn")
         let ir = mpv_initialize(h)
         guard ir >= 0 else { return (nil, "initialize: \(String(cString: mpv_error_string(ir)))") }
@@ -143,6 +146,27 @@ enum MPVFrameGrabber {
         }
         guard rendered else { return (probe, "no frame rendered; mpv said: \(logs.joined(separator: " | "))") }
         return (probe, writeJPEG(pixels, width: w, height: height, stride: stride, rotate: Int(rotate), to: url))
+    }
+
+    /// Sets a string-list option from Swift strings, with no separator parsing.
+    private static func setStringList(_ h: OpaquePointer, _ name: String, _ values: [String]) -> Bool {
+        let cStrings = values.map { strdup($0) }
+        defer { cStrings.forEach { free($0) } }
+        var items = cStrings.map { s -> mpv_node in
+            var n = mpv_node()
+            n.format = MPV_FORMAT_STRING
+            n.u.string = s
+            return n
+        }
+        return items.withUnsafeMutableBufferPointer { buf -> Bool in
+            var list = mpv_node_list(num: Int32(buf.count), values: buf.baseAddress, keys: nil)
+            return withUnsafeMutablePointer(to: &list) { listPtr -> Bool in
+                var node = mpv_node()
+                node.format = MPV_FORMAT_NODE_ARRAY
+                node.u.list = listPtr
+                return mpv_set_option(h, name, MPV_FORMAT_NODE, &node) >= 0
+            }
+        }
     }
 
     private static func render(_ rc: OpaquePointer, into pixels: inout [UInt8], width: Int, height: Int, stride: Int) -> Bool {

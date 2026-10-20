@@ -34,7 +34,7 @@ the code. Tests use Swift Testing.
 | Unit | see `.claude/tdd-guardian/config.json` (`unit`) | everything that needs no decoding or speech models |
 | Integration | see `.claude/tdd-guardian/config.json` (`integration`) | real libmpv playback, every bundled format, AI subtitles with the on-device recogniser, audio at speed |
 | Prototype | `prototype/tests/run.sh` (needs `luajit`) | the original Lua gesture |
-| Everything | `scripts/xcb.sh test` | all of the above app tests (~400) |
+| Everything | `scripts/xcb.sh test` | all of the above app tests (~470) |
 | Coverage | `scripts/coverage.sh` | per-file line coverage; fails below 90% |
 
 Opt-in measurement suites (they generate large clips outside the repo):

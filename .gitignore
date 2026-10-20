@@ -4,3 +4,6 @@ DerivedData-build.log
 .build-direct/
 *.xcresult
 .DS_Store
+
+# cc-suite audit reports (local)
+.cc-suite/

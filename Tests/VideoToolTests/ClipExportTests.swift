@@ -323,3 +323,123 @@ final class Locked<T>: @unchecked Sendable {
         #expect(!revealed)
     }
 }
+
+
+// MARK: audit 2026-10-20 fixes
+
+@Suite(.serialized) struct ClipAuditTests {
+    @Test("CE13 stills never overwrite pictures already in the folder (the save panel only confirmed the prefix)")
+    func stillsKeepExisting() async throws {
+        let dir = try outDir()
+        let existing = dir.appendingPathComponent("Show 0-02.jpg")
+        try Data("keep".utf8).write(to: existing)
+        let urls = try await ClipExporter.export(source: fixture("testsrc-20s", "mp4"), range: ClipRange(start: 2, end: 4),
+                                                 format: .stills(count: 2), to: dir.appendingPathComponent("Show"))
+        #expect(urls.map(\.lastPathComponent) == ["Show 0-02 (2).jpg", "Show 0-04.jpg"])
+        #expect(try Data(contentsOf: existing) == Data("keep".utf8))
+    }
+
+    @Test("CE14 replacing a file the save panel agreed to replace leaves the new clip and nothing else")
+    func replacesExisting() async throws {
+        let dir = try outDir()
+        let out = dir.appendingPathComponent("clip.gif")
+        try Data("old".utf8).write(to: out)
+        _ = try await ClipExporter.export(source: fixture("testsrc-20s", "mp4"), range: ClipRange(start: 1, end: 1.5),
+                                          format: .gif, to: out)
+        let src = try #require(CGImageSourceCreateWithURL(out as CFURL, nil))
+        #expect(CGImageSourceGetType(src) as String? == "com.compuserve.gif")
+        #expect(try FileManager.default.contentsOfDirectory(atPath: dir.path) == ["clip.gif"])
+    }
+
+    @Test("CE15 a phone video recorded sideways exports upright")
+    func rotated() async throws {
+        let out = try outDir().appendingPathComponent("r.mp4")
+        _ = try await ClipExporter.export(source: fixture("rotated_90", "mp4"), range: ClipRange(start: 0.2, end: 1.5),
+                                          format: .video, to: out)
+        let track = try #require(try await AVURLAsset(url: out).loadTracks(withMediaType: .video).first)
+        let size = try await track.load(.naturalSize).applying(try await track.load(.preferredTransform))
+        #expect(abs(size.height) > abs(size.width), "displayed \(size), like the 180×320 source as shown")
+    }
+
+    @Test("CE16 an export can be cancelled: it stops promptly and leaves no file behind")
+    func cancel() async throws {
+        let dir = try outDir()
+        let out = dir.appendingPathComponent("long.mp4")
+        let started = Locked(false)
+        let task = Task {
+            try await ClipExporter.export(source: fixture("testsrc-20s", "mp4"), range: ClipRange(start: 0, end: 19.9),
+                                          format: .video, to: out, progress: { f in if f > 0 { started.withLock { $0 = true } } })
+        }
+        #expect(await waitUntil(15) { started.withLock { $0 } })
+        let t0 = Date()
+        task.cancel()
+        await #expect(throws: CancellationError.self) { _ = try await task.value }
+        #expect(Date().timeIntervalSince(t0) < 3, "stopped within \(Date().timeIntervalSince(t0)) s")
+        #expect(try FileManager.default.contentsOfDirectory(atPath: dir.path).isEmpty)
+    }
+
+    @Test("CE18 subtitles in a folder whose name has a colon are still burned in")
+    func colonPath() async throws {
+        let dir = try outDir().appendingPathComponent("Season 1: Pilot", isDirectory: true)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let ass = dir.appendingPathComponent("subs.ass")
+        try FileManager.default.copyItem(at: try redBandSubtitles(), to: ass)
+        let out = dir.appendingPathComponent("c.gif")
+        _ = try await ClipExporter.export(source: fixture("testsrc-20s", "mp4"), range: ClipRange(start: 1, end: 1.3),
+                                          format: .gif, subtitles: ass, to: out)
+        let src = try #require(CGImageSourceCreateWithURL(out as CFURL, nil))
+        #expect(isRed(rgb(try #require(CGImageSourceCreateImageAtIndex(src, 0, nil)), x: 0.5, y: 0.85)))
+    }
+
+    @Test("CE19 the dialog's times: the start rounds down and the end rounds up, so the moment is never cut short")
+    func fieldTexts() {
+        #expect(ClipRange(start: 5.4, end: 12.3).fieldTexts == ("0:05", "0:13"))
+        #expect(ClipRange(start: 5, end: 12).fieldTexts == ("0:05", "0:12"))
+        #expect(ClipRange(start: 0, end: 19.97).fieldTexts == ("0:00", "0:20"))
+    }
+
+    @Test("CE20 a folder that can't be written to is reported as such, not as an unreadable video")
+    func unwritable() async throws {
+        let dir = try outDir()
+        try FileManager.default.setAttributes([.posixPermissions: 0o555], ofItemAtPath: dir.path)
+        defer { try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: dir.path) }
+        do {
+            _ = try await ClipExporter.export(source: fixture("testsrc-20s", "mp4"), range: ClipRange(start: 0, end: 1),
+                                              format: .video, to: dir.appendingPathComponent("x.mp4"))
+            Issue.record("expected a failure")
+        } catch let f as ClipExporter.Failure {
+            #expect(f.reason == L("无法写入 %@", dir.path))
+        }
+    }
+}
+
+@Suite(.serialized) @MainActor struct ClipExportControlTests {
+    @Test("CE17 one export at a time; Play › Cancel Export stops it")
+    func singleAndCancel() async throws {
+        let dir = try outDir()
+        let video = dir.appendingPathComponent("v.mp4")
+        try FileManager.default.copyItem(at: fixture("testsrc-20s", "mp4"), to: video)
+        let w = PlayerWindowController()
+        defer { w.shutdown() }
+        w.revealExported = { _ in Issue.record("a cancelled export must not be revealed") }
+        w.open(video)
+        #expect(await waitUntil { w.loadedPath == video.path })
+        let cancelItem = NSMenuItem(title: "", action: #selector(PlayerWindowController.cancelClipExport(_:)), keyEquivalent: "")
+        #expect(w.validateMenuItem(cancelItem) == false, "nothing to cancel")
+
+        w.runClipExport(source: video, range: ClipRange(start: 0, end: 19.9), format: .video, subtitles: nil,
+                        to: dir.appendingPathComponent("a.mp4"))
+        #expect(w.isExportingClip)
+        #expect(w.validateMenuItem(cancelItem))
+        w.runClipExport(source: video, range: ClipRange(start: 0, end: 1), format: .video, subtitles: nil,
+                        to: dir.appendingPathComponent("b.mp4"))
+        #expect(w.playerView?.hud.text == L("已有片段正在导出"))
+
+        #expect(await waitUntil(10) { w.playerView?.hud.text.hasPrefix(L("正在导出片段… %@", "")) == true })
+        w.cancelClipExport(nil)
+        #expect(await waitUntil(5) { !w.isExportingClip })
+        #expect(w.playerView?.hud.text == L("已取消导出"))
+        #expect(!FileManager.default.fileExists(atPath: dir.appendingPathComponent("a.mp4").path))
+        #expect(!FileManager.default.fileExists(atPath: dir.appendingPathComponent("b.mp4").path))
+    }
+}

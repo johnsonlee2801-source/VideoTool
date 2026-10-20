@@ -13,12 +13,14 @@ final class SkipStore {
     private let defaults: UserDefaults
     init(defaults: UserDefaults = AppData.defaults) { self.defaults = defaults }
 
-    /// "series:<show>|s<season>" or "folder:<path>".
+    /// "series:<show>|s<season>", or "file:<path>" for a video without an episode number
+    /// (not its folder: an intro marked on one download must not cut the start off every
+    /// other video in ~/Downloads; audit 2026-10-20).
     static func key(for path: String) -> String {
         if let e = EpisodeParser.parse((path as NSString).lastPathComponent) {
             return "series:\(EpisodeParser.normalizedTitle(e.title))|s\(e.season ?? 0)"
         }
-        return "folder:" + (path as NSString).deletingLastPathComponent
+        return "file:" + path
     }
 
     func skips(for key: String) -> Skips? { table()[key] }

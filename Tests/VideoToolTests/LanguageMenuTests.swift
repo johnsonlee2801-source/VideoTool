@@ -5,7 +5,6 @@ import Testing
 // Choosing the interface language inside the app (2026-10-20): Follow System,
 // English, 简体中文, 日本語. Takes effect when VideoTool reopens.
 
-private func freshDefaults() -> UserDefaults { freshDomain().defaults }
 private func freshDomain() -> (defaults: UserDefaults, name: String) {
     let name = "videotool-tests-lang-\(UUID().uuidString)"
     let d = UserDefaults(suiteName: name)!
@@ -19,13 +18,24 @@ struct LanguageSettingTests {
         let (d, name) = freshDomain()
         // What is saved, not what is read back: the test runner's -AppleLanguages argument outranks it.
         func saved() -> Any? { d.persistentDomain(forName: name)?["AppleLanguages"] }
-        #expect(LanguageSetting.current(d) == nil, "follows the system by default")
+        #expect(LanguageSetting.current(d, domain: name) == nil, "follows the system by default")
         LanguageSetting.set("ja", in: d)
-        #expect(LanguageSetting.current(d) == "ja")
+        #expect(LanguageSetting.current(d, domain: name) == "ja")
         #expect(saved() as? [String] == ["ja"], "what macOS reads at launch")
         LanguageSetting.set(nil, in: d)
-        #expect(LanguageSetting.current(d) == nil)
+        #expect(LanguageSetting.current(d, domain: name) == nil)
         #expect(saved() == nil)
+    }
+
+    @Test("LG8 a language chosen for VideoTool in macOS System Settings shows as the current choice")
+    func systemSettingsChoice() {
+        let (d, name) = freshDomain()
+        for (stored, shown) in [(["ja"], "ja"), (["en-GB"], "en"), (["zh-Hans-CN"], "zh-Hans"), (["zh-Hans"], "zh-Hans")] {
+            d.set(stored, forKey: "AppleLanguages")                  // what System Settings writes
+            #expect(LanguageSetting.current(d, domain: name) == shown, "\(stored)")
+        }
+        d.set(["fr"], forKey: "AppleLanguages")
+        #expect(LanguageSetting.current(d, domain: name) == "fr", "not one of ours: none of the three is ticked")
     }
 
     @Test("LG2 every offered language ships a full translation, and each is named in its own script")
@@ -39,8 +49,8 @@ struct LanguageSettingTests {
 @Suite(.serialized) @MainActor struct LanguageMenuTests {
     @Test("LG3 the menu lists Follow System and the three languages, ticking the current choice")
     func menu() throws {
-        let d = freshDefaults()
-        let c = LanguageMenuController(defaults: d, confirmRestart: { _ in false }, relaunch: {})
+        let (d, name) = freshDomain()
+        let c = LanguageMenuController(defaults: d, domain: name, confirmRestart: { _ in false }, relaunch: {})
         let titles = c.menu.items.filter { !$0.isSeparatorItem }.map(\.title)
         #expect(titles == [L("跟随系统"), "English", "简体中文", "日本語"])
         func ticked() -> [String] {
@@ -53,26 +63,26 @@ struct LanguageSettingTests {
 
     @Test("LG4 choosing a language stores it and offers to reopen; confirming reopens, declining doesn't")
     func choose() throws {
-        let d = freshDefaults()
+        let (d, name) = freshDomain()
         var asked: [String?] = [], relaunched = 0, answer = false
-        let c = LanguageMenuController(defaults: d, confirmRestart: { asked.append($0); return answer },
+        let c = LanguageMenuController(defaults: d, domain: name, confirmRestart: { asked.append($0); return answer },
                                        relaunch: { relaunched += 1 })
         let japanese = try #require(c.menu.items.first { $0.title == "日本語" })
         c.chooseLanguage(japanese)
-        #expect(LanguageSetting.current(d) == "ja")
+        #expect(LanguageSetting.current(d, domain: name) == "ja")
         #expect(asked == ["ja"]); #expect(relaunched == 0, "declined: later")
 
         answer = true
         let english = try #require(c.menu.items.first { $0.title == "English" })
         c.chooseLanguage(english)
-        #expect(LanguageSetting.current(d) == "en"); #expect(relaunched == 1)
+        #expect(LanguageSetting.current(d, domain: name) == "en"); #expect(relaunched == 1)
 
         c.chooseLanguage(english)                                  // already chosen: nothing to do
         #expect(asked.count == 2); #expect(relaunched == 1)
 
         let system = try #require(c.menu.items.first { $0.title == L("跟随系统") })
         c.chooseLanguage(system)
-        #expect(LanguageSetting.current(d) == nil); #expect(asked.last == .some(nil))
+        #expect(LanguageSetting.current(d, domain: name) == nil); #expect(asked.last == .some(nil))
     }
 
     @Test("LG5 the reopen prompt is worded in the language just chosen")

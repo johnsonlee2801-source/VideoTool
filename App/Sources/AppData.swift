@@ -25,6 +25,9 @@ enum AppData {
         return FileManager.default.temporaryDirectory.appendingPathComponent("\(testPrefix)\(getpid())", isDirectory: true)
     }()
 
+    /// The preference domain behind `defaults` (for reading only what is stored there).
+    static let defaultsDomain: String = isTestRun ? "\(testPrefix)\(getpid())" : (Bundle.main.bundleIdentifier ?? "")
+
     static let defaults: UserDefaults = isTestRun
         ? UserDefaults(suiteName: "\(testPrefix)\(getpid())")!     // never the user's real preferences
         : .standard

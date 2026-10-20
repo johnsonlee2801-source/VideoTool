@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.3.3 (2026-10-20)
+
+Fixes from a code audit:
+
+- Exporting stills never overwrites pictures already in the folder.
+- Skipping the credits counts as finishing the episode: it no longer reopens in
+  the credits, and it is marked watched.
+- Intro and credits marks on a video without an episode number apply to that
+  video only, no longer to every video in its folder.
+- An export can be cancelled (Play › Cancel Clip Export); one export at a time.
+- MP4 export decodes with the hardware (faster for 4K), keeps phone videos
+  upright, and reports an unwritable folder as such.
+- Subtitles in a folder whose name contains ":" are burned in correctly.
+- The export dialog rounds the end time up, so the moment is never cut short.
+- A per-app language chosen in macOS System Settings shows in VideoTool › Language.
+
 ## 0.3.2 (2026-10-20)
 
 - **Choose the interface language** in VideoTool › Language: Follow System,

@@ -4,22 +4,19 @@ import AppKit
 /// Stored as the app's own AppleLanguages, which macOS applies at launch to
 /// everything: our text, menus and system panels alike.
 enum LanguageSetting {
-    static let key = "videotool.language"
     /// Named in their own script, so anyone can find theirs whatever is showing now.
     static let languages: [(code: String, name: String)] = [("en", "English"), ("zh-Hans", "简体中文"), ("ja", "日本語")]
 
-    static func current(_ defaults: UserDefaults = AppData.defaults) -> String? {
-        defaults.string(forKey: key)
+    /// The app's own AppleLanguages, whoever set it: this menu, or macOS System Settings ›
+    /// Language & Region › Applications. Region variants map to ours ("en-GB" → "en").
+    /// Read from the stored domain only: the global and command-line values do not count.
+    static func current(_ defaults: UserDefaults = AppData.defaults, domain: String = AppData.defaultsDomain) -> String? {
+        guard let first = (defaults.persistentDomain(forName: domain)?["AppleLanguages"] as? [String])?.first else { return nil }
+        return languages.map(\.code).first { first == $0 || first.hasPrefix($0 + "-") } ?? first
     }
 
     static func set(_ code: String?, in defaults: UserDefaults = AppData.defaults) {
-        if let code {
-            defaults.set(code, forKey: key)
-            defaults.set([code], forKey: "AppleLanguages")
-        } else {
-            defaults.removeObject(forKey: key)
-            defaults.removeObject(forKey: "AppleLanguages")
-        }
+        if let code { defaults.set([code], forKey: "AppleLanguages") } else { defaults.removeObject(forKey: "AppleLanguages") }
     }
 }
 
@@ -27,13 +24,15 @@ enum LanguageSetting {
 final class LanguageMenuController: NSObject, NSMenuItemValidation {
     let menu = NSMenu(title: L("语言 · Language"))
     private let defaults: UserDefaults
+    private let domain: String
     private let confirmRestart: (String?) -> Bool
     private let relaunch: () -> Void
 
-    init(defaults: UserDefaults = AppData.defaults,
+    init(defaults: UserDefaults = AppData.defaults, domain: String = AppData.defaultsDomain,
          confirmRestart: @escaping (String?) -> Bool = LanguageMenuController.askToRestart,
          relaunch: @escaping () -> Void = LanguageMenuController.relaunchApp) {
         self.defaults = defaults
+        self.domain = domain
         self.confirmRestart = confirmRestart
         self.relaunch = relaunch
         super.init()
@@ -49,13 +48,13 @@ final class LanguageMenuController: NSObject, NSMenuItemValidation {
 
     @objc func chooseLanguage(_ sender: NSMenuItem) {
         let code = sender.representedObject as? String
-        guard code != LanguageSetting.current(defaults) else { return }
+        guard code != LanguageSetting.current(defaults, domain: domain) else { return }
         LanguageSetting.set(code, in: defaults)
         if confirmRestart(code) { relaunch() }
     }
 
     func validateMenuItem(_ item: NSMenuItem) -> Bool {
-        item.state = (item.representedObject as? String) == LanguageSetting.current(defaults) ? .on : .off
+        item.state = (item.representedObject as? String) == LanguageSetting.current(defaults, domain: domain) ? .on : .off
         return true
     }
 

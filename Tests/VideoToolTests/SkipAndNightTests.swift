@@ -18,11 +18,14 @@ private func waitUntil(_ timeout: Double = 6, _ condition: () -> Bool) async -> 
 }
 
 struct SkipRuleTests {
-    @Test("SK1 one setting per series (and season); files without episode numbers share their folder's")
+    @Test("SK1 one setting per series (and season); a file without an episode number has its own")
     func keys() {
         #expect(SkipStore.key(for: "/tv/Show.S01E02.mkv") == SkipStore.key(for: "/other/show s01e07.mp4"))
         #expect(SkipStore.key(for: "/tv/Show.S01E02.mkv") != SkipStore.key(for: "/tv/Show.S02E02.mkv"))
-        #expect(SkipStore.key(for: "/a/lecture.mp4") == SkipStore.key(for: "/a/other.mov"))
+        // Not shared with its folder: an intro marked on one download must not cut the
+        // start off every other video in ~/Downloads (audit 2026-10-20 #4).
+        #expect(SkipStore.key(for: "/a/lecture.mp4") != SkipStore.key(for: "/a/other.mov"))
+        #expect(SkipStore.key(for: "/a/lecture.mp4") == SkipStore.key(for: "/a/lecture.mp4"))
         #expect(SkipStore.key(for: "/a/lecture.mp4") != SkipStore.key(for: "/b/lecture.mp4"))
     }
 
@@ -134,10 +137,27 @@ struct SkipRuleTests {
         #expect(await waitUntil { engine.state.isPaused })      // as a viewer would: paused first, then into the credits
         engine.seek(to: 16)
         #expect(await waitUntil { abs(engine.state.timePos - 16) < 0.3 })
-        try await Task.sleep(for: .seconds(1))
+        try await Task.sleep(for: .milliseconds(600))          // several render ticks: long enough to have jumped
         #expect(w.loadedPath == e1.path, "paused: stays on this episode")
         engine.setPaused(false)                                  // playing on in the credits: now it moves on
         #expect(await waitUntil(8) { w.loadedPath == e2.path })
+    }
+
+    @Test("SK7 skipping the credits counts as finishing the episode: no resume in the credits, marked watched")
+    func outroFinishes() async throws {
+        let (e1, e2) = try series()
+        let key = SkipStore.key(for: e1.path)
+        SkipStore().update(key) { $0.outroStart = 6 }           // > 10 s before the end: a resume point would survive
+        defer { SkipStore().clear(key) }
+        let w = PlayerWindowController()
+        defer { w.shutdown() }
+        w.open(e1)
+        let engine = try #require(w.engine)
+        #expect(await waitUntil { w.loadedPath == e1.path })
+        engine.seek(to: 5.5)
+        #expect(await waitUntil(8) { w.loadedPath == e2.path })
+        #expect(ResumePositionStore().position(for: e1) == nil, "would reopen in the credits and jump on again")
+        #expect(WatchHistoryStore().entry(for: e1.path)?.finished == true)
     }
 }
 

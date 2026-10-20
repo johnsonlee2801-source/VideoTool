@@ -26,6 +26,7 @@ struct ResumeTracker {
     private var pendingSeek: (target: Double, updatesLeft: Int)?
     private var lastSavedAt = 0.0
     private var clearedAtEOF = false
+    private var finished = false           // e.g. the credits were skipped
 
     init(storedPosition: @escaping (String) -> Double?) {
         self.storedPosition = storedPosition
@@ -36,13 +37,14 @@ struct ResumeTracker {
         self.path = path
         lastSavedAt = 0
         clearedAtEOF = false
+        finished = false
         pendingSeek = nil
         awaitingDuration = !(duration > 0)
         return awaitingDuration ? [] : resume(duration: duration)
     }
 
     mutating func update(_ s: PlayerState) -> [Action] {
-        guard let path, s.path == path else { return [] }   // another file, or not loaded yet
+        guard let path, s.path == path, !finished else { return [] }   // another file, not loaded yet, or done
 
         if awaitingDuration {
             guard s.duration > 0 else { return [] }
@@ -79,8 +81,12 @@ struct ResumeTracker {
     /// What to persist when the window closes or the app quits.
     func finalAction(_ s: PlayerState) -> Action? {
         guard let path, s.path == path, s.duration > 0 else { return nil }
-        return s.eofReached ? .clear(path: path) : .save(path: path, position: s.timePos)
+        return s.eofReached || finished ? .clear(path: path) : .save(path: path, position: s.timePos)
     }
+
+    /// The viewer is done with this file although it did not play to the end (the
+    /// credits were skipped): forget its position instead of saving it.
+    mutating func markFinished() { finished = true }
 
     private mutating func resume(duration: Double) -> [Action] {
         guard let path,

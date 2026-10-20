@@ -37,11 +37,18 @@ ditto "$DD/Build/Products/Release/VideoTool.app" "$APP"
 xattr -cr "$APP"
 lipo -archs "$APP/Contents/MacOS/VideoTool"
 
+# Sign inside-out (Apple discourages --deep for signing): embedded frameworks and
+# dylibs first, then the app with its entitlements.
 if [ -n "$DEVELOPER_ID" ]; then
-  codesign --force --deep --options runtime --timestamp --sign "$DEVELOPER_ID" "$APP"
+  SIGN=(--force --options runtime --timestamp --sign "$DEVELOPER_ID")
+  ENT=(--entitlements scripts/release.entitlements)
 else
-  codesign --force --deep --sign - "$APP"
+  SIGN=(--force --sign -)
+  ENT=()
 fi
+find "$APP/Contents/Frameworks" -depth \( -name "*.framework" -o -name "*.dylib" \) -print0 2>/dev/null |
+  while IFS= read -r -d '' item; do codesign "${SIGN[@]}" "$item"; done
+codesign "${SIGN[@]}" "${ENT[@]}" "$APP"
 codesign --verify --deep --strict "$APP"
 
 DMG="$OUT/VideoTool-$VERSION.dmg"
