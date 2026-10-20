@@ -92,12 +92,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
 
     // MARK: menu
 
+    /// VideoTool › 语言 · Language.
+    let languageMenu = LanguageMenuController()
+
     private func buildMenu() {
         let main = NSMenu()
 
         let appItem = NSMenuItem(); main.addItem(appItem)
         let appMenu = NSMenu()
         appMenu.addItem(withTitle: L("关于 VideoTool"), action: #selector(showAbout(_:)), keyEquivalent: "")
+        appMenu.addItem(.separator())
+        let languageItem = appMenu.addItem(withTitle: languageMenu.menu.title, action: nil, keyEquivalent: "")
+        languageItem.submenu = languageMenu.menu
         appMenu.addItem(.separator())
         appMenu.addItem(withTitle: L("隐藏 VideoTool"), action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
         appMenu.addItem(.separator())

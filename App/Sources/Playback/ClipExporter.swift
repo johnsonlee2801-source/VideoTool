@@ -174,7 +174,11 @@ enum ClipExporter {
         var failures = [String?](repeating: nil, count: times.count)
         var done = 0
         let lock = NSLock()
+        // At most four at once: each grab is a software decoder, and more would swamp the Mac.
+        let slots = DispatchSemaphore(value: 4)
         DispatchQueue.concurrentPerform(iterations: times.count) { i in
+            slots.wait()
+            defer { slots.signal() }
             var failure: String?
             for _ in 0..<2 {                   // a grab under heavy load occasionally misses; retry once
                 failure = MPVFrameGrabber.grab(source: source.path, start: String(times[i]), thumbnailTo: urls[i],

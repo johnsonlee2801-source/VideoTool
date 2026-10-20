@@ -77,7 +77,7 @@ Or build it yourself: see [CONTRIBUTING.md](CONTRIBUTING.md).
 | B | Star this moment | ⌥← / ⌥→ | Previous / next star |
 | ⌘E | Export clip or GIF | ← / → | Back / forward 5 s |
 
-The interface is in English, 简体中文 and 日本語. Ideas and bug reports are welcome: **Help › Send Feedback…** in the app opens a pre-filled issue.
+The interface is in English, 简体中文 and 日本語: it follows your Mac, or pick one in **VideoTool › Language**. Ideas and bug reports are welcome: **Help › Send Feedback…** in the app opens a pre-filled issue.
 
 ## Built with
 

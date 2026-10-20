@@ -747,6 +747,10 @@
   "en": "Scanning…",
   "ja": "スキャン中…"
  },
+ "正在播放的位置会保存。": {
+  "en": "Your place in the video is saved.",
+  "ja": "再生中の位置は保存されます。"
+ },
  "正在翻译字幕…": {
   "en": "Translating subtitles…",
   "ja": "字幕を翻訳中…"
@@ -871,6 +875,10 @@
   "en": "Toy",
   "ja": "おもちゃ"
  },
+ "现在重新打开": {
+  "en": "Reopen Now",
+  "ja": "今すぐ開き直す"
+ },
  "球类": {
   "en": "Ball Games",
   "ja": "球技"
@@ -886,6 +894,10 @@
  "移除 %@": {
   "en": "%@ removed",
   "ja": "削除 %@"
+ },
+ "稍后": {
+  "en": "Later",
+  "ja": "あとで"
  },
  "窗口": {
   "en": "Window",
@@ -1007,9 +1019,13 @@
   "en": "Set as Default Video Player…",
   "ja": "デフォルトのビデオプレーヤーに設定…"
  },
+ "语言 · Language": {
+  "en": "Language",
+  "ja": "言語 · Language"
+ },
  "跟随系统": {
-  "en": "System Default",
-  "ja": "システム設定に従う"
+  "en": "Follow System",
+  "ja": "システムに合わせる"
  },
  "跳到这里（提前 2 秒）": {
   "en": "Jump Here (2 Seconds Before)",
@@ -1054,6 +1070,10 @@
  "重复文件": {
   "en": "Duplicates",
   "ja": "重複ファイル"
+ },
+ "重新打开 VideoTool 后切换语言": {
+  "en": "VideoTool will switch language when it reopens",
+  "ja": "VideoTool を開き直すと言語が切り替わります"
  },
  "重新扫描": {
   "en": "Rescan",

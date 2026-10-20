@@ -124,11 +124,20 @@ enum MPVFrameGrabber {
         var pixels = [UInt8](repeating: 0, count: stride * height)
 
         // The frame is ready once mpv flags a new frame; poll briefly for it.
+        // Under heavy load mpv occasionally never flags it (seen with a still image and
+        // a subtitle file, SubtitleBandTests BA5): seeking to the same spot again makes
+        // it decode and deliver the frame.
         var rendered = false
+        var nextKick = Date().addingTimeInterval(3)
         while Date() < deadline {
             if mpv_render_context_update(rc) & UInt64(MPV_RENDER_UPDATE_FRAME.rawValue) != 0 {
                 rendered = render(rc, into: &pixels, width: w, height: height, stride: stride)
                 if rendered { break }
+            }
+            if Date() > nextKick {
+                nextKick = Date().addingTimeInterval(3)
+                let target = start.hasSuffix("%") ? "\(start.dropLast()) absolute-percent" : "\(start) absolute"
+                mpv_command_string(h, "seek \(target)\(precise ? "+exact" : "")")
             }
             _ = mpv_wait_event(h, 0.05)
         }

@@ -19,6 +19,11 @@ func L(_ key: String) -> String {
     Localization.bundle.localizedString(forKey: key, value: key, table: nil)
 }
 
+/// Translated text from a given language's bundle (e.g. a prompt in the language just chosen).
+func L(_ key: String, in bundle: Bundle) -> String {
+    bundle.localizedString(forKey: key, value: key, table: nil)
+}
+
 /// Same, with printf-style arguments (%@, %d, %1$@ …).
 func L(_ key: String, _ args: CVarArg...) -> String {
     String(format: L(key), arguments: args)

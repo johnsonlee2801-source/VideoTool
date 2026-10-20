@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.2 (2026-10-20)
+
+- **Choose the interface language** in VideoTool › Language: Follow System,
+  English, 简体中文 or 日本語. VideoTool offers to reopen to switch.
+- Frame grabs (GIFs, stills, previews) recover when mpv stalls under heavy
+  load, and GIF export uses at most four decoders at a time.
+
 ## 0.3.1 (2026-10-20)
 
 - **Clips and GIFs can carry the AI subtitles**: tick *Include AI subtitles* in

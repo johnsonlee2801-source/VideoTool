@@ -186,6 +186,7 @@
 "正在导出片段… %@" = "Exporting clip… %@";
 "正在扫描 %1$@… %2$@/%3$@" = "Scanning %1$@… %2$@/%3$@";
 "正在扫描…" = "Scanning…";
+"正在播放的位置会保存。" = "Your place in the video is saved.";
 "正在翻译字幕…" = "Translating subtitles…";
 "正在识别文件…" = "Identifying files…";
 "正在读取声音…" = "Reading audio…";
@@ -217,10 +218,12 @@
 "狗" = "Dog";
 "猫" = "Cat";
 "玩具" = "Toy";
+"现在重新打开" = "Reopen Now";
 "球类" = "Ball Games";
 "生成 AI 字幕" = "Generate AI Subtitles";
 "生成字幕失败：%@" = "Couldn't generate subtitles: %@";
 "移除 %@" = "%@ removed";
+"稍后" = "Later";
 "窗口" = "Window";
 "第 %@ 季" = "Season %@";
 "第几季：" = "Season:";
@@ -251,7 +254,8 @@
 "视频（MP4）" = "Video (MP4)";
 "设为默认播放器" = "Set as Default Player";
 "设为默认视频播放器…" = "Set as Default Video Player…";
-"跟随系统" = "System Default";
+"语言 · Language" = "Language";
+"跟随系统" = "Follow System";
 "跳到这里（提前 2 秒）" = "Jump Here (2 Seconds Before)";
 "运动" = "Sports";
 "还没有星标。\n播放时按 B 把当前时刻标上星。" = "No stars yet.\nPress B while playing to star the current moment.";
@@ -263,6 +267,7 @@
 "选择放视频的文件夹。VideoTool 只读取、建索引，不会移动或修改文件。" = "Choose the folder with your videos. VideoTool only reads and indexes them; it never moves or changes your files.";
 "选择要播放的视频或音频" = "Choose a video or audio file to play";
 "重复文件" = "Duplicates";
+"重新打开 VideoTool 后切换语言" = "VideoTool will switch language when it reopens";
 "重新扫描" = "Rescan";
 "隐藏 VideoTool" = "Hide VideoTool";
 "雪" = "Snow";
