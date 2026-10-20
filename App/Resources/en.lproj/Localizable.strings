@@ -22,6 +22,8 @@
 "AI 字幕（⌘T）" = "AI Subtitles (⌘T)";
 "AI 正在听写字幕…" = "AI is transcribing subtitles…";
 "B  打星标" = "B  Star";
+"C … C  截片段" = "C … C  cut a clip";
+"GIF" = "GIF";
 "iCloud 未下载" = "Not Downloaded from iCloud";
 "⌘O 打开文件  ·  ⌘L 打开视频库" = "⌘O Open File  ·  ⌘L Open Video Library";
 "⌘T  AI 字幕" = "⌘T  AI Subtitles";
@@ -50,18 +52,20 @@
 "儿童" = "Kids";
 "先用 AI 字幕（⌘T）生成字幕，就能带进片段里" = "Make AI subtitles first (⌘T) to include them in the clip";
 "全屏" = "Full Screen";
+"全选" = "Select All";
 "全部视频" = "All Videos";
 "共 %@ 个视频" = "%@ videos";
 "关于 VideoTool" = "About VideoTool";
 "关闭" = "Close";
 "其他视频" = "Other Videos";
 "减速 0.1×" = "Slow Down 0.1×";
-"切换字幕轨" = "Switch Subtitle Track";
-"切换音轨" = "Switch Audio Track";
+"切换字幕轨   S" = "Next Subtitle Track   S";
+"切换音轨   A" = "Next Audio Track   A";
 "删除星标" = "Delete Star";
 "前面没有星标了" = "No earlier stars";
 "剧名" = "Series Title";
 "剧名：" = "Series Title:";
+"剪切" = "Cut";
 "加入" = "Add";
 "加速 0.1×" = "Speed Up 0.1×";
 "动图最长 %@ 秒" = "GIFs can be up to %@ seconds long";
@@ -72,6 +76,7 @@
 "发送反馈…" = "Send Feedback…";
 "取消" = "Cancel";
 "取消导出片段" = "Cancel Clip Export";
+"取消片段选择" = "Clear the clip";
 "可不填" = "Optional";
 "同一部剧的其他集也改用这个剧名" = "Use this title for other episodes of the same series too";
 "后面没有星标了" = "No later stars";
@@ -112,6 +117,8 @@
 "已导出：%@" = "Exported: %@";
 "已把 %1$@ 个子文件夹合并进「%2$@」。" = "Merged %1$@ subfolders into “%2$@”.";
 "已把 %@ 种视频格式的默认打开方式设为 VideoTool。" = "VideoTool is now the default app for %@ video formats.";
+"已拷贝画面" = "Picture copied";
+"已拷贝，可以直接粘贴" = "Copied — paste it anywhere";
 "已撤销星标" = "Star removed";
 "已有片段正在导出" = "A clip is already being exported";
 "已清除本系列的片头片尾" = "Intro and credits cleared for this series";
@@ -122,6 +129,8 @@
 "庆祝" = "Celebration";
 "建筑" = "Building";
 "开始" = "Start";
+"循环预览" = "Loop";
+"循环预览片段" = "Looping the clip";
 "德语" = "German";
 "必填" = "Required";
 "快进 5 秒" = "Forward 5 Seconds";
@@ -141,6 +150,7 @@
 "把「%@」里的视频加入视频库？只整理这一层，不含子文件夹" = "Add the videos in “%@” to your library? This level only (no subfolders).";
 "把视频文件夹交给我" = "Hand Me Your Video Folders";
 "拖入视频开始播放" = "Drop a video here to play";
+"拷贝" = "Copy";
 "按住左右拖  调速 0.5–6×" = "Hold and drag left/right: 0.5–6×";
 "按住画面  2× 加速" = "Hold to play 2× faster";
 "按内容标签" = "By Content";
@@ -152,6 +162,7 @@
 "换个关键词试试。" = "Try a different keyword.";
 "插画" = "Illustration";
 "搜索文件名或标签" = "Search file names or tags";
+"撤销" = "Undo";
 "播放" = "Play";
 "播放 / 暂停" = "Play / Pause";
 "播放引擎初始化失败（libmpv）" = "The playback engine failed to start (libmpv)";
@@ -186,6 +197,7 @@
 "最小化" = "Minimize";
 "未识别" = "Unrecognized";
 "标清" = "SD";
+"标记片段起点 / 终点   C" = "Mark Clip Start / End   C";
 "树木" = "Tree";
 "格式" = "Format";
 "森林" = "Forest";
@@ -204,6 +216,7 @@
 "没有识别到说话的声音，可能选错了视频语言。" = "No speech was detected. The video language may be set wrong.";
 "没有重复文件" = "No Duplicates";
 "没能加入视频库" = "Couldn't add it to the library";
+"没能拷贝画面" = "Couldn't copy the picture";
 "河流" = "River";
 "法语" = "French";
 "海" = "Sea";
@@ -213,6 +226,7 @@
 "添加文件夹…" = "Add Folder…";
 "清晰度未知" = "Unknown Resolution";
 "清除本系列的片头片尾" = "Clear Intro & Credits for This Series";
+"清除片段选择" = "Clear Clip";
 "游戏" = "Game";
 "湖" = "Lake";
 "演出" = "Concert";
@@ -224,6 +238,9 @@
 "片头片尾" = "Intro & Credits";
 "片尾从 %@ 开始，本系列会自动跳过" = "Credits start at %@ — skipped for this series";
 "片尾从这里开始（本系列自动跳过）" = "Credits Start Here (Skip for This Series)";
+"片段 %1$@ – %2$@ · %3$@ 秒" = "Clip %1$@ – %2$@ · %3$@ s";
+"片段从 %@ 开始，再按 C 标记结尾" = "Clip starts at %@ — press C again at the end";
+"片段太短，换个位置再按 C" = "Too short — press C somewhere else";
 "狗" = "Dog";
 "猫" = "Cat";
 "玩具" = "Toy";
@@ -238,11 +255,13 @@
 "第几季：" = "Season:";
 "第几集：" = "Episode:";
 "简体中文" = "Simplified Chinese";
+"粘贴" = "Paste";
 "粤语" = "Cantonese";
 "繁體中文" = "Traditional Chinese";
 "结束" = "End";
 "结束时间要晚于开始时间" = "The end must be after the start";
 "继续观看" = "Continue Watching";
+"编辑" = "Edit";
 "美食" = "Food";
 "翻译成：" = "Translate to:";
 "聚会" = "Party";
@@ -257,6 +276,7 @@
 "街道" = "Street";
 "西班牙语" = "Spanish";
 "视图" = "View";
+"视频" = "Video";
 "视频多的话需要一会儿，可以先去看片。" = "With lots of videos this can take a while, so feel free to start watching.";
 "视频库" = "Video Library";
 "视频库的数据库正被占用或无法读取。请稍后再试。" = "Its database is in use or can't be read. Please try again shortly.";
@@ -277,6 +297,7 @@
 "选择播放速度" = "Choose Playback Speed";
 "选择放视频的文件夹。VideoTool 只读取、建索引，不会移动或修改文件。" = "Choose the folder with your videos. VideoTool only reads and indexes them; it never moves or changes your files.";
 "选择要播放的视频或音频" = "Choose a video or audio file to play";
+"重做" = "Redo";
 "重复文件" = "Duplicates";
 "重新打开 VideoTool 后切换语言" = "VideoTool will switch language when it reopens";
 "重新扫描" = "Rescan";

@@ -24,6 +24,14 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     private let controlBar = NSView()
     /// "Add this folder to the library?" card (the app delegate decides when to offer).
     let libraryOffer = LibraryOfferBar()
+    let clipBar = ClipBar()
+    private var clipSelection = ClipSelection()
+    private var clipLooping = false
+    /// Where quick exports from the clip bar go (tests point it elsewhere).
+    var clipOutputDirectory = ClipNaming.defaultDirectory
+    /// Where Copy and ⌘C put things (tests use a private pasteboard).
+    var pasteboard = NSPasteboard.general
+    var markersForTesting: BookmarkMarkersView { markers }
     /// Progress of AI subtitles over the video (top left).
     let aiCard = AISubtitleCard()
     private let aiPrefs = AISubtitlePreferences()
@@ -254,6 +262,14 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
             libraryOffer.bottomAnchor.constraint(equalTo: controlBar.topAnchor, constant: -16),
             libraryOffer.widthAnchor.constraint(lessThanOrEqualTo: content.widthAnchor, constant: -40),
         ]
+        clipBar.translatesAutoresizingMaskIntoConstraints = false
+        clipBar.onAction = { [weak self] in self?.clipAction($0) }
+        content.addSubview(clipBar)
+        constraints += [
+            clipBar.centerXAnchor.constraint(equalTo: content.centerXAnchor),
+            clipBar.bottomAnchor.constraint(equalTo: controlBar.topAnchor, constant: -16),
+            clipBar.widthAnchor.constraint(lessThanOrEqualTo: content.widthAnchor, constant: -40),
+        ]
         NSLayoutConstraint.activate(constraints)
         content.addSubview(preview)            // last: floats above everything, never takes clicks
     }
@@ -437,6 +453,7 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         hover.setSource(url.isFileURL ? url.path : nil)
         currentURL = url
         loadedPath = nil
+        clearClip()
         defer { updateAIButton() }
         NSDocumentController.shared.noteNewRecentDocumentURL(url)
         engine.load(url)
@@ -553,11 +570,101 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         }
     }
 
+    // MARK: clip with C
+
+    /// Play › 标记片段起点 / 终点 (C).
+    @objc func markClip(_ sender: Any?) {
+        guard let engine, loadedPath != nil else { return }
+        let t = engine.state.timePos
+        switch clipSelection.mark(t) {
+        case .started(let start):
+            setLooping(false)
+            clipBar.hide()
+            markers.clipRange = nil
+            markers.clipStart = start
+            playerView?.hud.flash(text: L("片段从 %@ 开始，再按 C 标记结尾", TimeFormatting.string(start)))
+        case .completed(let range):
+            markers.clipStart = nil
+            markers.clipRange = range
+            libraryOffer.hide()
+            clipBar.show(range)
+        case .tooShort:
+            playerView?.hud.flash(text: L("片段太短，换个位置再按 C"))
+        }
+    }
+
+    /// Play › 清除片段选择, or × on the clip bar.
+    @objc func clearClip(_ sender: Any? = nil) {
+        setLooping(false)
+        clipSelection.clear()
+        markers.clipStart = nil
+        markers.clipRange = nil
+        clipBar.hide()
+    }
+
+    private func clipAction(_ action: ClipBar.Action) {
+        guard let range = clipSelection.range, let source = currentURL, source.isFileURL else { return }
+        switch action {
+        case .gif, .video:
+            let gif = action == .gif
+            try? FileManager.default.createDirectory(at: clipOutputDirectory, withIntermediateDirectories: true)
+            let url = ClipNaming.freeURL(in: clipOutputDirectory, video: source.lastPathComponent, range: range, ext: gif ? "gif" : "mp4")
+            runClipExport(source: source, range: range, format: gif ? .gif : .video, subtitles: clipSubtitleFile, to: url)
+        case .copy:
+            // A GIF when it fits, else a video: either pastes into a chat as a file.
+            let gif = range.length <= ClipExporter.maxGIFLength
+            let dir = FileManager.default.temporaryDirectory.appendingPathComponent("VideoTool clips", isDirectory: true)
+            try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            let url = ClipNaming.freeURL(in: dir, video: source.lastPathComponent, range: range, ext: gif ? "gif" : "mp4")
+            runClipExport(source: source, range: range, format: gif ? .gif : .video, subtitles: clipSubtitleFile, to: url,
+                          then: .copy)
+        case .loop:
+            setLooping(!clipLooping)
+        case .close:
+            clearClip()
+        }
+    }
+
+    private func setLooping(_ on: Bool) {
+        guard on != clipLooping || !on else { return }
+        clipLooping = on
+        let range = on ? clipSelection.range : nil
+        engine?.setLoop(range)
+        if let range, let engine {
+            engine.seek(to: range.start)
+            engine.setPaused(false)
+            playerView?.hud.flash(text: L("循环预览片段"))
+        }
+    }
+
+    // MARK: ⌘C
+
+    /// Edit › 拷贝 (⌘C) while watching: the picture on screen, with the AI subtitles if
+    /// they are showing, ready to paste (typing in a note field copies text instead).
+    @objc func copy(_ sender: Any?) {
+        guard let engine, let source = currentURL?.path, loadedPath != nil else { return }
+        let time = engine.state.timePos, subtitles = clipSubtitleFile?.path
+        let board = pasteboard
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            let jpeg = FileManager.default.temporaryDirectory.appendingPathComponent("frame-\(UUID().uuidString).jpg")
+            defer { try? FileManager.default.removeItem(at: jpeg) }
+            let r = MPVFrameGrabber.grab(source: source, start: String(time), thumbnailTo: jpeg, subtitles: subtitles, width: nil)
+            let image = r.failure == nil ? NSImage(contentsOf: jpeg) : nil
+            DispatchQueue.main.async {
+                guard let image else { self?.playerView?.hud.flash(text: L("没能拷贝画面")); return }
+                board.clearContents()
+                board.writeObjects([image])
+                self?.playerView?.hud.flash(text: L("已拷贝画面"))
+            }
+        }
+    }
+
     // MARK: clip export
 
     /// The stretch Export Clip proposes: between the stars around the playhead.
     func suggestedClipRange() -> ClipRange? {
         guard let engine, loadedPath != nil else { return nil }
+        if let marked = clipSelection.range { return marked }          // marked with C
         return ClipRange.suggested(position: engine.state.timePos,
                                    stars: bookmarks?.bookmarks.map(\.time) ?? [], duration: engine.state.duration)
     }
@@ -631,7 +738,10 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     var revealExported: ([URL]) -> Void = { NSWorkspace.shared.activateFileViewerSelecting($0) }
 
     /// One export at a time; Play › 取消导出片段 stops it.
-    func runClipExport(source: URL, range: ClipRange, format: ClipExporter.Format, subtitles: URL?, to url: URL) {
+    enum AfterExport { case reveal, copy }
+
+    func runClipExport(source: URL, range: ClipRange, format: ClipExporter.Format, subtitles: URL?, to url: URL,
+                       then after: AfterExport = .reveal) {
         guard exportTask == nil else { playerView?.hud.flash(text: L("已有片段正在导出")); return }
         playerView?.hud.flash(text: L("正在导出片段…"))
         exportTask = Task { @MainActor [weak self] in
@@ -644,8 +754,16 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
                         self?.playerView?.hud.flash(text: L("正在导出片段… %@", "\(Int(f * 100))%"))
                     }
                 })
-                self?.playerView?.hud.flash(text: L("已导出：%@", files.first?.lastPathComponent ?? ""))
-                self?.revealExported(files)
+                guard let self else { return }
+                switch after {
+                case .reveal:
+                    self.playerView?.hud.flash(text: L("已导出：%@", files.first?.lastPathComponent ?? ""))
+                    self.revealExported(files)
+                case .copy:
+                    self.pasteboard.clearContents()
+                    self.pasteboard.writeObjects(files as [NSURL])
+                    self.playerView?.hud.flash(text: L("已拷贝，可以直接粘贴"))
+                }
             } catch is CancellationError {
                 self?.playerView?.hud.flash(text: L("已取消导出"))
             } catch {
@@ -746,6 +864,7 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         case .resetSpeed: choose(speed: 1.0)
         case .setSpeed(let s): choose(speed: s)
         case .toggleBookmark: toggleBookmark(nil)
+        case .markClip: markClip(nil)
         case .previousBookmark: previousBookmark(nil)
         case .nextBookmark: nextBookmark(nil)
         }
@@ -796,6 +915,10 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
             return aiShown != nil
         case #selector(cancelClipExport(_:)):
             return isExportingClip
+        case #selector(markClip(_:)), #selector(copy(_:)):
+            return currentURL?.isFileURL == true && loadedPath != nil
+        case #selector(clearClip(_:)):
+            return clipSelection.start != nil
         case #selector(exportClip(_:)):
             return currentURL?.isFileURL == true && loadedPath != nil
         case #selector(toggleNightMode(_:)):

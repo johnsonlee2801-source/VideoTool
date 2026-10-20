@@ -42,11 +42,14 @@ Needs macOS 26 or later. The system downloads each language once, for free.
 
 <p align="center"><img src="docs/images/en/clip.gif" width="480" alt="A GIF exported by VideoTool with bilingual subtitles burned in"></p>
 
-Press **B** at a great moment to put a star on the timeline, and again where it ends. **⌘E** exports what's between the two stars:
+Press **C** where the moment starts and **C** again where it ends. The stretch lights up on the timeline and a bar appears:
 
-- **MP4**: from any format VideoTool plays (MKV, AV1, HEVC…). It opens in QuickTime and Photos, and you can send it in any chat app.
-- **GIF**: ready to post.
-- Tick **Include AI subtitles** and the subtitles on screen are burned into the picture. The GIF above was made that way.
+- **GIF** or **Video** (MP4, from any format VideoTool plays: MKV, AV1, HEVC…): one click, saved to *Movies › VideoTool* and shown in Finder.
+- **Copy**: straight to the clipboard, ready to paste into a chat.
+- **Loop**: plays just that stretch over and over, to check the cut.
+- The AI subtitles on screen come along, burned into the picture. The GIF above was made that way.
+
+**⌘C** copies the picture on screen (subtitles included): paste a lecture slide or a line of dialogue anywhere. **B** stars stay what they are: places to jump back to (⌘E still offers the part between two stars).
 
 ## Compared with other players
 
@@ -74,8 +77,9 @@ Or build it yourself: see [CONTRIBUTING.md](CONTRIBUTING.md).
 |---|---|---|---|
 | Hold the picture | Speed up (drag to adjust) | Space | Play / pause |
 | ⌘T | AI subtitles | Z / X | Subtitles 0.1 s earlier / later |
+| C, then C | Mark a clip: GIF, video, copy | ⌘C | Copy the picture |
 | B | Star this moment | ⌥← / ⌥→ | Previous / next star |
-| ⌘E | Export clip or GIF | ← / → | Back / forward 5 s |
+| ⌘E | Export dialog (custom times) | ← / → | Back / forward 5 s |
 
 The interface is in English, 简体中文 and 日本語: it follows your Mac, or pick one in **VideoTool › Language**. Ideas and bug reports are welcome: **Help › Send Feedback…** in the app opens a pre-filled issue.
 

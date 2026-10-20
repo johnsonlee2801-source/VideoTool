@@ -128,6 +128,12 @@ final class MPVEngine: PlayerEngine {
         command(["sub-add", path, select ? "select" : "auto", title])
     }
 
+    /// Loop playback between two times (nil: no loop).
+    func setLoop(_ range: ClipRange?) {
+        command(["set", "ab-loop-a", range.map { String($0.start) } ?? "no"])
+        command(["set", "ab-loop-b", range.map { String($0.end) } ?? "no"])
+    }
+
     /// Night mode on/off (see NightMode.filter).
     func setNightMode(_ on: Bool) {
         command(on ? ["af", "add", NightMode.filter] : ["af", "remove", "@night"])

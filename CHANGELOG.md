@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.3.5 (2026-10-20)
+
+- **C marks a clip**: C at the start, C at the end; the stretch lights up and a
+  bar offers GIF, Video, Copy (to the clipboard) and a looping preview. One
+  click, no dialog; files go to Movies › VideoTool. B stays for stars.
+- **⌘C copies the picture on screen**, AI subtitles included.
+- An **Edit** menu: ⌘C/⌘V/⌘A now work when typing a star's note.
+- Next audio / subtitle track are plain A / S (⌘A is Select All).
+
 ## 0.3.4 (2026-10-20)
 
 Fixes from a review of the whole app (62 issues fixed, each with a test):

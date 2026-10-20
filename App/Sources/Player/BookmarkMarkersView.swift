@@ -8,6 +8,9 @@ final class BookmarkMarkersView: NSView {
 
     weak var slider: NSSlider?
     var duration: Double = 0 { didSet { needsDisplay = true } }
+    /// The clip being marked with C: its first end, then the whole stretch (drawn in cyan).
+    var clipStart: Double? { didSet { needsDisplay = true } }
+    var clipRange: ClipRange? { didSet { needsDisplay = true } }
     var bookmarks: [Bookmark] = [] {
         didSet {
             needsDisplay = true
@@ -78,7 +81,26 @@ final class BookmarkMarkersView: NSView {
         }
     }
 
+    private func x(at time: Double) -> CGFloat? {
+        let t = track()
+        return BookmarkNavigator.markerX(time: time, duration: duration, trackMinX: t.minX, trackWidth: t.width).map { CGFloat($0) }
+    }
+
+    /// The clip: a cyan band along the track, with a tick at each end.
+    private func drawClip() {
+        let y = bounds.midY
+        if let r = clipRange, let a = x(at: r.start), let b = x(at: r.end) {
+            Theme.accent2.withAlphaComponent(0.35).setFill()
+            NSBezierPath(roundedRect: NSRect(x: a, y: y - 5, width: max(b - a, 2), height: 10), xRadius: 3, yRadius: 3).fill()
+        }
+        Theme.accent2.setFill()
+        for t in [clipRange?.start ?? clipStart, clipRange?.end].compactMap({ $0 }) {
+            if let px = x(at: t) { NSRect(x: px - 1, y: y - 8, width: 2, height: 16).fill() }
+        }
+    }
+
     override func draw(_ dirtyRect: NSRect) {
+        drawClip()
         let shadow = NSShadow()
         shadow.shadowColor = NSColor.black.withAlphaComponent(0.8)
         shadow.shadowBlurRadius = 3

@@ -91,6 +91,14 @@
   "en": "B  Star",
   "ja": "B  スターを付ける"
  },
+ "C … C  截片段": {
+  "en": "C … C  cut a clip",
+  "ja": "C … C  クリップ"
+ },
+ "GIF": {
+  "en": "GIF",
+  "ja": "GIF"
+ },
  "iCloud 未下载": {
   "en": "Not Downloaded from iCloud",
   "ja": "iCloud未ダウンロード"
@@ -203,6 +211,10 @@
   "en": "Full Screen",
   "ja": "フルスクリーン"
  },
+ "全选": {
+  "en": "Select All",
+  "ja": "すべてを選択"
+ },
  "全部视频": {
   "en": "All Videos",
   "ja": "すべてのビデオ"
@@ -227,13 +239,13 @@
   "en": "Slow Down 0.1×",
   "ja": "0.1×遅く"
  },
- "切换字幕轨": {
-  "en": "Switch Subtitle Track",
-  "ja": "字幕トラックを切り替え"
+ "切换字幕轨   S": {
+  "en": "Next Subtitle Track   S",
+  "ja": "次の字幕トラック   S"
  },
- "切换音轨": {
-  "en": "Switch Audio Track",
-  "ja": "音声トラックを切り替え"
+ "切换音轨   A": {
+  "en": "Next Audio Track   A",
+  "ja": "次の音声トラック   A"
  },
  "删除星标": {
   "en": "Delete Star",
@@ -250,6 +262,10 @@
  "剧名：": {
   "en": "Series Title:",
   "ja": "シリーズ名："
+ },
+ "剪切": {
+  "en": "Cut",
+  "ja": "カット"
  },
  "加入": {
   "en": "Add",
@@ -290,6 +306,10 @@
  "取消导出片段": {
   "en": "Cancel Clip Export",
   "ja": "クリップの書き出しをキャンセル"
+ },
+ "取消片段选择": {
+  "en": "Clear the clip",
+  "ja": "クリップの選択を解除"
  },
  "可不填": {
   "en": "Optional",
@@ -451,6 +471,14 @@
   "en": "VideoTool is now the default app for %@ video formats.",
   "ja": "%@種類のビデオ形式で、VideoToolをデフォルトのアプリに設定しました。"
  },
+ "已拷贝画面": {
+  "en": "Picture copied",
+  "ja": "画面をコピーしました"
+ },
+ "已拷贝，可以直接粘贴": {
+  "en": "Copied — paste it anywhere",
+  "ja": "コピーしました。そのまま貼り付けられます"
+ },
  "已撤销星标": {
   "en": "Star removed",
   "ja": "スターを取り消しました"
@@ -490,6 +518,14 @@
  "开始": {
   "en": "Start",
   "ja": "開始"
+ },
+ "循环预览": {
+  "en": "Loop",
+  "ja": "ループ再生"
+ },
+ "循环预览片段": {
+  "en": "Looping the clip",
+  "ja": "クリップをループ再生中"
  },
  "德语": {
   "en": "German",
@@ -567,6 +603,10 @@
   "en": "Drop a video here to play",
   "ja": "ビデオをドロップして再生"
  },
+ "拷贝": {
+  "en": "Copy",
+  "ja": "コピー"
+ },
  "按住左右拖  调速 0.5–6×": {
   "en": "Hold and drag left/right: 0.5–6×",
   "ja": "長押しして左右にドラッグ  速度 0.5–6×"
@@ -610,6 +650,10 @@
  "搜索文件名或标签": {
   "en": "Search file names or tags",
   "ja": "ファイル名やタグを検索"
+ },
+ "撤销": {
+  "en": "Undo",
+  "ja": "取り消す"
  },
  "播放": {
   "en": "Play",
@@ -747,6 +791,10 @@
   "en": "SD",
   "ja": "SD"
  },
+ "标记片段起点 / 终点   C": {
+  "en": "Mark Clip Start / End   C",
+  "ja": "クリップの始点 / 終点   C"
+ },
  "树木": {
   "en": "Tree",
   "ja": "木"
@@ -819,6 +867,10 @@
   "en": "Couldn't add it to the library",
   "ja": "ライブラリに追加できませんでした"
  },
+ "没能拷贝画面": {
+  "en": "Couldn't copy the picture",
+  "ja": "画面をコピーできませんでした"
+ },
  "河流": {
   "en": "River",
   "ja": "川"
@@ -854,6 +906,10 @@
  "清除本系列的片头片尾": {
   "en": "Clear Intro & Credits for This Series",
   "ja": "このシリーズの設定を消去"
+ },
+ "清除片段选择": {
+  "en": "Clear Clip",
+  "ja": "クリップを解除"
  },
  "游戏": {
   "en": "Game",
@@ -898,6 +954,18 @@
  "片尾从这里开始（本系列自动跳过）": {
   "en": "Credits Start Here (Skip for This Series)",
   "ja": "エンディングはここから（このシリーズでスキップ）"
+ },
+ "片段 %1$@ – %2$@ · %3$@ 秒": {
+  "en": "Clip %1$@ – %2$@ · %3$@ s",
+  "ja": "クリップ %1$@ – %2$@ · %3$@ 秒"
+ },
+ "片段从 %@ 开始，再按 C 标记结尾": {
+  "en": "Clip starts at %@ — press C again at the end",
+  "ja": "クリップは %@ から。終わりでもう一度 C を押します"
+ },
+ "片段太短，换个位置再按 C": {
+  "en": "Too short — press C somewhere else",
+  "ja": "短すぎます。別の位置で C を押してください"
  },
  "狗": {
   "en": "Dog",
@@ -955,6 +1023,10 @@
   "en": "Simplified Chinese",
   "ja": "簡体字中国語"
  },
+ "粘贴": {
+  "en": "Paste",
+  "ja": "ペースト"
+ },
  "粤语": {
   "en": "Cantonese",
   "ja": "広東語"
@@ -974,6 +1046,10 @@
  "继续观看": {
   "en": "Continue Watching",
   "ja": "続きから見る"
+ },
+ "编辑": {
+  "en": "Edit",
+  "ja": "編集"
  },
  "美食": {
   "en": "Food",
@@ -1030,6 +1106,10 @@
  "视图": {
   "en": "View",
   "ja": "表示"
+ },
+ "视频": {
+  "en": "Video",
+  "ja": "ビデオ"
  },
  "视频多的话需要一会儿，可以先去看片。": {
   "en": "With lots of videos this can take a while, so feel free to start watching.",
@@ -1110,6 +1190,10 @@
  "选择要播放的视频或音频": {
   "en": "Choose a video or audio file to play",
   "ja": "再生するビデオまたはオーディオを選択"
+ },
+ "重做": {
+  "en": "Redo",
+  "ja": "やり直す"
  },
  "重复文件": {
   "en": "Duplicates",

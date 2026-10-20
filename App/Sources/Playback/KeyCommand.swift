@@ -13,6 +13,7 @@ enum PlayerCommand: Equatable {
     case setSpeed(Double)      // a fixed speed from the speed menu
     case subtitleDelay(Double) // relative seconds (Z earlier, X later)
     case toggleBookmark
+    case markClip              // C: one end of a clip, then the other
     case previousBookmark
     case nextBookmark
 }
@@ -58,6 +59,7 @@ enum KeyCommandMap {
         case "[": return .speedDelta(-0.1)
         case "]": return .speedDelta(0.1)
         case "b": return .toggleBookmark
+        case "c": return .markClip
         default: return nil
         }
     }

@@ -148,7 +148,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
         let list = playMenu.addItem(withTitle: L("星标列表"), action: #selector(PlayerWindowController.toggleBookmarkList(_:)), keyEquivalent: "b")
         list.keyEquivalentModifierMask = [.command, .shift]
         playMenu.addItem(.separator())
-        playMenu.addItem(withTitle: L("切换字幕轨"), action: #selector(PlayerWindowController.cycleSubtitle(_:)), keyEquivalent: "s")
+        playMenu.addItem(withTitle: L("切换字幕轨   S"), action: #selector(PlayerWindowController.cycleSubtitle(_:)), keyEquivalent: "")
         playMenu.addItem(withTitle: L("AI 字幕…"), action: #selector(PlayerWindowController.generateAISubtitles(_:)), keyEquivalent: "t")
         playMenu.addItem(withTitle: L("AI 字幕背景条"), action: #selector(PlayerWindowController.toggleSubtitleBand(_:)), keyEquivalent: "")
         let sizeItem = playMenu.addItem(withTitle: L("AI 字幕大小"), action: nil, keyEquivalent: "")
@@ -159,9 +159,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
         }
         sizeItem.submenu = sizeMenu
         playMenu.addItem(withTitle: L("导出 AI 字幕…"), action: #selector(PlayerWindowController.exportAISubtitles(_:)), keyEquivalent: "")
+        playMenu.addItem(withTitle: L("标记片段起点 / 终点   C"), action: #selector(PlayerWindowController.markClip(_:)), keyEquivalent: "")
+        playMenu.addItem(withTitle: L("清除片段选择"), action: #selector(PlayerWindowController.clearClip(_:)), keyEquivalent: "")
         playMenu.addItem(withTitle: L("导出片段…"), action: #selector(PlayerWindowController.exportClip(_:)), keyEquivalent: "e")
         playMenu.addItem(withTitle: L("取消导出片段"), action: #selector(PlayerWindowController.cancelClipExport(_:)), keyEquivalent: "")
-        playMenu.addItem(withTitle: L("切换音轨"), action: #selector(PlayerWindowController.cycleAudio(_:)), keyEquivalent: "a")
+        playMenu.addItem(withTitle: L("切换音轨   A"), action: #selector(PlayerWindowController.cycleAudio(_:)), keyEquivalent: "")
         playMenu.addItem(withTitle: L("字幕提前 0.1 秒   Z"), action: #selector(PlayerWindowController.subtitleEarlier(_:)), keyEquivalent: "")
         playMenu.addItem(withTitle: L("字幕延后 0.1 秒   X"), action: #selector(PlayerWindowController.subtitleLater(_:)), keyEquivalent: "")
         // No ⌘M here: that is Minimize (Window menu). The player takes a plain M itself.
@@ -182,6 +184,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
         playItem.submenu = playMenu
 
         let viewItem = NSMenuItem(); main.addItem(viewItem)
+        // A and S are plain keys in the player (no ⌘: ⌘A is Select All, ⌘S stays free).
+        // Edit: the standard commands, so ⌘C/⌘V/⌘A work in text fields (star notes); in
+        // the player ⌘C copies the picture (PlayerWindowController.copy).
+        let editItem = NSMenuItem(); main.addItem(editItem)
+        let editMenu = NSMenu(title: L("编辑"))
+        editMenu.addItem(withTitle: L("撤销"), action: Selector(("undo:")), keyEquivalent: "z")
+        let redo = editMenu.addItem(withTitle: L("重做"), action: Selector(("redo:")), keyEquivalent: "z")
+        redo.keyEquivalentModifierMask = [.command, .shift]
+        editMenu.addItem(.separator())
+        editMenu.addItem(withTitle: L("剪切"), action: #selector(NSText.cut(_:)), keyEquivalent: "x")
+        editMenu.addItem(withTitle: L("拷贝"), action: #selector(NSText.copy(_:)), keyEquivalent: "c")
+        editMenu.addItem(withTitle: L("粘贴"), action: #selector(NSText.paste(_:)), keyEquivalent: "v")
+        editMenu.addItem(withTitle: L("全选"), action: #selector(NSText.selectAll(_:)), keyEquivalent: "a")
+        editItem.submenu = editMenu
+
         let viewMenu = NSMenu(title: L("视图"))
         let fs = viewMenu.addItem(withTitle: L("全屏"), action: #selector(NSWindow.toggleFullScreen(_:)), keyEquivalent: "f")
         fs.keyEquivalentModifierMask = [.command, .control]

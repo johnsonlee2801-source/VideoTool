@@ -22,6 +22,7 @@ final class EmptyStateView: NSView {
             Theme.chip(L("按住左右拖  调速 0.5–6×"), color: Theme.textPrimary),
             Theme.chip(L("B  打星标"), color: Theme.star),
             Theme.chip(L("⌘T  AI 字幕"), color: Theme.accent2),
+            Theme.chip(L("C … C  截片段"), color: Theme.accent),
         ])
         chips.spacing = 8
         for case let c as NSTextField in chips.views { c.font = .systemFont(ofSize: 12, weight: .bold) }
