@@ -101,3 +101,49 @@ private func waitUntil(_ timeout: Double = 6, _ condition: () -> Bool) async -> 
         #expect(w.previewCard.isHidden)
     }
 }
+
+
+// Full-codebase audit 2026-10-20 (batch 08).
+@MainActor final class QueuedPreviewRig {
+    var grabs: [Double] = []
+    var jobs: [() -> Void] = []
+    lazy var previewer = HoverPreviewer(grab: { [unowned self] _, t in
+        self.grabs.append(t)
+        return NSImage(size: NSSize(width: 4, height: 4))
+    }, schedule: { _, run in run() }, background: { [unowned self] in self.jobs.append($0) }, main: { $0() })
+    func runJobs() { let j = jobs; jobs = []; j.forEach { $0() } }
+}
+
+@Suite(.serialized) @MainActor struct HoverPreviewerAuditTests {
+    @Test("HV20 grabs that went stale while waiting behind a slow one are skipped")
+    func noBacklog() {
+        let r = QueuedPreviewRig()
+        r.previewer.setSource("/v/a.mp4")
+        for t in [10.0, 20, 30] { _ = r.previewer.request(t) { _ in } }   // each pause long enough to queue a grab
+        r.runJobs()
+        #expect(r.grabs == [30])
+    }
+
+    @Test("HV21 the frame cache is bounded")
+    func boundedCache() {
+        let r = PreviewRig()
+        r.previewer.setSource("/v/a.mp4")
+        for i in 0..<(HoverPreviewer.cacheLimit + 50) {
+            _ = r.previewer.request(Double(i) * HoverPreviewer.step) { _ in }
+            r.fire()
+        }
+        #expect(r.previewer.cachedCount == HoverPreviewer.cacheLimit)
+    }
+
+    @Test("HV22 a frame grabbed before the file was reopened is not cached for the reopened file")
+    func revision() {
+        var delivered: [() -> Void] = []
+        let previewer = HoverPreviewer(grab: { _, _ in NSImage(size: NSSize(width: 4, height: 4)) },
+                                       schedule: { _, run in run() }, background: { $0() }, main: { delivered.append($0) })
+        previewer.setSource("/v/a.mp4")
+        _ = previewer.request(10) { _ in }                         // grabbed; result on its way to the main queue
+        previewer.setSource("/v/a.mp4")                            // meanwhile replaced and reopened at the same path
+        delivered.forEach { $0() }
+        #expect(previewer.cachedCount == 0)
+    }
+}

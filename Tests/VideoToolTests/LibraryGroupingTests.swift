@@ -135,3 +135,33 @@ private let shanghai: Calendar = { var c = Calendar(identifier: .gregorian); c.t
         }
     }
 }
+
+
+// Full-codebase audit 2026-10-20 (batch 03).
+struct LibraryGroupingAuditTests {
+    @Test("G20 folders with the same name in different library folders stay apart")
+    func sameNameFolders() {
+        let items = [item("/Volumes/A/Videos/Trips/a.mp4", root: "/Volumes/A/Videos"),
+                     item("/Volumes/B/Videos/Trips/b.mp4", root: "/Volumes/B/Videos"),
+                     item("/Volumes/A/Videos/c.mp4", root: "/Volumes/A/Videos"),
+                     item("/Volumes/B/Videos/d.mp4", root: "/Volumes/B/Videos")]
+        let sections = LibraryGrouping.sections(items, mode: .folder)
+        #expect(sections.count == 4, "\(sections.map(\.title))")
+        #expect(Set(sections.map(\.title)).count == 4, "titles tell them apart: \(sections.map(\.title))")
+    }
+
+    @Test("G21 months sort by date whatever the calendar (Japanese era years restart at 1)")
+    func japaneseCalendar() {
+        var cal = Calendar(identifier: .japanese); cal.timeZone = TimeZone(identifier: "Asia/Shanghai")!
+        let items = [item("/m/old.mp4", modified: "2018-06-15"), item("/m/new.mp4", modified: "2020-06-15")]
+        let sections = LibraryGrouping.sections(items, mode: .date, calendar: cal)
+        #expect(sections.map { $0.items.map(\.name) } == [["new.mp4"], ["old.mp4"]], "newest first")
+    }
+
+    @Test("G22 two copies of one weakly named episode are not a series")
+    func duplicateWeakEpisode() {
+        let items = [item("/m/a/Holiday - 07.mp4"), item("/m/b/Holiday - 07.mp4")]
+        let sections = LibraryGrouping.sections(items, mode: .series)
+        #expect(sections.map(\.title) == [L("其他视频")])
+    }
+}

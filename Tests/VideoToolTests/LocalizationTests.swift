@@ -55,13 +55,16 @@ import Testing
     }
 
     @Test("I4 switching the bundle switches the interface: menus read naturally in each language") func rendering() throws {
-        defer { Localization.bundle = .main }
-        Localization.bundle = try #require(Localization.bundle(for: "en"))
-        #expect(L("关于 VideoTool") == "About VideoTool")
-        #expect(L("共 %@ 个视频", "3").contains("3"))
-        #expect(LibraryGroupingMode.all.title == L("全部视频") && LibraryGroupingMode.all.title != "全部视频")
-        Localization.bundle = try #require(Localization.bundle(for: "ja"))
-        #expect(L("关于 VideoTool") == "VideoToolについて")
-        #expect(L("文件") == "ファイル")
+        // A task-local override: the global bundle stays Chinese for suites running alongside.
+        try Localization.$override.withValue(try #require(Localization.bundle(for: "en"))) {
+            #expect(L("关于 VideoTool") == "About VideoTool")
+            #expect(L("共 %@ 个视频", "3").contains("3"))
+            #expect(LibraryGroupingMode.all.title == L("全部视频") && LibraryGroupingMode.all.title != "全部视频")
+        }
+        try Localization.$override.withValue(try #require(Localization.bundle(for: "ja"))) {
+            #expect(L("关于 VideoTool") == "VideoToolについて")
+            #expect(L("文件") == "ファイル")
+        }
+        #expect(L("文件") == "文件", "outside the override: unchanged")
     }
 }

@@ -21,13 +21,13 @@ enum EpisodeParser {
         let season = chineseSeason(in: name)
 
         let strong: [(String, (NSTextCheckingResult, NSString) -> (season: Int?, episode: Int)?)] = [
-            (#"(?i)\bS(\d{1,2})[ ._-]?E(\d{1,4})(?:-?E\d{1,4})*\b"#, { m, s in (int(m, 1, s), int(m, 2, s)!) }),
-            (#"(?<![\d])(\d{1,2})x(\d{2,3})(?![\d])"#, { m, s in (int(m, 1, s), int(m, 2, s)!) }),
+            (#"(?i)\bS([0-9]{1,2})[ ._-]?E([0-9]{1,4})(?:-?E[0-9]{1,4})*\b"#, { m, s in (int(m, 1, s), int(m, 2, s) ?? -1) }),
+            (#"(?<![[0-9]])([0-9]{1,2})x([0-9]{2,3})(?![[0-9]])"#, { m, s in (int(m, 1, s), int(m, 2, s) ?? -1) }),
             (#"第\s*([0-9]{1,4}|[零〇一二两三四五六七八九十百]+)\s*[集话話回期]"#, { m, s in
                 let raw = sub(m, 1, s)
                 return (season, Int(raw) ?? chineseNumber(raw) ?? -1)
             }),
-            (#"(?i)(?:^|[\s._\-\[(])EP?\.?\s?(\d{1,3})(?![\d])"#, { m, s in (season, int(m, 1, s)!) }),
+            (#"(?i)(?:^|[\s._\-\[(])EP?\.?\s?([0-9]{1,3})(?![[0-9]])"#, { m, s in (season, int(m, 1, s) ?? -1) }),
         ]
         for (pattern, read) in strong {
             if let (m, ns) = firstMatch(pattern, in: name), let r = read(m, ns), r.episode >= 0 {
@@ -37,7 +37,7 @@ enum EpisodeParser {
             }
         }
         // Weak: "Show - 07", "Show [07]", "Show 07" (not a year or a resolution).
-        let weak = [#"\s[-–]\s*(\d{1,3})(?:v\d)?(?![\d])"#, #"[\[【](\d{1,3})[\]】]"#, #"[\s_](\d{1,3})\s*$"#]
+        let weak = [#"\s[-–]\s*([0-9]{1,3})(?:v[0-9])?(?![[0-9]])"#, #"[\[【]([0-9]{1,3})[\]】]"#, #"[\s_]([0-9]{1,3})\s*$"#]
         for pattern in weak {
             if let (m, ns) = firstMatch(pattern, in: name), let ep = int(m, 1, ns), !looksLikeNoise(ep) {
                 let title = cleanTitle(String(ns.substring(to: m.range.location)))
@@ -85,7 +85,9 @@ enum EpisodeParser {
     private static func cleanTitle(_ raw: String) -> String {
         var t = raw
         if let r = t.range(of: #"第\s*([0-9]{1,2}|[一二两三四五六七八九十]+)\s*季.*$"#, options: .regularExpression) { t.removeSubrange(r) }
-        t = t.replacingOccurrences(of: #"[\[【(（][^\]】)）]*[\]】)）]"#, with: " ", options: .regularExpression)
+        // Bracketed release info goes ("(2019)", "[1080p]", "【字幕组】"), but a country
+        // qualifier is part of the show: "The Office (US)" and "(UK)" are different shows.
+        t = t.replacingOccurrences(of: #"[\[【(（](?![A-Z]{2,3}[\]】)）])[^\]】)）]*[\]】)）]"#, with: " ", options: .regularExpression)
         t = t.replacingOccurrences(of: #"[._]+"#, with: " ", options: .regularExpression)
         t = t.replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
         return t.trimmingCharacters(in: CharacterSet(charactersIn: " -–_:：·"))

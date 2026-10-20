@@ -70,7 +70,7 @@ private final class PartialLog: @unchecked Sendable {
 }
 
 private func pipeline(_ rec: SpeechRecognizing, _ tr: SubtitleTranslating?, dir: URL) -> AISubtitlePipeline {
-    AISubtitlePipeline(recognizer: rec, translator: tr, cacheDirectory: dir, extract: { _, wav, _, _ in
+    AISubtitlePipeline(recognizer: rec, translator: tr, cacheDirectory: dir, extract: { _, _, wav, _, _ in
         try? FileManager.default.createDirectory(at: wav.deletingLastPathComponent(), withIntermediateDirectories: true)
         try? Data(count: 100).write(to: wav); return .success(20)
     })
@@ -208,5 +208,90 @@ struct LiveSubtitlePipelineTests {
         rec.open()
         #expect(await waitUntil { engine.trackCounts().subtitle == 0 })
         #expect(!FileManager.default.fileExists(atPath: live))
+    }
+}
+
+// Full-codebase audit 2026-10-20 (batch 09).
+
+/// Streams `head` segments, then keeps "recognising" (silence) until cancelled or `release()`d.
+final class SilentTailFake: StreamingSpeechRecognizing, @unchecked Sendable {
+    let head: Int
+    private let lock = NSLock()
+    private var _cancelled = false, _released = false
+    var cancelled: Bool { lock.lock(); defer { lock.unlock() }; return _cancelled }
+    func release() { lock.lock(); _released = true; lock.unlock() }
+    init(head: Int) { self.head = head }
+    func transcribe(audio: URL, locale: String, duration: Double, progress: @escaping @Sendable (Double) -> Void) async throws -> [SpeechSegment] {
+        try await transcribe(audio: audio, locale: locale, duration: duration, progress: progress, onSegment: { _ in })
+    }
+    func transcribe(audio: URL, locale: String, duration: Double, progress: @escaping @Sendable (Double) -> Void,
+                    onSegment: @escaping @Sendable (SpeechSegment) -> Void) async throws -> [SpeechSegment] {
+        let segs = (0..<head).map { SpeechSegment(text: "Line \($0).", start: Double($0) * 2, end: Double($0) * 2 + 1, words: []) }
+        segs.forEach(onSegment)
+        while true {
+            if Task.isCancelled { lock.lock(); _cancelled = true; lock.unlock(); throw CancellationError() }
+            lock.lock(); let done = _released; lock.unlock()
+            if done { return segs }
+            try? await Task.sleep(for: .milliseconds(20))
+        }
+    }
+}
+
+struct LiveSubtitleAuditTests {
+    @Test("LV20 a line followed by a long silence is shown after the hand-over interval, not only at the end")
+    func flushOnTime() async throws {
+        let rec = SilentTailFake(head: 3), log = PartialLog()
+        let p = pipeline(rec, nil, dir: newDir())
+        let job = Task { try await p.run(.init(video: "/v/a.mkv", source: "en-US", target: nil), progress: { _, _ in },
+                                         partial: { log.add($0) }) }
+        let deadline = Date().addingTimeInterval(AISubtitlePipeline.batchSeconds + 3)
+        while (log.counts.last ?? 0) < 3, Date() < deadline { try await Task.sleep(for: .milliseconds(20)) }
+        #expect(log.counts.last == 3, "the third line was held back: \(log.counts)")
+        rec.release()
+        _ = try await job.value
+    }
+
+    @Test("LV21 cancelling the job stops the recogniser too", .timeLimit(.minutes(1)))
+    func cancelReachesRecognizer() async throws {
+        let rec = SilentTailFake(head: 2)
+        let p = pipeline(rec, nil, dir: newDir())
+        let job = Task { try await p.run(.init(video: "/v/a.mkv", source: "en-US", target: nil), progress: { _, _ in }, partial: { _ in }) }
+        try await Task.sleep(for: .milliseconds(300))
+        job.cancel()
+        _ = try? await job.value
+        let deadline = Date().addingTimeInterval(3)
+        while !rec.cancelled, Date() < deadline { try await Task.sleep(for: .milliseconds(20)) }
+        #expect(rec.cancelled)
+    }
+
+    @Test("LV22 Mandarin to Traditional Chinese is a translation, not 'the same language'")
+    func chineseScripts() {
+        #expect(SubtitleLanguages.sameLanguage("zh-CN", "zh-Hans"))
+        #expect(!SubtitleLanguages.sameLanguage("zh-CN", "zh-Hant"))
+        #expect(SubtitleLanguages.sameLanguage("zh-TW", "zh-Hant"))
+        #expect(!SubtitleLanguages.sameLanguage("zh-HK", "zh-Hans"))
+        #expect(SubtitleLanguages.sameLanguage("en-US", "en"))
+        #expect(!SubtitleLanguages.sameLanguage("yue-CN", "zh-Hans"))
+    }
+}
+
+@Suite(.serialized) struct AudioTrackExtractionTests {
+    @Test("LV23 AI subtitles listen to the audio track being played, not always the first one")
+    func chosenTrack() throws {
+        let src = Bundle(for: Marker.self).path(forResource: "multi_audio_subs", ofType: "mkv")!
+        func extract(_ track: String?) throws -> Data {
+            let wav = TestTemp.directory.appendingPathComponent("trk-\(UUID().uuidString).wav")
+            guard case .success = AudioExtractor.extract(source: src, to: wav, audioTrack: track, isCancelled: { false }, progress: { _ in })
+            else { Issue.record("extract \(track ?? "default")"); return Data() }
+            return try Data(contentsOf: wav)
+        }
+        let first = try extract(nil), second = try extract("2")
+        #expect(!second.isEmpty && first != second)
+        #expect(try extract("1") == first)
+        // The cache tells the tracks apart (the default track keeps its old name).
+        let a = SubtitleCache.url(forVideo: src, source: "en-US", target: nil)
+        #expect(SubtitleCache.url(forVideo: src, source: "en-US", target: nil, audioTrack: "1") == a)
+        #expect(SubtitleCache.url(forVideo: src, source: "en-US", target: nil, audioTrack: "2") != a)
+        #expect(SubtitleCache.url(forVideo: src, source: "en-US", target: nil, audioTrack: "no") == a, "no audio track: the default name")
     }
 }

@@ -396,6 +396,9 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         guard let engine else { return }
         switch event {
         case .fileLoaded(let path, let duration):
+            // Only the file asked for last, and only once: a FILE_LOADED queued for the
+            // previous file (or delivered twice) must not restore its state onto this one.
+            guard path == currentTarget, loadedPath != path else { return }
             // Read before the tracker acts: with the duration not known yet, its resume
             // seek comes later, and the intro must not be skipped in the meantime.
             let resumeAt = ResumePositionStore.resumeTarget(position: resumeStore.position(for: URL(fileURLWithPath: path)),
@@ -419,8 +422,12 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
 
     // MARK: public API
 
+    /// What mpv was asked to load for `currentURL` (as MPVEngine.load passes it).
+    private var currentTarget: String? { currentURL.map { $0.isFileURL ? $0.path : $0.absoluteString } }
+
     func open(_ url: URL) {
         guard let engine else { return }
+        flushPendingTrackMemory()
         saveResumeNow()
         bookmarks?.fileClosed()
         preview.hide()
@@ -441,6 +448,8 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     func shutdown() {
         guard !isShutDown else { return }
         isShutDown = true
+        exportTask?.cancel()                   // no export may outlive its window (audit 2026-10-20)
+        flushPendingTrackMemory()
         cancelAISubtitles()
         saveResumeNow()
         keyMonitor.map(NSEvent.removeMonitor)
@@ -533,10 +542,14 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         // Done with this episode: forget the position (it is in the credits) and mark it watched.
         resumeTracker.markFinished()
         apply(.clear(path: path))
-        if let next = SeriesNavigator.nextEpisode(after: path) {
-            open(URL(fileURLWithPath: next))
-        } else {
-            engine?.seek(to: max(state.duration - 0.2, 0))
+        // Listing the folder can stall on a slow network drive: never on the main thread.
+        let duration = state.duration
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            let next = SeriesNavigator.nextEpisode(after: path)
+            DispatchQueue.main.async {
+                guard let self, self.currentURL?.path == path, !self.isShutDown else { return }   // moved on meanwhile
+                if let next { self.open(URL(fileURLWithPath: next)) } else { self.engine?.seek(to: max(duration - 0.2, 0)) }
+            }
         }
     }
 
@@ -662,14 +675,32 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     /// After a track switch (the player answers asynchronously): note the choice.
     /// Only embedded subtitle tracks or "off" are kept; AI subtitles come back on their own.
     private func rememberTracks() {
+        guard let path = currentURL?.path else { return }
+        pendingTrackMemory = path
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
-            guard let self, let engine = self.engine, let path = self.currentURL?.path, engine.state.path == path else { return }
-            let aid = engine.property("aid"), sid = engine.property("sid")
-            let external = engine.property("current-tracks/sub/external") == "yes"
-            self.memory.update(path) { e in
-                e.audioTrack = aid
-                if sid == "no" || !external { e.subtitleTrack = sid }
-            }
+            guard let self, self.pendingTrackMemory == path else { return }     // flushed already
+            self.storeTrackChoice(for: path)
+        }
+    }
+
+    /// The file whose track switch is waiting to be noted (bound to that file, not
+    /// to whatever is current when the delay ends; audit 2026-10-20).
+    private var pendingTrackMemory: String?
+
+    private func flushPendingTrackMemory() {
+        if let path = pendingTrackMemory { storeTrackChoice(for: path) }
+    }
+
+    private func storeTrackChoice(for path: String) {
+        pendingTrackMemory = nil
+        guard let engine, engine.state.path == path else { return }            // another file is playing now
+        let aid = engine.property("aid"), sid = engine.property("sid")
+        let external = engine.property("current-tracks/sub/external") == "yes"
+        memory.update(path) { e in
+            e.audioTrack = aid
+            // AI subtitles (an external track) chosen: clear an earlier "off" or embedded
+            // choice, which would otherwise switch them off next time.
+            e.subtitleTrack = (sid != "no" && external) ? nil : sid
         }
     }
 
@@ -831,7 +862,9 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         aiCard.onCancel = { [weak self] in self?.cancelAISubtitles(showing: L("已取消生成字幕")) }
         aiCard.show(.extracting, 0)
         let request = AISubtitlePipeline.Request(video: video, source: choice.source, target: choice.target,
-                                                 startAt: engine?.state.timePos ?? 0)
+                                                 startAt: engine?.state.timePos ?? 0,
+                                                 // The track being heard; none or off ("no"): the default.
+                                                 audioTrack: engine?.property("aid").flatMap { Int($0) == nil ? nil : $0 })
         let title = Self.subtitleTitle(request, translated: request.target != nil)
         var liveShown = false, liveUpTo = 0.0
         aiTask = Task { @MainActor [weak self] in
@@ -960,8 +993,14 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     /// Writes the AI subtitles on screen as .srt (bilingual if translated).
     func exportAISubtitles(to url: URL) throws {
         guard let shown = aiShown else { return }
-        if FileManager.default.fileExists(atPath: url.path) { try FileManager.default.removeItem(at: url) }
-        try FileManager.default.copyItem(at: shown.srt, to: url)
+        // Onto the cached file itself: nothing to do (deleting first would lose it).
+        guard url.standardizedFileURL.resolvingSymlinksInPath() != shown.srt.standardizedFileURL.resolvingSymlinksInPath() else { return }
+        // Copy beside the target, then replace in one step: the old file survives a failed copy.
+        let tmp = url.deletingLastPathComponent().appendingPathComponent(".\(UUID().uuidString).srt")
+        defer { try? FileManager.default.removeItem(at: tmp) }
+        try FileManager.default.copyItem(at: shown.srt, to: tmp)
+        if FileManager.default.fileExists(atPath: url.path) { _ = try FileManager.default.replaceItemAt(url, withItemAt: tmp) }
+        else { try FileManager.default.moveItem(at: tmp, to: url) }
     }
 
     /// Play › 导出 AI 字幕…: saves next to the video by default.
@@ -988,8 +1027,16 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
 
     private func installKeyMonitor() {
         keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            self?.handleKeyDown(event) ?? event
+            Self.keyMonitorResult(self, event)
         }
+    }
+
+    /// What the key monitor returns: nil when the player used the key. Not
+    /// `self?.handleKeyDown(event) ?? event`, which turned "used" (nil) back into the
+    /// event, so handled keys also reached the focused control (audit 2026-10-20).
+    static func keyMonitorResult(_ owner: PlayerWindowController?, _ event: NSEvent) -> NSEvent? {
+        guard let owner else { return event }
+        return owner.handleKeyDown(event)
     }
 
     /// The key monitor's body: returns nil if the key was used, else the event to pass on.

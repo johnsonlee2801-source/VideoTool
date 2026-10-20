@@ -218,3 +218,18 @@ private func quietThenLoud() throws -> URL {
         #expect(w.engine?.property("af")?.contains("night") == true)
     }
 }
+
+// Full-codebase audit 2026-10-20 (batch 11).
+struct SkipKeyAuditTests {
+    @Test("SK20 a weakly numbered file shares settings only when the folder really holds more episodes")
+    func weakNeedsSiblings() throws {
+        let dir = TestTemp.directory.appendingPathComponent("skw-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let lone = dir.appendingPathComponent("Holiday 01.mp4").path
+        try Data().write(to: URL(fileURLWithPath: lone))
+        #expect(SkipStore.key(for: lone) == "file:" + lone, "one video named like an episode is just a video")
+        try Data().write(to: dir.appendingPathComponent("Holiday 02.mp4"))
+        #expect(SkipStore.key(for: lone).hasPrefix("series:"), "with episode 2 beside it, it is a series")
+        #expect(SkipStore.key(for: "/x/Show S01E05.mkv").hasPrefix("series:"), "S01E05 needs no evidence")
+    }
+}

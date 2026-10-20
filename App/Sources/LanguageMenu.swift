@@ -87,10 +87,25 @@ final class LanguageMenuController: NSObject, NSMenuItemValidation {
 
     /// Quits, and opens VideoTool again once this process has gone.
     static func relaunchApp() {
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/bin/sh")
-        task.arguments = relaunchArguments(pid: getpid(), appPath: Bundle.main.bundlePath)
-        try? task.run()
-        NSApp.terminate(nil)
+        relaunch(launch: {
+            let task = Process()
+            task.executableURL = URL(fileURLWithPath: "/bin/sh")
+            task.arguments = relaunchArguments(pid: getpid(), appPath: Bundle.main.bundlePath)
+            try task.run()
+        }, terminate: { NSApp.terminate(nil) }, report: { message in
+            let alert = NSAlert()
+            alert.messageText = message
+            alert.runModal()
+        })
+    }
+
+    /// Quits only once the reopening helper is running: if it cannot start, VideoTool
+    /// stays open and says so (quitting would leave the user with no app; audit 2026-10-20).
+    static func relaunch(launch: () throws -> Void, terminate: () -> Void, report: (String) -> Void) {
+        do { try launch() } catch {
+            report(L("无法自动重新打开 VideoTool，请手动退出后再打开。"))
+            return
+        }
+        terminate()
     }
 }

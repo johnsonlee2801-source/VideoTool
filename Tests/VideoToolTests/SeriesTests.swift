@@ -177,7 +177,10 @@ struct ContinueWatchingTests {
     func form() {
         #expect(SeriesEditDialog.parse(title: " 繁花 ", season: "", episode: "12") == SeriesOverride(title: "繁花", season: nil, episode: 12))
         #expect(SeriesEditDialog.parse(title: "Show", season: "2", episode: "5") == SeriesOverride(title: "Show", season: 2, episode: 5))
-        #expect(SeriesEditDialog.parse(title: "Show", season: "0", episode: "5")?.season == nil)
+        // Season 0 (specials, "S00E01") is kept: saving the prefilled form unchanged must not
+        // move the episode out of its season (audit 2026-10-20).
+        #expect(SeriesEditDialog.parse(title: "Show", season: "0", episode: "5")?.season == 0)
+        #expect(SeriesEditDialog.parse(title: "Show", season: "", episode: "5")?.season == nil)
         #expect(SeriesEditDialog.parse(title: "", season: "1", episode: "5") == nil)
         #expect(SeriesEditDialog.parse(title: "Show", season: "1", episode: "five") == nil)
     }
@@ -217,5 +220,26 @@ struct ContinueWatchingTests {
         #expect(card.textsForTesting.contains("✓ 已看完") && !card.textsForTesting.contains { $0.hasSuffix("%") })
         card.configure(LibraryItem(record: base, tags: []), thumbnail: URL(fileURLWithPath: "/nonexistent.jpg"))
         #expect(!card.textsForTesting.contains("✓ 已看完") && !card.textsForTesting.contains { $0.hasSuffix("%") })
+    }
+}
+
+
+// Full-codebase audit 2026-10-20 (batch 03).
+struct SeriesAuditTests {
+    @Test("EP9 digits from other scripts (Arabic-Indic ٢) never crash the parser")
+    func otherDigits() {
+        for name in ["Show EP٢.mkv", "Show S٠١E٠٢.mkv", "Show ٠١x٠٢.mkv", "Show - ٠٧.mkv", "Show 第٣集.mp4"] {
+            _ = EpisodeParser.parse(name)                        // used to force-unwrap Int("٢") == nil
+        }
+        #expect(EpisodeParser.parse("Show S01E02.mkv")?.episode == 2)
+    }
+
+    @Test("EP10 a country qualifier is part of the show; years and release tags are not")
+    func qualifiers() {
+        let us = EpisodeParser.parse("The Office (US) S01E01.mkv"), uk = EpisodeParser.parse("The Office (UK) S01E01.mkv")
+        #expect(us != nil && uk != nil)
+        #expect(EpisodeParser.normalizedTitle(us!.title) != EpisodeParser.normalizedTitle(uk!.title))
+        #expect(EpisodeParser.parse("Show (2019) S01E01.mkv")?.title == "Show")
+        #expect(EpisodeParser.parse("Show (1080p) S01E01.mkv")?.title == "Show")
     }
 }

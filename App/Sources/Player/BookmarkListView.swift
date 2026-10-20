@@ -78,7 +78,14 @@ final class BookmarkListView: NSView, NSTableViewDataSource, NSTableViewDelegate
     /// Reloads the rows, except while a note is being typed: then the update is
     /// applied when editing ends, so the text in progress is never thrown away.
     func show(_ bookmarks: [Bookmark]) {
-        if isEditingNote { pending = bookmarks; return }
+        if isEditingNote {
+            // Same file: apply when editing ends. Another file (or none): finish the note
+            // now, saved against its own star, and show the new list (audit 2026-10-20).
+            let sameFile = !bookmarks.isEmpty && bookmarks.first?.fileKey == self.bookmarks.first?.fileKey
+            if sameFile { pending = bookmarks; return }
+            pending = nil
+            window?.makeFirstResponder(nil)
+        }
         self.bookmarks = bookmarks
         titleLabel.stringValue = bookmarks.isEmpty ? L("星标") : L("星标  %@", String(describing: bookmarks.count))
         empty.isHidden = !bookmarks.isEmpty

@@ -43,7 +43,8 @@ enum BookmarkNavigator {
     static func toggle(at time: Double, now: Date, existing: [Bookmark], speed: Double = 1) -> ToggleDecision {
         let distance = undoDistance * max(1, speed)
         let candidates = existing.filter {
-            abs($0.time - time) <= distance && now.timeIntervalSince($0.createdAt) <= undoWindow
+            // A negative age (clock set back) is not "just now".
+            abs($0.time - time) <= distance && (0...undoWindow).contains(now.timeIntervalSince($0.createdAt))
         }
         guard let newest = candidates.max(by: { $0.createdAt < $1.createdAt }) else { return .add }
         return .undo(newest.id)

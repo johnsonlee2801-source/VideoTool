@@ -121,8 +121,7 @@ enum MPVFrameGrabber {
         guard let url else { return (probe, nil) }
         guard dw > 0, dh > 0 else { return (probe, "no video track (dwidth=\(dw), dheight=\(dh))") }
 
-        let w = max(2, (width ?? Int(dw)) / 2 * 2)
-        let height = max(2, Int((Double(w) * Double(dh) / Double(dw)).rounded() / 2) * 2)
+        let (w, height) = outputSize(requested: width, videoWidth: Int(dw), videoHeight: Int(dh))
         let stride = w * 4
         var pixels = [UInt8](repeating: 0, count: stride * height)
 
@@ -167,6 +166,19 @@ enum MPVFrameGrabber {
                 return mpv_set_option(h, name, MPV_FORMAT_NODE, &node) >= 0
             }
         }
+    }
+
+    /// Longest side of any grabbed frame, and the tallest shape allowed (4:1): a
+    /// 16×16384 video must not make a 900 MB buffer (audit 2026-10-20).
+    static let maxSide = 4096
+
+    /// Even pixel size of the image for a video of the given size.
+    static func outputSize(requested: Int?, videoWidth dw: Int, videoHeight dh: Int) -> (width: Int, height: Int) {
+        let aspect = Double(max(dh, 1)) / Double(max(dw, 1))
+        var w = min(requested ?? dw, maxSide)
+        if Double(w) * aspect > Double(maxSide) { w = Int(Double(maxSide) / aspect) }
+        let h = min(Double(w) * aspect, Double(max(w, 2) * 4), Double(maxSide))
+        return (max(2, w / 2 * 2), max(2, Int(h.rounded()) / 2 * 2))
     }
 
     private static func render(_ rc: OpaquePointer, into pixels: inout [UInt8], width: Int, height: Int, stride: Int) -> Bool {
@@ -215,12 +227,20 @@ enum MPVFrameGrabber {
               let image = rotated(raw, clockwise: rotate)
         else { return "could not build CGImage" }
         try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-        try? FileManager.default.removeItem(at: url)
-        guard let dest = CGImageDestinationCreateWithURL(url as CFURL, UTType.jpeg.identifier as CFString, 1, nil) else {
-            return "could not create \(url.path)"
+        // Written beside the target and moved into place only when complete: a half-written
+        // JPEG (disk full) would otherwise count as a thumbnail for good (audit 2026-10-20).
+        let tmp = url.deletingLastPathComponent().appendingPathComponent(".\(UUID().uuidString).jpg")
+        defer { try? FileManager.default.removeItem(at: tmp) }
+        guard let dest = CGImageDestinationCreateWithURL(tmp as CFURL, UTType.jpeg.identifier as CFString, 1, nil) else {
+            return "could not create \(tmp.path)"
         }
         CGImageDestinationAddImage(dest, image, [kCGImageDestinationLossyCompressionQuality: 0.85] as CFDictionary)
-        return CGImageDestinationFinalize(dest) ? nil : "JPEG encoding failed"
+        guard CGImageDestinationFinalize(dest) else { return "JPEG encoding failed" }
+        do {
+            if FileManager.default.fileExists(atPath: url.path) { _ = try FileManager.default.replaceItemAt(url, withItemAt: tmp) }
+            else { try FileManager.default.moveItem(at: tmp, to: url) }
+        } catch { return "could not write \(url.path)" }
+        return nil
     }
 }
 

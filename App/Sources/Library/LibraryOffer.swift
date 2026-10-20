@@ -48,6 +48,8 @@ enum LibraryOffer {
 
     static func isSystem(_ folder: String, home: String) -> Bool {
         if ["/", "/Users", "/Volumes"].contains(folder) { return true }
+        // Deleted files: ~/.Trash, and each drive's /.Trashes.
+        if folder.split(separator: "/").contains(where: { $0 == ".Trashes" || $0 == ".Trash" }) { return true }
         let drive = iCloudDrive(home)
         if folder == drive || folder.hasPrefix(drive + "/") { return false }
         let system = ["/tmp", "/private", "/var", "/System", "/Library", "/Applications",
@@ -80,11 +82,11 @@ final class LibraryOfferCoordinator {
     private let home: String
     private let roots: () -> [LibraryRoot]
     private let show: (LibraryOffer.Proposal) -> Void
-    private let add: (LibraryOffer.Proposal) -> Void
+    private let add: (LibraryOffer.Proposal) -> Bool
     private let refresh: (String) -> Void
 
     init(preferences: LibraryOfferPreferences, home: String = NSHomeDirectory(), roots: @escaping () -> [LibraryRoot],
-         show: @escaping (LibraryOffer.Proposal) -> Void, add: @escaping (LibraryOffer.Proposal) -> Void,
+         show: @escaping (LibraryOffer.Proposal) -> Void, add: @escaping (LibraryOffer.Proposal) -> Bool,
          refresh: @escaping (String) -> Void) {
         self.preferences = preferences
         self.home = home
@@ -106,7 +108,8 @@ final class LibraryOfferCoordinator {
         }
     }
 
-    func accept(_ proposal: LibraryOffer.Proposal) { add(proposal) }
+    @discardableResult
+    func accept(_ proposal: LibraryOffer.Proposal) -> Bool { add(proposal) }
     func decline(_ folder: String) { preferences.decline(folder) }
     func neverAskAgain() { preferences.neverAsk = true }
 }

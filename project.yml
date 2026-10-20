@@ -83,8 +83,8 @@ schemes:
 x-info-properties:
   CFBundleName: VideoTool
   CFBundleDisplayName: VideoTool
-  CFBundleShortVersionString: 0.3.3
-  CFBundleVersion: '6'
+  CFBundleShortVersionString: 0.3.4
+  CFBundleVersion: '7'
   LSMinimumSystemVersion: '14.0'
   NSPrincipalClass: NSApplication
   NSHighResolutionCapable: true

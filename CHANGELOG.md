@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.3.4 (2026-10-20)
+
+Fixes from a review of the whole app (62 issues fixed, each with a test):
+
+- **Crash** on file names with Arabic-Indic digits (e.g. "EP٢") fixed.
+- Keys the player handles (arrows, space…) no longer also reach the focused control.
+- AI subtitles listen to the **audio track being played**; Mandarin → Traditional
+  Chinese is translated; a line followed by silence shows within seconds;
+  cancelling really stops recognition; damaged subtitle files no longer crash.
+- Library: a video whose details can't be read is no longer treated as deleted;
+  failed thumbnails are retried; iCloud states are right; same-named folders in
+  different library folders stay apart; "The Office (US)" and "(UK)" are
+  different shows; a locked database fails within seconds instead of freezing.
+- Stars: a failed delete keeps the star; "next star" right after a jump at high
+  speed goes forward; the preview closes when its star is undone.
+- Resume: closing a video before it has jumped to its resume point keeps that
+  point; short clips are no longer "watched" on opening; skipping the credits
+  of "Holiday 01" no longer affects an unrelated "Holiday 02" elsewhere.
+- ⌘M is Minimize again (Mute is plain M); "Added to the library" only when it was;
+  the series editor asks again instead of losing what you typed; season 0 is kept.
+
 ## 0.3.3 (2026-10-20)
 
 Fixes from a code audit:

@@ -28,6 +28,7 @@ struct ClipRange: Equatable {
 
     /// Why this range cannot be exported, or nil.
     func problem(duration: Double, format: ClipExporter.Format) -> String? {
+        guard start.isFinite, end.isFinite else { return L("时间格式不对，例如 1:05") }
         if length <= 0 { return L("结束时间要晚于开始时间") }
         if start < 0 || (duration > 0 && end > duration + 0.05) { return L("时间超出了视频长度") }
         if format == .gif && length > ClipExporter.maxGIFLength {
@@ -108,10 +109,10 @@ enum ClipExporter {
         init(_ sink: (@Sendable (Double) -> Void)?) { self.sink = sink }
         func send(_ value: Double) {
             let v = min(max(value, 0), 1)
-            lock.lock()
-            guard v > last else { lock.unlock(); return }
+            // Accept and deliver under the lock: two workers can't hand values over out of order.
+            lock.lock(); defer { lock.unlock() }
+            guard v > last else { return }
             last = v
-            lock.unlock()
             sink?(v)
         }
     }
@@ -255,6 +256,7 @@ enum ClipExporter {
             CGImageDestinationAddImage(dest, img, frameProps)
         }
         guard CGImageDestinationFinalize(dest) else { throw Failure(reason: L("无法写入 %@", out.path)) }
+        if cancel.isSet { throw CancellationError() }       // cancelled while the frames were assembled
         return try place(tmp, at: out)
     }
 
@@ -276,7 +278,17 @@ enum ClipExporter {
                 url = base.deletingLastPathComponent().appendingPathComponent("\(base.lastPathComponent) \(stamp) (\(k)).jpg")
                 k += 1
             }
-            made.append(try place(jpeg, at: url))
+            if cancel.isSet { made.forEach { try? FileManager.default.removeItem(at: $0) }; throw CancellationError() }
+            // moveItem refuses to replace: if another program created the name meanwhile,
+            // take the next free one instead (audit 2026-10-20).
+            while true {
+                do { try FileManager.default.moveItem(at: jpeg, to: url); break } catch {
+                    guard FileManager.default.fileExists(atPath: url.path), k < 1000 else { throw Failure(reason: L("无法写入 %@", url.path)) }
+                    url = base.deletingLastPathComponent().appendingPathComponent("\(base.lastPathComponent) \(stamp) (\(k)).jpg")
+                    k += 1
+                }
+            }
+            made.append(url)
         }
         return made
     }

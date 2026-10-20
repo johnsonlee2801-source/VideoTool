@@ -8,7 +8,16 @@ final class BookmarkMarkersView: NSView {
 
     weak var slider: NSSlider?
     var duration: Double = 0 { didSet { needsDisplay = true } }
-    var bookmarks: [Bookmark] = [] { didSet { needsDisplay = true } }
+    var bookmarks: [Bookmark] = [] {
+        didSet {
+            needsDisplay = true
+            // The hovered star is gone (undone, deleted, another file): close its preview now.
+            if let h = hovered, !bookmarks.contains(where: { $0.id == h }) {
+                hovered = nil
+                onHover?(nil, 0)
+            }
+        }
+    }
     /// Called with the hovered star (or nil) and its x in this view's coordinates.
     var onHover: ((Bookmark?, CGFloat) -> Void)?
     /// The time under the mouse when it is over the bar but not on a star (nil: none).

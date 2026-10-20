@@ -97,3 +97,31 @@ struct AppleSpeechErrorTests {
         #expect(toggle.state == .off)
     }
 }
+
+
+// Full-codebase audit 2026-10-20 (batch 05).
+@Suite @MainActor struct LibraryUIAuditTests {
+    @Test("UI20 Save with an unusable episode number asks again, keeping what was typed")
+    func asksAgain() {
+        let f = SeriesEditDialog.Form(current: EpisodeInfo(title: "繁花", season: 1, episode: 7, strong: true))
+        f.episode.stringValue = "seven"
+        #expect(SeriesEditDialog.shouldAskAgain(after: .alertFirstButtonReturn, form: f))
+        #expect(!SeriesEditDialog.shouldAskAgain(after: .alertSecondButtonReturn, form: f), "Cancel closes")
+        f.episode.stringValue = "8"
+        #expect(!SeriesEditDialog.shouldAskAgain(after: .alertFirstButtonReturn, form: f))
+    }
+
+    @Test("UI21 the offer bar only says 'added' when the folder really was added")
+    func offerBarFailure() {
+        let bar = LibraryOfferBar()
+        bar.offer(LibraryOffer.Proposal(path: "/Volumes/Media/Movies", wholeFolder: true))
+        bar.onAdd = { _ in false }
+        bar.press(.add)
+        #expect(!bar.textForTesting.contains(L("已加入「%@」，正在后台整理", "Movies")))
+        #expect(bar.textForTesting == L("没能加入视频库"))
+        bar.offer(LibraryOffer.Proposal(path: "/Volumes/Media/Movies", wholeFolder: true))
+        bar.onAdd = { _ in true }
+        bar.press(.add)
+        #expect(bar.textForTesting == L("已加入「%@」，正在后台整理", "Movies"))
+    }
+}

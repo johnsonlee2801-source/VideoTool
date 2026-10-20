@@ -1,4 +1,5 @@
 import Foundation
+import SQLite3
 import Testing
 @testable import VideoTool
 
@@ -46,8 +47,8 @@ private final class Rig {
                                              background: { [unowned self] in self.background.submit($0) },
                                              main: { [unowned self] in self.main.submit($0) })
     func settle() { background.runAll(); main.runAll() }
-    init() throws {
-        store = try BookmarkStore(path: TestTemp.directory
+    init(storePath: String? = nil) throws {
+        store = try BookmarkStore(path: storePath ?? TestTemp.directory
             .appendingPathComponent("bmc-\(UUID().uuidString).sqlite").path)
     }
     func open(_ key: String = "osh:abc", path: String = "/m/film.mkv", duration: Double = 600) {
@@ -239,5 +240,95 @@ private final class Rig {
         r.controller.fileClosed()
         #expect(r.controller.bookmarks.isEmpty)
         #expect(r.controller.toggleAtCurrentTime() == nil)
+    }
+}
+
+// Full-codebase audit 2026-10-20 (batch 04).
+
+/// Breaks the bookmarks table from another connection, so every store call fails.
+private func breakStore(_ path: String) {
+    var db: OpaquePointer?
+    sqlite3_open(path, &db)
+    sqlite3_exec(db, "DROP TABLE bookmarks;", nil, nil, nil)
+    sqlite3_close(db)
+}
+
+@Suite @MainActor struct BookmarkControllerAuditTests {
+    private func rig() throws -> (Rig, String) {
+        let path = TestTemp.directory.appendingPathComponent("bma-\(UUID().uuidString).sqlite").path
+        return (try Rig(storePath: path), path)
+    }
+
+    @Test("BC20 when the database fails, undo reports nothing, keeps the star's picture, and the list keeps showing it")
+    func failedUndo() throws {
+        let (r, path) = try rig()
+        var errors = 0
+        r.controller.onError = { _ in errors += 1 }
+        r.open()
+        r.engine.state.timePos = 30
+        guard case .added(let b)? = r.controller.toggleAtCurrentTime() else { Issue.record("not added"); return }
+        let thumb = try #require(r.controller.thumbnailURL(for: b))
+        #expect(FileManager.default.fileExists(atPath: thumb.path))
+        breakStore(path)
+        #expect(r.controller.toggleAtCurrentTime() == nil, "not .undone: nothing was undone")
+        #expect(FileManager.default.fileExists(atPath: thumb.path))
+        #expect(r.controller.bookmarks.map(\.id) == [b.id], "a failed read does not empty the list")
+        #expect(errors >= 1)
+        r.controller.delete(b.id)
+        #expect(FileManager.default.fileExists(atPath: thumb.path), "failed delete keeps the picture")
+    }
+
+    @Test("BC21 a thumbnail finishing while the database is failing is kept, not deleted")
+    func thumbnailKeptOnQueryError() throws {
+        let (r, path) = try rig()
+        r.thumbs.deferred = true
+        r.open()
+        r.engine.state.timePos = 30
+        guard case .added(let b)? = r.controller.toggleAtCurrentTime() else { Issue.record("not added"); return }
+        breakStore(path)
+        r.thumbs.finishAll()
+        #expect(FileManager.default.fileExists(atPath: try #require(r.controller.thumbnailURL(for: b)).path))
+    }
+
+    @Test("BC22 a thumbnail for the previous file does not announce itself after another file opened")
+    func staleThumbnail() throws {
+        let (r, _) = try rig()
+        r.thumbs.deferred = true
+        var ready: [UUID] = []
+        r.controller.onThumbnailReady = { ready.append($0) }
+        r.open()
+        r.engine.state.timePos = 30
+        _ = r.controller.toggleAtCurrentTime()
+        r.controller.fileClosed()
+        r.open("osh:other", path: "/m/other.mkv")
+        r.thumbs.finishAll()
+        #expect(ready.isEmpty)
+    }
+
+    @Test("BC23 'next star' right after a jump at high speed goes forward, never back to a star already passed")
+    func nextAfterFastLanding() throws {
+        let (r, _) = try rig()
+        r.open()
+        for t in [100.0, 101, 200] {
+            r.engine.state.timePos = t
+            _ = r.controller.toggleAtCurrentTime()
+            r.now += 10                                      // separate presses, no undo
+        }
+        r.engine.state.speed = 6
+        let first = try #require(r.controller.bookmarks.first { $0.time == 100 })
+        r.engine.state.timePos = 50                          // where we were before the jump
+        r.controller.jump(to: first)
+        r.now += 1
+        r.engine.state.timePos = 104                         // landed at 98, then one second at 6×
+        #expect(r.controller.jumpToNext())
+        #expect(r.engine.seeks.last == 198, "to the star at 200, not back to 101: \(r.engine.seeks)")
+    }
+}
+
+struct BookmarkNavigatorAuditTests {
+    @Test("BN20 a clock set back does not make an old star undoable")
+    func clockRollback() {
+        let old = Bookmark(id: UUID(), fileKey: "k", time: 30, endTime: nil, note: "", createdAt: Date(timeIntervalSince1970: 20_000))
+        #expect(BookmarkNavigator.toggle(at: 30, now: Date(timeIntervalSince1970: 10_000), existing: [old]) == .add)
     }
 }

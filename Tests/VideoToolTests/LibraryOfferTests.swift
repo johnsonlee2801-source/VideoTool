@@ -89,7 +89,7 @@ struct LibraryOfferPreferencesTests {
         lazy var prefs = LibraryOfferPreferences(defaults: UserDefaults(suiteName: suite)!)
         lazy var coordinator = LibraryOfferCoordinator(
             preferences: prefs, home: "/home/u", roots: { self.roots },
-            show: { self.shown.append($0) }, add: { self.added.append($0) }, refresh: { self.refreshed.append($0) })
+            show: { self.shown.append($0) }, add: { self.added.append($0); return true }, refresh: { self.refreshed.append($0) })
         deinit { UserDefaults().removePersistentDomain(forName: suite) }
     }
 
@@ -133,7 +133,7 @@ struct LibraryOfferPreferencesTests {
     func buttons() throws {
         let bar = LibraryOfferBar()
         var log: [String] = []
-        bar.onAdd = { log.append("add \($0.path) \($0.wholeFolder)") }
+        bar.onAdd = { log.append("add \($0.path) \($0.wholeFolder)"); return true }
         bar.onDecline = { log.append("decline \($0)") }
         bar.onNeverAsk = { log.append("never") }
         bar.onOpenLibrary = { log.append("open") }
@@ -152,5 +152,28 @@ struct LibraryOfferPreferencesTests {
         bar.offer(.init(path: "/m/三", wholeFolder: true)); bar.press(.neverAsk)
         #expect(log.suffix(2) == ["decline /h/Downloads", "never"])
         #expect(bar.isHidden)
+    }
+}
+
+
+// Full-codebase audit 2026-10-20 (batch 02).
+struct LibraryOfferAuditTests {
+    @Test("LO20 deleted files on an external drive (.Trashes) are never offered")
+    func externalTrash() {
+        #expect(LibraryOffer.isSystem("/Volumes/Media/.Trashes/501/Old", home: "/home/u"))
+        #expect(LibraryOffer.isSystem("/Volumes/Media/.Trashes", home: "/home/u"))
+        #expect(!LibraryOffer.isSystem("/Volumes/Media/Movies", home: "/home/u"))
+    }
+}
+
+struct ThumbnailSizeTests {
+    @Test("TS1 frame sizes are bounded: a 16×16384 video cannot make a 900 MB buffer")
+    func bounded() {
+        let tall = MPVFrameGrabber.outputSize(requested: 480, videoWidth: 16, videoHeight: 16384)
+        #expect(tall.height <= 480 * 4)
+        let huge = MPVFrameGrabber.outputSize(requested: nil, videoWidth: 30000, videoHeight: 20000)
+        #expect(huge.width <= MPVFrameGrabber.maxSide && huge.height <= MPVFrameGrabber.maxSide)
+        #expect(MPVFrameGrabber.outputSize(requested: 480, videoWidth: 1920, videoHeight: 1080) == (480, 270))
+        #expect(MPVFrameGrabber.outputSize(requested: nil, videoWidth: 640, videoHeight: 360) == (640, 360))
     }
 }

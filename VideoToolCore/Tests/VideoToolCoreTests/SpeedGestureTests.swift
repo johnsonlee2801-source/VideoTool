@@ -342,6 +342,15 @@ private func machine(_ options: SpeedGestureOptions = D, speed: Double = 1.0, pa
         m.tick(at: 0.5); m.mouseUp(at: 0.6); m.cancel()
         #expect(m.isHolding == false)
     }
+    @Test("M30 host released during a hold: the release ends the hold") func m30() {
+        var f: FakeHost? = FakeHost()
+        let m = SpeedGestureMachine(options: D, host: f!)
+        m.mouseDown(at: 0); m.tick(at: 0.3)
+        #expect(m.isHolding)
+        f = nil
+        m.mouseUp(at: 0.6)
+        #expect(m.isHolding == false)
+    }
     @Test("M25 file end with no press is a no-op") func m25() {
         let (m, f) = machine()
         m.fileEnded()

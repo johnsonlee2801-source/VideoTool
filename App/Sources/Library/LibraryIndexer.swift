@@ -157,13 +157,23 @@ final class LibraryIndexer {
             if isCancelled() || !stillWatched() { return summary }
             let record: MediaRecord
             if w.file.cloudOnly {
-                // Listed so the user sees it, but never read: that would download it.
-                record = MediaRecord(path: w.file.path, fileKey: "icloud:" + w.file.path, size: w.file.size,
-                                     modified: w.file.modified, duration: 0, width: 0, height: 0, root: root,
-                                     status: .cloudOnly)
+                // Listed so the user sees it, but never read: that would download it. A video
+                // indexed before iCloud evicted it keeps its identity and details (audit 2026-10-20).
+                if let old = w.old, old.status != .cloudOnly {
+                    record = MediaRecord(path: old.path, fileKey: old.fileKey, size: w.file.size, modified: w.file.modified,
+                                         duration: old.duration, width: old.width, height: old.height, root: root,
+                                         status: .cloudOnly, attempts: 0, contentCheck: old.contentCheck)
+                } else {
+                    record = MediaRecord(path: w.file.path, fileKey: "icloud:" + w.file.path, size: w.file.size,
+                                         modified: w.file.modified, duration: 0, width: 0, height: 0, root: root,
+                                         status: .cloudOnly)
+                }
             } else if let key = w.key, let outcome = w.outcome {
                 let status: MediaRecord.Status = outcome.probe == nil ? .failed : (outcome.hasThumb ? .ok : .noThumbnail)
-                let attempts = status == .failed ? ((w.old?.status == .failed ? w.old?.attempts : 0) ?? 0) + 1 : 0
+                // Failed probes, and videos with a picture whose thumbnail could not be made
+                // (timeout, disk full), are retried a few times (audit 2026-10-20).
+                let retryable = status == .failed || (status == .noThumbnail && (outcome.probe?.width ?? 0) > 0)
+                let attempts = retryable ? ((w.old?.status == status ? w.old?.attempts : 0) ?? 0) + 1 : 0
                 if status == .failed { summary.probeFailed += 1 }
                 record = MediaRecord(path: w.file.path, fileKey: key, size: w.file.size, modified: w.file.modified,
                                      duration: outcome.probe?.duration ?? 0, width: outcome.probe?.width ?? 0,
@@ -187,6 +197,11 @@ final class LibraryIndexer {
         if !gone.isEmpty, (try? store.removeMedia(paths: gone.map(\.path))) != nil {
             summary.removed = gone.count
             cleanUpOrphans()
+            // Thumbnails of content Vision found nothing in have no tags to find them by.
+            let remaining = Set(((try? store.media(inRoot: nil)) ?? []).map(\.fileKey))
+            for key in Set(gone.map(\.fileKey)) where !remaining.contains(key) {
+                try? FileManager.default.removeItem(at: Self.thumbnailURL(forKey: key, in: thumbnailDirectory))
+            }
         }
         return summary
     }
@@ -209,9 +224,11 @@ final class LibraryIndexer {
     private func isSettled(_ old: MediaRecord, file: ScannedFile) -> Bool {
         switch old.status {
         case .ok:
+            if file.cloudOnly { return false }                 // evicted by iCloud since: list it as such
             return FileManager.default.fileExists(atPath: Self.thumbnailURL(forKey: old.fileKey, in: thumbnailDirectory).path)
         case .noThumbnail:
-            return true
+            // No video track: nothing to retry. A picture that failed to render: a few tries.
+            return file.cloudOnly || old.width == 0 || old.attempts >= Self.maxProbeAttempts
         case .failed:
             return old.attempts >= Self.maxProbeAttempts
         case .cloudOnly:

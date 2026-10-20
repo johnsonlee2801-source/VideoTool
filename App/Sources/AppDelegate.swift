@@ -5,7 +5,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
     private(set) var playerWindow: PlayerWindowController?
     private var libraryWindow: LibraryWindowController?
     /// One library model for the window and for folders added from the player.
-    private(set) lazy var libraryController: LibraryController? = {
+    /// Retried on next use if the database could not be opened (say it was locked),
+    /// instead of leaving the library unusable until the app restarts.
+    var libraryController: LibraryController? {
+        if libraryModel == nil { libraryModel = makeLibraryController() }
+        return libraryModel
+    }
+    private var libraryModel: LibraryController?
+
+    private func makeLibraryController() -> LibraryController? {
         guard let store = try? LibraryStore() else { return nil }
         let path = SQLiteDatabase.defaultPath
         return LibraryController(
@@ -13,13 +21,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
             // Each scan uses its own connection; if it cannot be opened, the scan reports it
             // instead of sharing the main-thread connection (transactions would collide).
             makeIndexer: { (try? LibraryStore(path: path)).map { LibraryIndexer(store: $0) } })
-    }()
+    }
     private let offerPreferences = LibraryOfferPreferences()
     private lazy var libraryOffer = LibraryOfferCoordinator(
         preferences: offerPreferences,
         roots: { [weak self] in self?.libraryController?.rootEntries ?? [] },
         show: { [weak self] proposal in self?.playerWindow?.libraryOffer.offer(proposal) },
-        add: { [weak self] proposal in self?.libraryController?.addRoot(proposal.path, recursive: proposal.wholeFolder) },
+        add: { [weak self] proposal in self?.libraryController?.addRoot(proposal.path, recursive: proposal.wholeFolder) ?? false },
         refresh: { [weak self] root in self?.libraryController?.rescan(root) })
     private var launchQueue = LaunchOpenQueue()
     private weak var audioOutputMenu: NSMenu?
@@ -78,7 +86,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
         w.onFileOpened = { [weak self] url in
             if url.isFileURL { self?.libraryOffer.fileOpened(url.path) }
         }
-        w.libraryOffer.onAdd = { [weak self] in self?.libraryOffer.accept($0) }
+        w.libraryOffer.onAdd = { [weak self] in self?.libraryOffer.accept($0) ?? false }
         w.libraryOffer.onDecline = { [weak self] in self?.libraryOffer.decline($0) }
         w.libraryOffer.onNeverAsk = { [weak self] in self?.libraryOffer.neverAskAgain() }
         w.libraryOffer.onOpenLibrary = { [weak self] in self?.showLibrary(nil) }
@@ -156,7 +164,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
         playMenu.addItem(withTitle: L("切换音轨"), action: #selector(PlayerWindowController.cycleAudio(_:)), keyEquivalent: "a")
         playMenu.addItem(withTitle: L("字幕提前 0.1 秒   Z"), action: #selector(PlayerWindowController.subtitleEarlier(_:)), keyEquivalent: "")
         playMenu.addItem(withTitle: L("字幕延后 0.1 秒   X"), action: #selector(PlayerWindowController.subtitleLater(_:)), keyEquivalent: "")
-        playMenu.addItem(withTitle: L("静音"), action: #selector(PlayerWindowController.toggleMute(_:)), keyEquivalent: "m")
+        // No ⌘M here: that is Minimize (Window menu). The player takes a plain M itself.
+        playMenu.addItem(withTitle: L("静音"), action: #selector(PlayerWindowController.toggleMute(_:)), keyEquivalent: "")
         playMenu.addItem(withTitle: L("夜间模式（对白更清楚）"), action: #selector(PlayerWindowController.toggleNightMode(_:)), keyEquivalent: "")
         let skipItem = playMenu.addItem(withTitle: L("片头片尾"), action: nil, keyEquivalent: "")
         let skipMenu = NSMenu(title: L("片头片尾"))
@@ -222,7 +231,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
 
     @objc func showLibrary(_ sender: Any?) {
         if libraryWindow == nil {
-            guard let controller = libraryController else { return }
+            guard let controller = libraryController else {
+                let alert = NSAlert()
+                alert.messageText = L("暂时无法打开视频库")
+                alert.informativeText = L("视频库的数据库正被占用或无法读取。请稍后再试。")
+                alert.runModal()
+                return
+            }
             libraryWindow = LibraryWindowController(controller: controller) { [weak self] url in
                 self?.ensureWindow()
                 self?.open(url)

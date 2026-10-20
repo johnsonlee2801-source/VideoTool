@@ -46,13 +46,15 @@ enum LibraryScanner {
         var cancelled = false
         for case let url as URL in walker {
             if isCancelled() { cancelled = true; break }
-            guard videos.contains(url.pathExtension.lowercased()),
-                  let values = try? url.resourceValues(forKeys: Set(keys)),
-                  values.isSymbolicLink != true, values.isRegularFile == true
-            else { continue }
+            guard videos.contains(url.pathExtension.lowercased()) else { continue }
+            // A video whose metadata can't be read must not look deleted: mark the walk
+            // incomplete so the indexer keeps its record (audit 2026-10-20).
+            guard let values = try? url.resourceValues(forKeys: Set(keys)) else { hadError = true; continue }
+            guard values.isSymbolicLink != true, values.isRegularFile == true else { continue }
             let resolved = url.resolvingSymlinksInPath().path
             let path = resolved.hasPrefix(resolvedRoot + "/") ? base + resolved.dropFirst(resolvedRoot.count) : url.path
-            let cloudOnly = values.isUbiquitousItem == true && values.ubiquitousItemDownloadingStatus != .current
+            // .downloaded means a local (possibly older) copy exists: readable, not cloud-only.
+            let cloudOnly = values.isUbiquitousItem == true && values.ubiquitousItemDownloadingStatus == .notDownloaded
             out.append(ScannedFile(path: path, size: Int64(values.fileSize ?? 0),
                                    modified: values.contentModificationDate ?? .distantPast, cloudOnly: cloudOnly))
         }

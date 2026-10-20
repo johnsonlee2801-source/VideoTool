@@ -117,10 +117,14 @@ final class MPVEngine: PlayerEngine {
     func setAudioDevice(_ name: String) { command(["set", "audio-device", name]) }
 
     /// Adds an external subtitle file and shows it (AI subtitles).
-    /// The same file again (regenerated or reopened) is selected, not added twice.
+    /// The same file again (regenerated or reopened) is reloaded and selected, not added twice.
     /// `select: false` adds it without switching to it (the viewer had chosen otherwise).
     func addSubtitle(path: String, title: String, select: Bool = true) {
-        if let id = subtitleTrackID(path: path) { if select { command(["set", "sid", id]) }; return }
+        if let id = subtitleTrackID(path: path) {
+            command(["sub-reload", id])          // the file may have been rewritten since
+            if select { command(["set", "sid", id]) }
+            return
+        }
         command(["sub-add", path, select ? "select" : "auto", title])
     }
 

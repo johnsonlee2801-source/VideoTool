@@ -9,7 +9,8 @@ final class LibraryOfferBar: NSView {
     static let offerSeconds: TimeInterval = 15
     static let confirmSeconds: TimeInterval = 6
 
-    var onAdd: ((LibraryOffer.Proposal) -> Void)?
+    /// Returns whether the folder was added (a database error: false).
+    var onAdd: ((LibraryOffer.Proposal) -> Bool)?
     var onDecline: ((String) -> Void)?
     var onNeverAsk: (() -> Void)?
     var onOpenLibrary: (() -> Void)?
@@ -65,6 +66,8 @@ final class LibraryOfferBar: NSView {
 
     required init?(coder: NSCoder) { fatalError("not supported") }
 
+    var textForTesting: String { label.stringValue }
+
     func offer(_ proposal: LibraryOffer.Proposal) {
         self.proposal = proposal
         let name = Self.name(proposal.path)
@@ -87,7 +90,12 @@ final class LibraryOfferBar: NSView {
         switch action {
         case .add:
             guard let proposal else { return }
-            onAdd?(proposal)
+            // Confirm only what happened: a failed add says so (audit 2026-10-20).
+            guard onAdd?(proposal) ?? false else {
+                label.stringValue = L("没能加入视频库")
+                show([label], for: Self.confirmSeconds)
+                return
+            }
             label.stringValue = L("已加入「%@」，正在后台整理", String(describing: Self.name(proposal.path)))
             show([label, openButton], for: Self.confirmSeconds)
         case .decline:

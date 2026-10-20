@@ -21,6 +21,6 @@ enum TimeFormatting {
             if i > 0 && v >= 60 { return nil }                      // minutes and seconds stay below 60
             total = total * 60 + v
         }
-        return total
+        return total.isFinite && total <= 99 * 3600 ? total : nil          // "1E308:00" is not a time
     }
 }

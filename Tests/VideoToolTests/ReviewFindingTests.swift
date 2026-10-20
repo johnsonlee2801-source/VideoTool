@@ -46,7 +46,7 @@ final class GatedRecognizer: SpeechRecognizing, @unchecked Sendable {
 private let speech = [SpeechSegment(text: "Hello, everyone.", start: 0, end: 1.2, words: [])]
 private func pipeline(_ rec: SpeechRecognizing) -> AISubtitlePipeline {
     let dir = TestTemp.directory.appendingPathComponent("rf-\(UUID().uuidString)")
-    return AISubtitlePipeline(recognizer: rec, translator: nil, cacheDirectory: dir, extract: { _, wav, _, _ in
+    return AISubtitlePipeline(recognizer: rec, translator: nil, cacheDirectory: dir, extract: { _, _, wav, _, _ in
         try? FileManager.default.createDirectory(at: wav.deletingLastPathComponent(), withIntermediateDirectories: true)
         try? Data(count: 100).write(to: wav)
         return .success(3)
@@ -165,7 +165,7 @@ struct PipelineCancellationTests {
         }
         let tr = CancelInTranslation()
         let dir = TestTemp.directory.appendingPathComponent("rf6-\(UUID().uuidString)")
-        let p2 = AISubtitlePipeline(recognizer: Gen(), translator: tr, cacheDirectory: dir, extract: { _, wav, _, _ in
+        let p2 = AISubtitlePipeline(recognizer: Gen(), translator: tr, cacheDirectory: dir, extract: { _, _, wav, _, _ in
             try? FileManager.default.createDirectory(at: wav.deletingLastPathComponent(), withIntermediateDirectories: true)
             try? Data(count: 100).write(to: wav); return .success(3)
         })
@@ -184,7 +184,7 @@ struct PipelineCancellationTests {
             func translate(_ lines: [String], from: String, to: String) async throws -> [String] { throw AISubtitleError.translationUnavailable }
         }
         let dir = TestTemp.directory.appendingPathComponent("rf7-\(UUID().uuidString)")
-        let p = AISubtitlePipeline(recognizer: Gen(), translator: NoTranslation(), cacheDirectory: dir, extract: { _, wav, _, _ in
+        let p = AISubtitlePipeline(recognizer: Gen(), translator: NoTranslation(), cacheDirectory: dir, extract: { _, _, wav, _, _ in
             try? FileManager.default.createDirectory(at: wav.deletingLastPathComponent(), withIntermediateDirectories: true)
             try? Data(count: 100).write(to: wav); return .success(3)
         })
@@ -274,7 +274,7 @@ struct ResumeOnceTests {
     @Test("RF16 the offer card's real buttons report add / not this one / never") func offerButtons() throws {
         let bar = LibraryOfferBar()
         var log: [String] = []
-        bar.onAdd = { log.append("add \($0.path)") }
+        bar.onAdd = { log.append("add \($0.path)"); return true }
         bar.onDecline = { log.append("decline \($0)") }
         bar.onNeverAsk = { log.append("never") }
         bar.onOpenLibrary = { log.append("open") }

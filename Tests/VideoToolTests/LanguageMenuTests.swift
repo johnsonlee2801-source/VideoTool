@@ -116,3 +116,50 @@ struct LanguageSettingTests {
         #expect(args[2] == "/Applications/Video Tool \"x\".app")
     }
 }
+
+// Full-codebase audit 2026-10-20 (batch 12).
+@Suite(.serialized) @MainActor struct AppShellAuditTests {
+    @Test("AS20 if VideoTool can't be reopened, it stays open and says so instead of quitting")
+    func relaunchFailure() {
+        var terminated = false, reported: String?
+        LanguageMenuController.relaunch(launch: { throw CocoaError(.executableNotLoadable) },
+                                        terminate: { terminated = true }, report: { reported = $0 })
+        #expect(!terminated)
+        #expect(reported != nil)
+        LanguageMenuController.relaunch(launch: {}, terminate: { terminated = true }, report: { _ in })
+        #expect(terminated)
+    }
+
+    @Test("AS21 no two menu items share a keyboard shortcut (⌘M is Minimize, not Mute)")
+    func uniqueShortcuts() throws {
+        let menu = try #require(NSApp.mainMenu)
+        var seen: [String: String] = [:], clashes: [String] = []
+        func walk(_ m: NSMenu) {
+            for item in m.items {
+                if let sub = item.submenu { walk(sub) }
+                guard !item.keyEquivalent.isEmpty else { continue }
+                let key = "\(item.keyEquivalentModifierMask.rawValue)-\(item.keyEquivalent.lowercased())-\(item.keyEquivalent == item.keyEquivalent.uppercased() && item.keyEquivalent.lowercased() != item.keyEquivalent ? "shift" : "")"
+                if let other = seen[key] { clashes.append("\(other) / \(item.title)") } else { seen[key] = item.title }
+            }
+        }
+        walk(menu)
+        #expect(clashes.isEmpty, "\(clashes)")
+        // AppKit quietly drops one of two equal shortcuts, so also check the pair directly.
+        func item(_ action: Selector, in m: NSMenu) -> NSMenuItem? {
+            for i in m.items {
+                if i.action == action { return i }
+                if let sub = i.submenu, let found = item(action, in: sub) { return found }
+            }
+            return nil
+        }
+        let minimize = try #require(item(#selector(NSWindow.performMiniaturize(_:)), in: menu))
+        let mute = try #require(item(#selector(PlayerWindowController.toggleMute(_:)), in: menu))
+        #expect(minimize.keyEquivalent == "m" && minimize.keyEquivalentModifierMask == .command)
+        #expect(!(mute.keyEquivalent.lowercased() == "m" && mute.keyEquivalentModifierMask == .command), "Mute must not take ⌘M")
+    }
+
+    @Test("AS22 hint text on the darkest panel meets the small-text contrast minimum (4.5:1)")
+    func hintContrast() {
+        #expect(Theme.contrast(Theme.textTertiary, Theme.bg2) >= 4.5)
+    }
+}

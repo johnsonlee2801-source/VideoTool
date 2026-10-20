@@ -1,8 +1,8 @@
 import Foundation
 
 /// Where a series' intro ends and its outro starts (set once while watching any
-/// episode; every episode of that show and season then skips them). Files without
-/// episode numbers share the setting of their folder (2026-10-19).
+/// episode; every episode of that show and season then skips them). A video that is
+/// not an episode of a series has a setting of its own (see `key(for:)`).
 final class SkipStore {
     struct Skips: Codable, Equatable {
         var introEnd: Double?
@@ -13,14 +13,25 @@ final class SkipStore {
     private let defaults: UserDefaults
     init(defaults: UserDefaults = AppData.defaults) { self.defaults = defaults }
 
-    /// "series:<show>|s<season>", or "file:<path>" for a video without an episode number
+    /// "series:<show>|s<season>", or "file:<path>" for a video without an episode number.
+    /// A weak match ("Holiday 01") counts as a series only with another episode of it in
+    /// the same folder; S01E02-style names need no such evidence (audit 2026-10-20).
     /// (not its folder: an intro marked on one download must not cut the start off every
     /// other video in ~/Downloads; audit 2026-10-20).
     static func key(for path: String) -> String {
-        if let e = EpisodeParser.parse((path as NSString).lastPathComponent) {
+        if let e = EpisodeParser.parse((path as NSString).lastPathComponent), e.strong || hasSibling(of: e, at: path) {
             return "series:\(EpisodeParser.normalizedTitle(e.title))|s\(e.season ?? 0)"
         }
         return "file:" + path
+    }
+
+    private static func hasSibling(of e: EpisodeInfo, at path: String) -> Bool {
+        let dir = (path as NSString).deletingLastPathComponent, show = EpisodeParser.normalizedTitle(e.title)
+        let names = (try? FileManager.default.contentsOfDirectory(atPath: dir)) ?? []
+        return names.contains { name in
+            guard let o = EpisodeParser.parse(name) else { return false }
+            return EpisodeParser.normalizedTitle(o.title) == show && o.season == e.season && o.episode != e.episode
+        }
     }
 
     func skips(for key: String) -> Skips? { table()[key] }

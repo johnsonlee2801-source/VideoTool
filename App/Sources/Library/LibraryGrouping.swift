@@ -104,7 +104,8 @@ enum LibraryGrouping {
         }
         var shows: [(title: String, season: Int?, items: [LibraryItem])] = []
         for (key, members) in groups {
-            guard members.count > 1 || members.contains(where: { $0.1.strong }) else {
+            // Two copies of one weakly named episode are not a series: count distinct episodes.
+            guard Set(members.map(\.1.episode)).count > 1 || members.contains(where: { $0.1.strong }) else {
                 others += members.map(\.0); continue
             }
             let sorted = members.sorted { $0.1.episode != $1.1.episode ? $0.1.episode < $1.1.episode : byName($0.0, $1.0) }
@@ -166,15 +167,28 @@ enum LibraryGrouping {
             return seriesSections(filtered, context: series, byName: byName)
 
         case .folder:
-            let groups = Dictionary(grouping: filtered) { folderTitle(path: $0.record.path, root: $0.record.root) }
-            return groups.keys.sorted { $0.localizedStandardCompare($1) == .orderedAscending }
-                .map { LibrarySection(title: $0, items: groups[$0]!.sorted(by: byName)) }
+            // By the folder itself, not its title: "Trips" in two library folders stays apart
+            // (audit 2026-10-20); clashing titles are prefixed with their library folder's name.
+            let groups = Dictionary(grouping: filtered) { ($0.record.path as NSString).deletingLastPathComponent }
+            var titles = groups.mapValues { folderTitle(path: $0[0].record.path, root: $0[0].record.root) }
+            let clashing = Dictionary(grouping: titles.keys, by: { titles[$0]! }).filter { $0.value.count > 1 }
+            for dirs in clashing.values {
+                for dir in dirs {
+                    let rootName = (groups[dir]![0].record.root as NSString).lastPathComponent
+                    let parent = ((groups[dir]![0].record.root as NSString).deletingLastPathComponent as NSString).lastPathComponent
+                    titles[dir] = [parent, rootName, titles[dir]!].filter { !$0.isEmpty && $0 != "/" }.joined(separator: " › ")
+                }
+            }
+            return groups.keys.sorted { titles[$0]!.localizedStandardCompare(titles[$1]!) == .orderedAscending }
+                .map { LibrarySection(title: titles[$0]!, items: groups[$0]!.sorted(by: byName)) }
 
         case .date:
             let known = filtered.filter { hasUsableDate($0.record.modified) }
             let unknown = filtered.filter { !hasUsableDate($0.record.modified) }
-            let groups = Dictionary(grouping: known) { calendar.dateComponents([.year, .month], from: $0.record.modified) }
-            var out = groups.keys.sorted { ($0.year!, $0.month!) > ($1.year!, $1.month!) }.map { key in
+            // Keyed by each month's start date: year numbers alone do not sort (or even
+            // separate) months in calendars with eras, such as the Japanese one.
+            let groups = Dictionary(grouping: known) { calendar.dateInterval(of: .month, for: $0.record.modified)?.start ?? $0.record.modified }
+            var out = groups.keys.sorted(by: >).map { key in
                 let items = groups[key]!
                 return LibrarySection(title: monthTitle(items[0].record.modified, calendar: calendar), items: items.sorted(by: byName))
             }

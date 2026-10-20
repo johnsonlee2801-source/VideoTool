@@ -32,7 +32,7 @@ final class BookmarkController {
     /// Bumped on every open/close so late fingerprint results for an older file are dropped.
     private var generation = 0
     /// Star the last ⌥←/⌥→ jumped to, and when (mpv reports the new position a little later).
-    private var landed: (star: Double, at: Date)?
+    private var landed: (star: Double, at: Date, from: Double?)?
 
     var onChange: (([Bookmark]) -> Void)?
     /// A star's thumbnail finished; only the preview needs refreshing (not the list).
@@ -113,7 +113,8 @@ final class BookmarkController {
         let time = engine.state.timePos
         switch BookmarkNavigator.toggle(at: time, now: now(), existing: bookmarks, speed: engine.state.speed) {
         case .undo(let id):
-            attempt { try store.delete(id: id) }
+            // A failed delete leaves the star (and its picture) and says nothing was undone.
+            guard attempt({ try store.delete(id: id) }) else { return nil }
             removeThumbnail(id)
             reload()
             return .undone
@@ -153,7 +154,7 @@ final class BookmarkController {
     /// Where a click on the progress bar should seek: 2 s before a nearby star, else the click.
     func seekTarget(forClickAt time: Double, tolerance: Double) -> Double {
         if let star = BookmarkNavigator.snap(time, to: bookmarks.map(\.time), tolerance: tolerance) {
-            landed = (star, now())
+            landed = (star, now(), engine.state.timePos)
             return BookmarkNavigator.jumpTarget(star)
         }
         landed = nil
@@ -161,7 +162,7 @@ final class BookmarkController {
     }
 
     private func land(on star: Double) {
-        landed = (star, now())
+        landed = (star, now(), engine.state.timePos)
         engine.seek(to: BookmarkNavigator.jumpTarget(star))
     }
 
@@ -170,7 +171,11 @@ final class BookmarkController {
     /// stretch between the landing point and the star.
     private func landedStar(_ current: Double) -> Double? {
         guard let landed else { return nil }
-        if now().timeIntervalSince(landed.at) < 1.5 { return landed.star }
+        // Right after a jump mpv may still report the old position: trust the star then,
+        // but not once the playhead has visibly moved on (at 6× it passes the next star
+        // within a second; audit 2026-10-20).
+        let stale = landed.from.map { abs(current - $0) < 0.75 } ?? true
+        if now().timeIntervalSince(landed.at) < 1.5 && stale { return landed.star }
         let target = BookmarkNavigator.jumpTarget(landed.star)
         if current >= target - 0.25 && current <= landed.star + BookmarkNavigator.previousGrace { return landed.star }
         return nil
@@ -184,7 +189,7 @@ final class BookmarkController {
     }
 
     func delete(_ id: UUID) {
-        attempt { try store.delete(id: id) }
+        guard attempt({ try store.delete(id: id) }) else { return }
         removeThumbnail(id)
         reload()
     }
@@ -198,20 +203,31 @@ final class BookmarkController {
     private func requestThumbnail(for b: Bookmark) {
         guard let url = thumbnailURL(for: b), let path = filePath, let thumbnails else { return }
         try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        let token = generation
         thumbnails.makeThumbnail(source: path, at: b.time, to: url) { [weak self] ok in
             guard let self else { return }
-            // Undone or deleted while the image was being made: don't leave it behind.
-            if (try? self.store.exists(id: b.id)) != true {
+            // Undone or deleted while the image was being made: don't leave it behind. A
+            // failing query is not "deleted": keep the picture (audit 2026-10-20).
+            switch Result(catching: { try self.store.exists(id: b.id) }) {
+            case .success(false):
                 try? FileManager.default.removeItem(at: url)
                 return
+            case .failure(let error):
+                self.onError?(error)
+                return
+            case .success(true):
+                break
             }
-            if ok { self.onThumbnailReady?(b.id) }
+            // Another file is open now: its UI must not hear about this one's pictures.
+            guard ok, token == self.generation, self.fileKey == b.fileKey else { return }
+            self.onThumbnailReady?(b.id)
         }
     }
 
     private func reload() {
         guard let fileKey else { return }
-        bookmarks = (try? store.bookmarks(for: fileKey)) ?? []
+        // A read error keeps the stars on screen (and reports it) rather than showing none.
+        do { bookmarks = try store.bookmarks(for: fileKey) } catch { onError?(error); return }
         onChange?(bookmarks)
     }
 

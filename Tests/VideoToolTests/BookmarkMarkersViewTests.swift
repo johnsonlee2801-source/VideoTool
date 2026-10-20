@@ -53,4 +53,21 @@ import Testing
         }
         #expect(clicked.map(\.time) == [250, 100])
     }
+
+    @Test("SM3 when the hovered star goes away (undone with B), its preview is dismissed without moving the mouse")
+    func hoveredStarRemoved() {
+        let (window, bar, markers, stars) = rig()
+        defer { window.orderOut(nil) }
+        var hovers: [Bookmark?] = []
+        markers.onHover = { b, _ in hovers.append(b) }
+        let p = bar.convert(starPoint(stars[0], markers, bar), to: nil)
+        markers.mouseMoved(with: NSEvent.mouseEvent(with: .mouseMoved, location: p, modifierFlags: [], timestamp: 0,
+                                                    windowNumber: window.windowNumber, context: nil, eventNumber: 0,
+                                                    clickCount: 0, pressure: 0)!)
+        #expect(hovers.last??.id == stars[0].id)
+        markers.bookmarks = [stars[1]]
+        #expect(hovers.count == 2 && hovers.last! == nil)
+        markers.bookmarks = [stars[1]]                           // unrelated change: no extra report
+        #expect(hovers.count == 2)
+    }
 }

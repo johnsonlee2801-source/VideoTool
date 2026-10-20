@@ -81,6 +81,8 @@ struct ResumeTracker {
     /// What to persist when the window closes or the app quits.
     func finalAction(_ s: PlayerState) -> Action? {
         guard let path, s.path == path, s.duration > 0 else { return nil }
+        // The resume seek has not landed: the reported 0 is not where the viewer is.
+        if pendingSeek != nil && !finished && !s.eofReached { return nil }
         return s.eofReached || finished ? .clear(path: path) : .save(path: path, position: s.timePos)
     }
 

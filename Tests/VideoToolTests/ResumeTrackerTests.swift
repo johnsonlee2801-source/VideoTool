@@ -148,3 +148,26 @@ private func state(_ path: String?, pos: Double, dur: Double, paused: Bool = fal
         }
     }
 }
+
+// Full-codebase audit 2026-10-20 (batch 11).
+struct ResumeAuditTests {
+    @Test("RT20 closing before the resume seek lands keeps the stored position (not the 0 still reported)")
+    func closeBeforeLanding() {
+        var t = ResumeTracker(storedPosition: { _ in 300 })
+        #expect(t.fileLoaded(path: "/v/a.mkv", duration: 1000) == [.seek(300)])
+        var s = PlayerState(); s.path = "/v/a.mkv"; s.duration = 1000; s.timePos = 0
+        #expect(t.finalAction(s) == nil, "nothing to save yet: the stored 300 s stands")
+        s.timePos = 300
+        _ = t.update(s)                                           // landed
+        s.timePos = 320
+        #expect(t.finalAction(s) == .save(path: "/v/a.mkv", position: 320))
+    }
+
+    @Test("RT21 a short clip is not 'watched' just by being opened")
+    func shortClip() {
+        #expect(!WatchEntry(position: 0, duration: 8, watchedAt: Date(), finished: false).isWatched)
+        #expect(!WatchEntry(position: 4, duration: 8, watchedAt: Date(), finished: false).isWatched)
+        #expect(WatchEntry(position: 7.9, duration: 8, watchedAt: Date(), finished: false).isWatched)
+        #expect(WatchEntry(position: 1395, duration: 1400, watchedAt: Date(), finished: false).isWatched, "credits of an episode")
+    }
+}

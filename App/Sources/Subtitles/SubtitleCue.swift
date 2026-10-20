@@ -69,9 +69,15 @@ enum CueShaper {
         if !given.isEmpty { return given }
         let text = seg.text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return [] }
+        // Without spaces (Chinese, Japanese): one token per wide character, but a run of
+        // Latin letters stays one word ("我用Mac看"; "Hello", not "H e l l o").
         let pieces: [String] = text.contains(" ")
             ? text.split(whereSeparator: \.isWhitespace).map(String.init)
-            : text.map(String.init)
+            : text.reduce(into: [String]()) { out, ch in
+                let wide = ch.unicodeScalars.first.map(isWide) ?? false
+                if !wide, let last = out.last, let l = last.unicodeScalars.last, !isWide(l) { out[out.count - 1] += String(ch) }
+                else { out.append(String(ch)) }
+            }
         let total = Double(pieces.reduce(0) { $0 + $1.count })
         let span = max(seg.end - seg.start, 0)
         var at = 0.0
@@ -107,30 +113,39 @@ enum CueShaper {
             guard let f = part.first, let l = part.last else { return }
             cues.append(SubtitleCue(start: f.start, end: l.end, text: join(part)))
         }
+        func fits(_ c: [SpeechWord]) -> Bool {
+            displayWidth(join(c)) <= maxWidth && (c.last!.end - c.first!.start) <= maxDuration
+        }
         for t in tokens {
-            let candidate = chunk + [t]
-            let fits = displayWidth(join(candidate)) <= maxWidth
-                && (candidate.last!.end - candidate.first!.start) <= maxDuration
-            if fits || chunk.isEmpty { chunk = candidate; continue }
-            if let i = chunk.indices.dropLast().last(where: { endsClause(chunk[$0].text) }),
-               displayWidth(join(Array(chunk[...i]))) >= minClauseWidth {
-                emit(Array(chunk[...i]))
-                chunk = Array(chunk[(i + 1)...]) + [t]
-            } else {
-                emit(chunk)
-                chunk = [t]
+            // After a clause break the rest is checked again with the same token, so no
+            // cue ends up wider than the limit (audit 2026-10-20).
+            while true {
+                let candidate = chunk + [t]
+                if chunk.isEmpty || fits(candidate) { chunk = candidate; break }
+                if let i = chunk.indices.dropLast().last(where: { endsClause(chunk[$0].text) }),
+                   displayWidth(join(Array(chunk[...i]))) >= minClauseWidth {
+                    emit(Array(chunk[...i]))
+                    chunk = Array(chunk[(i + 1)...])
+                } else {
+                    emit(chunk)
+                    chunk = [t]
+                    break
+                }
             }
         }
         emit(chunk)
         return cues
     }
 
-    /// In time order, no overlaps, each at least `minDuration` long where there is room.
+    /// In time order, no overlaps, each at least `minDuration` long where there is room
+    /// (never by pushing the next line later than its speech; audit 2026-10-20).
     private static func settle(_ cues: [SubtitleCue]) -> [SubtitleCue] {
+        let sorted = cues.sorted(by: { $0.start < $1.start })
         var out: [SubtitleCue] = []
-        for var c in cues.sorted(by: { $0.start < $1.start }) {
+        for (i, var c) in sorted.enumerated() {
             if let prev = out.last { c.start = max(c.start, prev.end) }
-            c.end = max(c.end, c.start + minDuration)
+            let room = i + 1 < sorted.count ? max(sorted[i + 1].start, c.end) : .infinity
+            c.end = max(c.end, min(c.start + minDuration, room))
             out.append(c)
         }
         return out
@@ -140,8 +155,11 @@ enum CueShaper {
 /// SubRip (.srt), which mpv loads directly. Bilingual cues show the translation
 /// first, then the original.
 enum SRT {
+    /// Longest time written or read (99 hours): anything beyond is a damaged file.
+    static let maxSeconds = 99.0 * 3600
+
     static func timestamp(_ seconds: Double) -> String {
-        let ms = Int((max(seconds, 0) * 1000).rounded())
+        let ms = Int((min(max(seconds.isFinite ? seconds : 0, 0), maxSeconds) * 1000).rounded())
         return String(format: "%02d:%02d:%02d,%03d", ms / 3_600_000, ms / 60_000 % 60, ms / 1000 % 60, ms % 1000)
     }
 
@@ -174,14 +192,21 @@ enum SRT {
     static func seconds(_ stamp: String) -> Double? {
         let parts = stamp.replacingOccurrences(of: ",", with: ".").split(separator: ":")
         guard parts.count == 3, let h = Double(parts[0]), let m = Double(parts[1]), let s = Double(parts[2]) else { return nil }
-        return h * 3600 + m * 60 + s
+        let total = h * 3600 + m * 60 + s
+        return total.isFinite && total >= 0 && total <= maxSeconds ? total : nil
     }
 
     static func document(_ cues: [SubtitleCue]) -> String {
         var out = ""
         var number = 0
         for c in cues {
-            let lines = [c.translation, c.text].compactMap { $0 }
+            // The translation is written as one line: reading back takes the first line as
+            // the translation, so a two-line one would lose its second half to the original.
+            let translation = c.translation.map {
+                $0.components(separatedBy: .newlines).map { $0.trimmingCharacters(in: .whitespaces) }
+                    .filter { !$0.isEmpty }.joined(separator: " ")
+            }
+            let lines = [translation, c.text].compactMap { $0 }
                 .flatMap { $0.components(separatedBy: .newlines) }
                 .map { $0.trimmingCharacters(in: .whitespaces) }
                 .filter { !$0.isEmpty }
@@ -256,12 +281,12 @@ enum ASS {
     }
 
     private static func lineCount(_ c: SubtitleCue) -> Int {
-        c.text.components(separatedBy: .newlines).filter { !$0.isEmpty }.count + (c.translation == nil ? 0 : 1)
+        [c.text, c.translation ?? ""].map { $0.components(separatedBy: .newlines).filter { !$0.isEmpty }.count }.reduce(0, +)
     }
 
     /// H:MM:SS.cc
     static func time(_ seconds: Double) -> String {
-        let cs = Int((max(seconds, 0) * 100).rounded())
+        let cs = Int((min(max(seconds.isFinite ? seconds : 0, 0), SRT.maxSeconds) * 100).rounded())
         return String(format: "%d:%02d:%02d.%02d", cs / 360_000, cs / 6000 % 60, cs / 100 % 60, cs % 100)
     }
 

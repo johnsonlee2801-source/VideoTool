@@ -171,8 +171,9 @@ public final class SpeedGestureMachine {
     }
 
     public func mouseUp(at now: Double) {
-        guard pressed, let host else { pressed = false; return }
+        guard pressed else { return }
         pressed = false
+        guard let host else { isHolding = false; return }      // host gone mid-hold: still released
         if isHolding {
             endHold(host)
         } else {

@@ -163,7 +163,7 @@ private func find<T: NSView>(_ type: T.Type, in view: NSView, where match: (T) -
         defer { w.shutdown() }
         let p = AISubtitlePipeline(recognizer: Failing(), translator: nil,
                                    cacheDirectory: TestTemp.directory.appendingPathComponent("c9-\(UUID().uuidString)"),
-                                   extract: { _, wav, _, _ in
+                                   extract: { _, _, wav, _, _ in
                                        try? FileManager.default.createDirectory(at: wav.deletingLastPathComponent(), withIntermediateDirectories: true)
                                        try? Data(count: 100).write(to: wav); return .success(3) })
         w.startAISubtitles(video: sample.path, choice: .init(source: "en-US", target: nil), pipeline: p)

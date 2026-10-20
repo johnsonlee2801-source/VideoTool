@@ -1,4 +1,5 @@
 import Foundation
+import SQLite3
 import Testing
 @testable import VideoTool
 
@@ -36,7 +37,8 @@ final class FakeTagger: ImageTagger, @unchecked Sendable {
     private let lock = NSLock()
     private var _calls = 0
     var calls: Int { get { lock.lock(); defer { lock.unlock() }; return _calls } set { lock.lock(); _calls = newValue; lock.unlock() } }
-    func tags(forImageAt url: URL) -> [(String, Double)] { lock.lock(); _calls += 1; lock.unlock(); return [("户外", 0.9)] }
+    var none = false                     // Vision found nothing
+    func tags(forImageAt url: URL) -> [(String, Double)] { lock.lock(); _calls += 1; lock.unlock(); return none ? [] : [("户外", 0.9)] }
 }
 
 private final class Rig {
@@ -240,6 +242,7 @@ private final class Rig {
         let r = try Rig()
         try r.file("audio-only.mp4", seed: 1)
         r.prober.noFrame = ["audio-only.mp4"]
+        r.prober.result = MediaProbe(duration: 90, width: 0, height: 0)     // no video track: nothing to retry
         _ = r.run(); _ = r.run(); _ = r.run()
         #expect(r.prober.calls == ["audio-only.mp4"])
         #expect(try r.store.record(at: r.root + "/audio-only.mp4")?.status == .noThumbnail)
@@ -324,5 +327,69 @@ private final class Rig {
         _ = r.run()
         #expect(r.prober.calls.count == 1)
         #expect(try r.store.media(inRoot: r.root).count == 3)
+    }
+}
+
+
+// Full-codebase audit 2026-10-20 (batch 01).
+@Suite struct LibraryIndexerAuditTests {
+    @Test("X21 a video whose thumbnail failed once (disk full, timeout) is retried, then settles after a few tries")
+    func thumbnailRetried() throws {
+        let r = try Rig()
+        try r.file("a.mp4", seed: 1); try r.file("b.mp4", seed: 2)
+        r.prober.noFrame = ["a.mp4", "b.mp4"]                  // a picture exists (1920×1080) but rendering failed
+        _ = r.run()
+        #expect(try r.store.record(at: r.root + "/a.mp4")?.status == .noThumbnail)
+        r.prober.noFrame = ["b.mp4"]                           // a recovers; b keeps failing
+        for _ in 0..<5 { _ = r.run() }
+        #expect(try r.store.record(at: r.root + "/a.mp4")?.status == .ok, "recovered on the next scan")
+        #expect(r.prober.calls.filter { $0 == "b.mp4" }.count == LibraryIndexer.maxProbeAttempts, "then left alone")
+    }
+
+    @Test("X22 a downloaded video that iCloud evicts shows as not downloaded, keeping what is known about it")
+    func evicted() throws {
+        let r = try Rig()
+        try r.file("a.mp4", seed: 1)
+        _ = r.run()
+        let before = try #require(try r.store.record(at: r.root + "/a.mp4"))
+        r.cloudOnly = ["a.mp4"]
+        _ = r.run()
+        let after = try #require(try r.store.record(at: r.root + "/a.mp4"))
+        #expect(after.status == .cloudOnly)
+        #expect(after.fileKey == before.fileKey && after.duration == before.duration, "same content: stars and thumbnail stay attached")
+        #expect(r.fingerprintCalls == ["a.mp4"], "an evicted file is never read")
+    }
+
+    @Test("X23 deleting the last copy of a video Vision found nothing in also removes its thumbnail")
+    func untaggedThumbnailCleaned() throws {
+        let r = try Rig()
+        r.tagger.none = true
+        let a = try r.file("a.mp4", seed: 1)
+        _ = r.run()
+        let key = try #require(try r.store.record(at: a)?.fileKey)
+        let thumb = LibraryIndexer.thumbnailURL(forKey: key, in: r.thumbs)
+        #expect(FileManager.default.fileExists(atPath: thumb.path))
+        try FileManager.default.removeItem(atPath: a)
+        _ = r.run()
+        #expect(!FileManager.default.fileExists(atPath: thumb.path))
+    }
+}
+
+@Suite(.serialized) struct SQLiteLockTests {
+    @Test("X24 a database another program keeps locked fails within the wait limit instead of freezing for minutes")
+    func boundedWait() throws {
+        let path = TestTemp.directory.appendingPathComponent("locked-\(UUID().uuidString).sqlite").path
+        _ = try LibraryStore(path: path)                         // create and migrate
+        var other: OpaquePointer?
+        #expect(sqlite3_open(path, &other) == SQLITE_OK)
+        defer { sqlite3_close(other) }
+        #expect(sqlite3_exec(other, "BEGIN EXCLUSIVE;", nil, nil, nil) == SQLITE_OK)
+        let saved = SQLiteDatabase.lockWait
+        SQLiteDatabase.lockWait = 1
+        defer { SQLiteDatabase.lockWait = saved }
+        let t0 = Date()
+        #expect(throws: (any Error).self) { _ = try LibraryStore(path: path) }
+        #expect(Date().timeIntervalSince(t0) < 4, "gave up after \(Date().timeIntervalSince(t0)) s")
+        sqlite3_exec(other, "ROLLBACK;", nil, nil, nil)
     }
 }

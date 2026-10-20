@@ -66,10 +66,20 @@ enum SubtitleLanguages {
         .init(id: "ja", name: L("日语")), .init(id: "ko", name: L("韩语")),
     ]
 
-    /// "zh-CN" and "zh-Hans" are the same language; "yue" is not "zh".
+    /// "zh-CN" and "zh-Hans" are the same language; "yue" is not "zh"; and Chinese in
+    /// another script is not the same ("zh-CN" → "zh-Hant" needs converting; audit 2026-10-20).
     static func sameLanguage(_ source: String, _ target: String) -> Bool {
-        func base(_ id: String) -> String { String(id.split(whereSeparator: { $0 == "-" || $0 == "_" }).first ?? "") }
-        return base(source).lowercased() == base(target).lowercased()
+        func parts(_ id: String) -> [String] { id.split(whereSeparator: { $0 == "-" || $0 == "_" }).map { $0.lowercased() } }
+        let s = parts(source), t = parts(target)
+        guard s.first == t.first else { return false }
+        guard s.first == "zh" else { return true }
+        return script(s) == script(t)
+    }
+
+    /// Simplified unless the tag says Traditional (by script, or by a Traditional region).
+    private static func script(_ parts: [String]) -> String {
+        if parts.contains("hant") || parts.contains(where: { ["tw", "hk", "mo"].contains($0) }) { return "hant" }
+        return "hans"
     }
 }
 
@@ -125,11 +135,16 @@ enum SubtitleCache {
 
     static var directory: URL { AppData.directory.appendingPathComponent("Subtitles", isDirectory: true) }
 
-    static func url(forVideo path: String, source: String, target: String?, in dir: URL = directory) -> URL {
+    /// `audioTrack`: the track listened to; the first track (or none given) keeps the
+    /// name subtitles had before tracks were told apart.
+    static func url(forVideo path: String, source: String, target: String?, audioTrack: String? = nil,
+                    in dir: URL = directory) -> URL {
         let attrs = try? FileManager.default.attributesOfItem(atPath: path)
         let size = (attrs?[.size] as? NSNumber)?.int64Value ?? -1
         let mtime = (attrs?[.modificationDate] as? Date)?.timeIntervalSince1970 ?? 0
-        let key = "\(path)|\(size)|\(mtime)|\(source)|\(target ?? "-")"
+        // Only a numbered track after the first changes the name ("no" or "auto" do not).
+        let track = audioTrack.flatMap(Int.init).flatMap { $0 > 1 ? "|aid=\($0)" : nil } ?? ""
+        let key = "\(path)|\(size)|\(mtime)|\(source)|\(target ?? "-")\(track)"
         let digest = SHA256.hash(data: Data(key.utf8)).prefix(12).map { String(format: "%02x", $0) }.joined()
         return dir.appendingPathComponent("\(digest).srt")
     }
@@ -145,6 +160,8 @@ final class AISubtitlePipeline {
         var target: String?
         /// Where the viewer is: recognition starts here, then fills in the beginning.
         var startAt: Double = 0
+        /// The audio track being played (mpv "aid"); nil: the default one.
+        var audioTrack: String? = nil
     }
 
     /// Splitting only pays off with at least this much on both sides of the start point.
@@ -158,7 +175,7 @@ final class AISubtitlePipeline {
         var translationSkipped: Bool
     }
 
-    typealias Extract = (_ source: String, _ wav: URL, _ isCancelled: @escaping () -> Bool,
+    typealias Extract = (_ source: String, _ audioTrack: String?, _ wav: URL, _ isCancelled: @escaping () -> Bool,
                          _ progress: @escaping (Double) -> Void) -> Result<Double, AudioExtractor.Failure>
 
     private let recognizer: SpeechRecognizing
@@ -169,7 +186,7 @@ final class AISubtitlePipeline {
 
     init(recognizer: SpeechRecognizing, translator: SubtitleTranslating?,
          cacheDirectory: URL = SubtitleCache.directory,
-         extract: @escaping Extract = { AudioExtractor.extract(source: $0, to: $1, isCancelled: $2, progress: $3) }) {
+         extract: @escaping Extract = { AudioExtractor.extract(source: $0, to: $2, audioTrack: $1, isCancelled: $3, progress: $4) }) {
         self.recognizer = recognizer
         self.translator = translator
         self.cacheDirectory = cacheDirectory
@@ -195,7 +212,8 @@ final class AISubtitlePipeline {
              partial: (@Sendable ([SubtitleCue]) -> Void)? = nil) async throws -> Output {
         let wantsTranslation = request.target.map { !SubtitleLanguages.sameLanguage(request.source, $0) } ?? false
         let target = wantsTranslation ? request.target : nil
-        let cached = SubtitleCache.url(forVideo: request.video, source: request.source, target: target, in: cacheDirectory)
+        let cached = SubtitleCache.url(forVideo: request.video, source: request.source, target: target,
+                                          audioTrack: request.audioTrack, in: cacheDirectory)
         if FileManager.default.fileExists(atPath: cached.path) {
             progress(.done, 1)
             let cues = (try? String(contentsOf: cached, encoding: .utf8))?.components(separatedBy: " --> ").count ?? 1
@@ -205,7 +223,8 @@ final class AISubtitlePipeline {
 
         // An earlier run already recognised this video (say its translation failed, or
         // another language was chosen): reuse that and only translate, batch by batch.
-        let originalOnly = SubtitleCache.url(forVideo: request.video, source: request.source, target: nil, in: cacheDirectory)
+        let originalOnly = SubtitleCache.url(forVideo: request.video, source: request.source, target: nil,
+                                          audioTrack: request.audioTrack, in: cacheDirectory)
         if target != nil, let text = try? String(contentsOf: originalOnly, encoding: .utf8) {
             let earlier = SRT.parse(text)
             if !earlier.isEmpty {
@@ -226,7 +245,7 @@ final class AISubtitlePipeline {
         progress(.extracting, 0)
         let token = self.token
         let extracted = await Task.detached { [extract] in
-            extract(request.video, wav, { token.isCancelled }, { progress(.extracting, $0) })
+            extract(request.video, request.audioTrack, wav, { token.isCancelled }, { progress(.extracting, $0) })
         }.value
         let duration: Double
         switch extracted {
@@ -242,15 +261,28 @@ final class AISubtitlePipeline {
         // From where the viewer is to the end first, then the beginning (each part its
         // own WAV; recognised times are shifted back to times in the video).
         var passes: [(start: Double, end: Double, audio: URL)] = [(0, duration, wav)]
+        var slices: [URL] = []
+        // Registered before slicing: a failed second slice must not leave the first behind.
+        defer { slices.forEach { try? FileManager.default.removeItem(at: $0) } }
         if request.startAt >= Self.minimumSplit, duration - request.startAt >= Self.minimumSplit {
             let later = cacheDirectory.appendingPathComponent("audio-\(UUID().uuidString)-b.wav")
             let earlier = cacheDirectory.appendingPathComponent("audio-\(UUID().uuidString)-a.wav")
+            slices = [later, earlier]
             try AudioExtractor.slice(wav, from: request.startAt, to: duration, into: later)
             try AudioExtractor.slice(wav, from: 0, to: request.startAt, into: earlier)
             passes = [(request.startAt, duration, later), (0, request.startAt, earlier)]
         }
-        defer { for pass in passes where pass.audio != wav { try? FileManager.default.removeItem(at: pass.audio) } }
-        let (stream, feed) = AsyncStream<SpeechSegment>.makeStream()
+        // Segments, plus a tick every second so a line followed by silence is still handed
+        // over once the batch interval has passed (audit 2026-10-20).
+        enum Event { case segment(SpeechSegment), tick }
+        let (stream, feed) = AsyncStream<Event>.makeStream()
+        let ticker = Task {
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(1))
+                feed.yield(.tick)
+            }
+        }
+        defer { ticker.cancel() }
         let recognizer = self.recognizer
         let recognition = Task { () throws -> [SpeechSegment] in
             defer { feed.finish() }
@@ -267,7 +299,7 @@ final class AISubtitlePipeline {
                 let part: [SpeechSegment]
                 if let streaming = recognizer as? StreamingSpeechRecognizing {
                     part = try await streaming.transcribe(audio: pass.audio, locale: request.source, duration: length,
-                                                          progress: report, onSegment: { feed.yield(shift($0)) })
+                                                          progress: report, onSegment: { feed.yield(.segment(shift($0))) })
                 } else {
                     part = try await recognizer.transcribe(audio: pass.audio, locale: request.source, duration: length,
                                                            progress: report)
@@ -281,11 +313,15 @@ final class AISubtitlePipeline {
         var streamed = 0
         var lastHandOver = Date()
         do {
-            for await segment in stream {
-                streamed += 1
-                pending.append(segment)
-                let due = live.cues.isEmpty ? pending.count >= Self.firstBatch
-                    : pending.count >= Self.batch || Date().timeIntervalSince(lastHandOver) >= Self.batchSeconds
+            for await event in stream {
+                if case .segment(let segment) = event {
+                    streamed += 1
+                    pending.append(segment)
+                }
+                guard !pending.isEmpty else { continue }
+                let overdue = Date().timeIntervalSince(lastHandOver) >= Self.batchSeconds
+                let due = live.cues.isEmpty ? pending.count >= Self.firstBatch || (streamed > 0 && overdue)
+                    : pending.count >= Self.batch || overdue
                 guard due else { continue }
                 try await live.add(CueShaper.cues(from: pending))
                 pending = []
@@ -293,10 +329,14 @@ final class AISubtitlePipeline {
                 try checkCancelled()
                 partial?(live.cues)
             }
+            // The loop also ends when this job is cancelled: stop the recogniser then,
+            // rather than waiting for it to finish the whole file (audit 2026-10-20).
+            try checkCancelled()
             let all = try await recognition.value
             if streamed == 0 { pending = all }                 // the recogniser could not stream
         } catch {
             recognition.cancel()
+            _ = try? await recognition.value                   // done reading the audio before it is deleted
             try checkCancelled(after: error)
             throw error
         }
@@ -318,7 +358,8 @@ final class AISubtitlePipeline {
     private func finish(_ live: LiveCues, request: Request, final cached: URL,
                         progress: @escaping @Sendable (Phase, Double) -> Void) throws -> Output {
         let final = live.translationSkipped
-            ? SubtitleCache.url(forVideo: request.video, source: request.source, target: nil, in: cacheDirectory)
+            ? SubtitleCache.url(forVideo: request.video, source: request.source, target: nil,
+                                          audioTrack: request.audioTrack, in: cacheDirectory)
             : cached
         try FileManager.default.createDirectory(at: cacheDirectory, withIntermediateDirectories: true)
         try SRT.document(live.cues).write(to: final, atomically: true, encoding: .utf8)

@@ -103,3 +103,48 @@ struct SRTTests {
         #expect(doc.components(separatedBy: "\n\n").filter { !$0.isEmpty }.count == 1)
     }
 }
+
+// Full-codebase audit 2026-10-20 (batch 10).
+struct SubtitleShapingAuditTests {
+    @Test("SS20 a Latin word without word timings stays a word ('Hello', not 'H e l l o'); CJK still splits")
+    func noTimingsLatin() {
+        let cues = CueShaper.cues(from: [SpeechSegment(text: "Hello", start: 0, end: 1, words: [])])
+        #expect(cues.map(\.text) == ["Hello"])
+        let mixed = CueShaper.cues(from: [SpeechSegment(text: "我用Mac看", start: 0, end: 1, words: [])])
+        #expect(mixed.map(\.text) == ["我用Mac看"])
+    }
+
+    @Test("SS21 after breaking at a comma, the rest is checked again: no cue exceeds the width limit")
+    func remainderChecked() {
+        let a = String(repeating: "a", count: 20) + ",", b = String(repeating: "b", count: 59), c = String(repeating: "c", count: 29)
+        let words = [SpeechWord(text: a, start: 0, end: 0.5), SpeechWord(text: b, start: 0.5, end: 1), SpeechWord(text: c, start: 1, end: 1.5)]
+        let cues = CueShaper.cues(from: [SpeechSegment(text: [a, b, c].joined(separator: " "), start: 0, end: 1.5, words: words)])
+        #expect(cues.allSatisfy { CueShaper.displayWidth($0.text) <= CueShaper.maxWidth }, "\(cues.map { CueShaper.displayWidth($0.text) })")
+    }
+
+    @Test("SS22 a short cue is lengthened only up to the next one: quick lines are not pushed later")
+    func minDurationBounded() {
+        let cues = CueShaper.cues(from: [SpeechSegment(text: "Hi.", start: 0, end: 0.1, words: []),
+                                         SpeechSegment(text: "Yo.", start: 0.1, end: 0.2, words: [])])
+        #expect(cues.count == 2)
+        #expect(abs(cues[1].start - 0.1) < 0.001, "second line still starts with its speech: \(cues[1].start)")
+    }
+
+    @Test("SS23 a damaged subtitle file with absurd times is skipped, not a crash")
+    func absurdTimes() {
+        #expect(SRT.seconds("1e308:00:00,000") == nil)
+        #expect(SRT.seconds("99999999:00:00,000") == nil)
+        let cues = SRT.parse("1\n1e308:00:00,000 --> 1e308:00:01,000\nBoom\n\n2\n00:00:01,000 --> 00:00:02,000\nOK")
+        #expect(cues.map(\.text) == ["OK"])
+        _ = ASS.document([SubtitleCue(start: 1e300, end: .infinity, text: "x")], band: true)   // formatting never traps
+        _ = SRT.document([SubtitleCue(start: 1e300, end: .infinity, text: "x")])
+    }
+
+    @Test("SS24 a two-line translation survives saving and loading, and stays above the original")
+    func multilineTranslation() {
+        let doc = SRT.document([SubtitleCue(start: 0, end: 2, text: "Hello", translation: "Bonjour\nmonde")])
+        let back = SRT.parse(doc, bilingual: true)
+        #expect(back.first?.translation == "Bonjour monde")
+        #expect(back.first?.text == "Hello")
+    }
+}

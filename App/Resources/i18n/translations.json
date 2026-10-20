@@ -651,6 +651,18 @@
   "en": "Can't write %@",
   "ja": "%@ に書き込めません"
  },
+ "无法加入视频库：%@": {
+  "en": "Couldn't add to the library: %@",
+  "ja": "ライブラリに追加できませんでした：%@"
+ },
+ "无法移出视频库：%@": {
+  "en": "Couldn't remove from the library: %@",
+  "ja": "ライブラリから削除できませんでした：%@"
+ },
+ "无法自动重新打开 VideoTool，请手动退出后再打开。": {
+  "en": "VideoTool couldn't reopen itself. Please quit and open it again.",
+  "ja": "VideoTool を自動で開き直せませんでした。いったん終了してから開いてください。"
+ },
  "无法读取字幕文件": {
   "en": "The subtitle file can't be read",
   "ja": "字幕ファイルを読み込めません"
@@ -707,9 +719,17 @@
   "en": "Pause",
   "ja": "一時停止"
  },
+ "暂时无法打开视频库": {
+  "en": "The library can't be opened right now",
+  "ja": "ライブラリを開けません"
+ },
  "暂时无法打开视频库数据库，请稍后点「重新扫描」。": {
   "en": "Can't open the library database right now. Please click “Rescan” in a moment.",
   "ja": "ビデオライブラリのデータベースを開けません。しばらくしてから「再スキャン」をクリックしてください。"
+ },
+ "暂时无法读取视频库：%@": {
+  "en": "Couldn't read the library right now: %@",
+  "ja": "ライブラリを読み込めませんでした：%@"
  },
  "更新 %@": {
   "en": "%@ updated",
@@ -794,6 +814,10 @@
  "没有重复文件": {
   "en": "No Duplicates",
   "ja": "重複ファイルはありません"
+ },
+ "没能加入视频库": {
+  "en": "Couldn't add it to the library",
+  "ja": "ライブラリに追加できませんでした"
  },
  "河流": {
   "en": "River",
@@ -1015,6 +1039,10 @@
   "en": "Video Library",
   "ja": "ビデオライブラリ"
  },
+ "视频库的数据库正被占用或无法读取。请稍后再试。": {
+  "en": "Its database is in use or can't be read. Please try again shortly.",
+  "ja": "データベースが使用中か、読み込めません。しばらくしてからもう一度お試しください。"
+ },
  "视频里说的是：": {
   "en": "Language spoken in the video:",
   "ja": "ビデオで話されている言語："
@@ -1034,6 +1062,10 @@
  "语言 · Language": {
   "en": "Language",
   "ja": "言語 · Language"
+ },
+ "请填写剧名和集数（集数是数字）。": {
+  "en": "Enter a show name and an episode number.",
+  "ja": "番組名と話数（数字）を入力してください。"
  },
  "跟随系统": {
   "en": "Follow System",

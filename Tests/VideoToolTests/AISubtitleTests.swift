@@ -35,7 +35,7 @@ private final class FakeTranslator: SubtitleTranslating, @unchecked Sendable {
 }
 
 private func fakeExtract(_ result: Result<Double, AudioExtractor.Failure>) -> AISubtitlePipeline.Extract {
-    { _, wav, _, progress in
+    { _, _, wav, _, progress in
         if case .success = result {
             try? FileManager.default.createDirectory(at: wav.deletingLastPathComponent(), withIntermediateDirectories: true)
             try? Data(count: 100).write(to: wav)
@@ -213,7 +213,7 @@ struct SubtitleReuseTests {
         let dir = TestTemp.directory.appendingPathComponent("rt2-\(UUID().uuidString)")
         let rec = CountingRecognizer(), tr = SwitchableTranslator()
         var extractions = 0
-        let p = AISubtitlePipeline(recognizer: rec, translator: tr, cacheDirectory: dir, extract: { _, wav, _, _ in
+        let p = AISubtitlePipeline(recognizer: rec, translator: tr, cacheDirectory: dir, extract: { _, _, wav, _, _ in
             extractions += 1
             try? FileManager.default.createDirectory(at: wav.deletingLastPathComponent(), withIntermediateDirectories: true)
             try? Data(count: 100).write(to: wav); return .success(3)
@@ -232,7 +232,7 @@ struct SubtitleReuseTests {
     func otherTarget() async throws {
         let dir = TestTemp.directory.appendingPathComponent("rt3-\(UUID().uuidString)")
         let rec = CountingRecognizer(), tr = SwitchableTranslator(); tr.works = true
-        let p = AISubtitlePipeline(recognizer: rec, translator: tr, cacheDirectory: dir, extract: { _, wav, _, _ in
+        let p = AISubtitlePipeline(recognizer: rec, translator: tr, cacheDirectory: dir, extract: { _, _, wav, _, _ in
             try? FileManager.default.createDirectory(at: wav.deletingLastPathComponent(), withIntermediateDirectories: true)
             try? Data(count: 100).write(to: wav); return .success(3)
         })

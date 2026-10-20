@@ -62,7 +62,7 @@ struct SubtitleFromHereTests {
         let rec = ClockRecognizer(), log = Log()
         let p = AISubtitlePipeline(recognizer: rec, translator: nil,
                                    cacheDirectory: TestTemp.directory.appendingPathComponent("fh2-\(UUID().uuidString)"),
-                                   extract: { _, out, _, _ in
+                                   extract: { _, _, out, _, _ in
                                        try? FileManager.default.createDirectory(at: out.deletingLastPathComponent(), withIntermediateDirectories: true)
                                        try? FileManager.default.copyItem(at: audio, to: out)
                                        return .success(120) })
@@ -85,7 +85,7 @@ struct SubtitleFromHereTests {
             let rec = ClockRecognizer()
             let p = AISubtitlePipeline(recognizer: rec, translator: nil,
                                        cacheDirectory: TestTemp.directory.appendingPathComponent("fh3-\(UUID().uuidString)"),
-                                       extract: { _, out, _, _ in
+                                       extract: { _, _, out, _, _ in
                                            try? FileManager.default.createDirectory(at: out.deletingLastPathComponent(), withIntermediateDirectories: true)
                                            try? FileManager.default.copyItem(at: audio, to: out)
                                            return .success(120) })

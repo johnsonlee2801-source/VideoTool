@@ -88,14 +88,22 @@ final class LibraryController {
 
     // MARK: folders
 
-    func addRoot(_ path: String, recursive: Bool = true) {
+    /// Returns false if the folder could not be saved (the notice says why).
+    @discardableResult
+    func addRoot(_ path: String, recursive: Bool = true) -> Bool {
         notice = nil
         let target = LibraryStore.normalized(path)
-        switch (try? store.addRoot(target, recursive: recursive)) ?? .added {
+        let result: AddRootResult
+        do { result = try store.addRoot(target, recursive: recursive) } catch {
+            notice = L("无法加入视频库：%@", error.localizedDescription)    // nothing saved: nothing to scan
+            onChange?()
+            return false
+        }
+        switch result {
         case .alreadyCovered(let parent):
             notice = L("「%1$@」已在视频库的「%2$@」里，不用重复添加。", String(describing: (target as NSString).lastPathComponent), String(describing: (parent as NSString).lastPathComponent))
             onChange?()
-            return
+            return true
         case .absorbed(let children):
             notice = L("已把 %1$@ 个子文件夹合并进「%2$@」。", String(describing: children.count), String(describing: (target as NSString).lastPathComponent))
         case .added:
@@ -103,6 +111,7 @@ final class LibraryController {
         }
         reload()
         enqueue([target])
+        return true
     }
 
     func rescanAll() { enqueue(roots) }
@@ -117,7 +126,11 @@ final class LibraryController {
     /// A scan already running for it stops at its next file (the indexer re-checks the folder).
     func removeRoot(_ path: String) {
         queuedRoots.removeAll { $0 == path }
-        try? store.removeRoot(path)
+        do { try store.removeRoot(path) } catch {
+            notice = L("无法移出视频库：%@", error.localizedDescription)
+            onChange?()
+            return
+        }
         unavailableRoots.removeAll { $0 == path }
         reload()
     }
@@ -130,12 +143,19 @@ final class LibraryController {
     // MARK: data
 
     func reload() {
-        rootEntries = (try? store.rootEntries()) ?? []
+        // A read error keeps what is on screen rather than showing an empty library.
+        let entries: [LibraryRoot], media: [MediaRecord]
+        do { entries = try store.rootEntries(); media = try store.media(inRoot: nil) } catch {
+            notice = L("暂时无法读取视频库：%@", error.localizedDescription)
+            onChange?()
+            return
+        }
+        rootEntries = entries
         roots = rootEntries.map(\.path)
         let tags = (try? store.allTags()) ?? [:]
         let counts: [String: Int] = (try? stars?.counts()) ?? [:]
         let watched = history.all
-        items = ((try? store.media(inRoot: nil)) ?? []).map {
+        items = media.map {
             LibraryItem(record: $0, tags: tags[$0.fileKey] ?? [], starCount: counts[$0.fileKey] ?? 0, watch: watched[$0.path])
         }
         onChange?()
@@ -198,7 +218,8 @@ final class LibraryController {
                 self.isIndexing = false
                 self.progress = nil
                 self.lastSummary = total
-                self.unavailableRoots = unavailable
+                // Only the folders checked in this pass change status.
+                self.unavailableRoots = self.unavailableRoots.filter { !batch.contains($0) } + unavailable
                 self.token = nil
                 self.reload()                      // the one full refresh for this pass
                 self.startNextIfIdle()

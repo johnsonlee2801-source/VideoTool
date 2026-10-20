@@ -36,18 +36,24 @@ final class SQLiteDatabase {
                                                 withIntermediateDirectories: true)
         try open(path)
         // busy_timeout first: another connection may be opening/migrating the same file right now.
-        try exec("PRAGMA busy_timeout = 5000;")
+        try exec("PRAGMA busy_timeout = \(Int(min(Self.lockWait, 5) * 1000));")
         // Switching to WAL and migrating need an exclusive lock; under contention SQLite can
         // return "database is locked" at once instead of waiting (test L10). Retry briefly.
         try Self.retryingWhileLocked { try exec("PRAGMA journal_mode = WAL;") }
         try Self.retryingWhileLocked { try migrate() }
     }
 
+    /// Longest wait for another connection's lock when opening (busy timeout and retries
+    /// together). Forty retries each waiting out a 5 s busy timeout could block for
+    /// over three minutes (audit 2026-10-20). Tests shorten it.
+    static var lockWait: TimeInterval = 10
+
     private static func retryingWhileLocked(_ body: () throws -> Void) throws {
         var attempt = 0
+        let deadline = Date().addingTimeInterval(lockWait)
         while true {
             do { return try body() } catch Failure.sqlite(let message)
-                where attempt < 40 && (message.contains("locked") || message.contains("busy")) {
+                where Date() < deadline && (message.contains("locked") || message.contains("busy")) {
                 attempt += 1
                 Thread.sleep(forTimeInterval: 0.025 * Double(min(attempt, 8)))
             }

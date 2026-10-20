@@ -188,3 +188,21 @@ private final class Rig {
         #expect(item.record.path == a)
     }
 }
+
+// Full-codebase audit 2026-10-20 (batch 02).
+@Suite @MainActor struct LibraryControllerAuditTests {
+    @Test("LC20 rescanning one folder keeps another folder's 'unavailable' warning")
+    func unavailableKept() throws {
+        let r = try Rig()
+        let other = URL(fileURLWithPath: TestTemp.directory.appendingPathComponent("lc-other-\(UUID().uuidString)").path)
+            .resolvingSymlinksInPath().path
+        try FileManager.default.createDirectory(atPath: other, withIntermediateDirectories: true)
+        try r.file("a.mp4", seed: 1)
+        r.controller.addRoot(r.root); r.controller.addRoot(other); r.settle()
+        try FileManager.default.removeItem(atPath: other)              // the drive is unplugged
+        r.controller.rescanAll(); r.settle()
+        #expect(r.controller.unavailableRoots == [other])
+        r.controller.rescan(r.root); r.settle()
+        #expect(r.controller.unavailableRoots == [other], "still unplugged")
+    }
+}

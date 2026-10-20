@@ -14,12 +14,13 @@ enum AudioExtractor {
     }
 
     /// Returns the audio duration in seconds.
-    static func extract(source: String, to wav: URL, isCancelled: () -> Bool = { false },
+    /// `audioTrack`: the mpv track id being played (nil: mpv's default choice).
+    static func extract(source: String, to wav: URL, audioTrack: String? = nil, isCancelled: () -> Bool = { false },
                         progress: (Double) -> Void = { _ in }) -> Result<Double, Failure> {
         try? FileManager.default.createDirectory(at: wav.deletingLastPathComponent(), withIntermediateDirectories: true)
         try? FileManager.default.removeItem(at: wav)
         guard let h = mpv_create() else { return .failure(.cannotOpen("mpv_create failed")) }
-        let outcome = run(h, source: source, wav: wav, isCancelled: isCancelled, progress: progress)
+        let outcome = run(h, source: source, wav: wav, audioTrack: audioTrack, isCancelled: isCancelled, progress: progress)
         // The WAV is complete (header sizes written) only once mpv has shut down.
         mpv_terminate_destroy(h)
         switch outcome {
@@ -38,7 +39,7 @@ enum AudioExtractor {
         }
     }
 
-    private static func run(_ h: OpaquePointer, source: String, wav: URL, isCancelled: () -> Bool,
+    private static func run(_ h: OpaquePointer, source: String, wav: URL, audioTrack: String?, isCancelled: () -> Bool,
                             progress: (Double) -> Void) -> Result<Void, Failure> {
         let options: [(String, String)] = [
             ("config", "no"), ("terminal", "no"), ("idle", "yes"), ("ytdl", "no"), ("osd-level", "0"),
@@ -46,7 +47,7 @@ enum AudioExtractor {
             ("ao", "pcm"), ("ao-pcm-file", wav.path), ("ao-pcm-waveheader", "yes"),
             ("audio-samplerate", "16000"), ("audio-channels", "mono"), ("audio-format", "s16"),
             ("untimed", "yes"), ("keep-open", "no"),
-        ]
+        ] + (audioTrack.map { [("aid", $0)] } ?? [])
         for (k, v) in options where mpv_set_option_string(h, k, v) < 0 {
             return .failure(.cannotOpen("option \(k)"))
         }

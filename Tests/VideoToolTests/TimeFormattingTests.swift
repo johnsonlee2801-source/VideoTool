@@ -24,3 +24,14 @@ import Testing
         #expect(TimeFormatting.string(Double.greatestFiniteMagnitude) == "99999:59:59")
     }
 }
+
+// Full-codebase audit 2026-10-20 (batch 11).
+struct TimeParseAuditTests {
+    @Test("TF20 absurd typed times are rejected, and a non-finite range is never exported")
+    func overflow() {
+        #expect(TimeFormatting.parse("1E308:00") == nil)
+        #expect(TimeFormatting.parse("99999999999") == nil)
+        #expect(ClipRange(start: .nan, end: 5).problem(duration: 0, format: .gif) != nil)
+        #expect(ClipRange(start: 0, end: .infinity).problem(duration: 0, format: .video) != nil)
+    }
+}

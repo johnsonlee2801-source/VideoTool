@@ -41,7 +41,8 @@ enum FileFingerprint {
 
     static let checkSample = 262_144
 
-    /// Confirms that files sharing an OSHash really have the same content: SHA-256
+    /// Tells apart most files that share an OSHash (a sampled check, not a full
+    /// comparison: files differing only between the samples still match): SHA-256
     /// over the size and 256 KB samples at 25 %, 50 % and 75 % (OSHash only looks
     /// at the first and last 64 KB). Small files hash everything. Reads at most 768 KB.
     static func contentCheck(path: String) -> String? {
@@ -50,13 +51,18 @@ enum FileFingerprint {
         guard let size = try? handle.seekToEnd() else { return nil }
         var hasher = SHA256()
         hasher.update(data: withUnsafeBytes(of: size.littleEndian) { Data($0) })
+        // Any failed or short read (the file changed or vanished meanwhile): no answer,
+        // rather than a digest of partial samples (audit 2026-10-20).
         if size <= UInt64(checkSample * 3) {
-            try? handle.seek(toOffset: 0)
-            hasher.update(data: (try? handle.readToEnd()) ?? Data())
+            guard (try? handle.seek(toOffset: 0)) != nil, let all = try? handle.readToEnd(), UInt64(all.count) == size
+            else { return nil }
+            hasher.update(data: all)
         } else {
             for fraction in [0.25, 0.5, 0.75] {
-                try? handle.seek(toOffset: UInt64(Double(size) * fraction))
-                hasher.update(data: (try? handle.read(upToCount: checkSample)) ?? Data())
+                guard (try? handle.seek(toOffset: UInt64(Double(size) * fraction))) != nil,
+                      let sample = try? handle.read(upToCount: checkSample), sample.count == checkSample
+                else { return nil }
+                hasher.update(data: sample)
             }
         }
         return hasher.finalize().map { String(format: "%02x", $0) }.joined()

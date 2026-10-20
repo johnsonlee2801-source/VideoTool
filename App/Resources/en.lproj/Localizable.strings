@@ -162,6 +162,9 @@
 "文字" = "Text";
 "新增 %@" = "%@ added";
 "无法写入 %@" = "Can't write %@";
+"无法加入视频库：%@" = "Couldn't add to the library: %@";
+"无法移出视频库：%@" = "Couldn't remove from the library: %@";
+"无法自动重新打开 VideoTool，请手动退出后再打开。" = "VideoTool couldn't reopen itself. Please quit and open it again.";
 "无法读取字幕文件" = "The subtitle file can't be read";
 "无法读取这个视频" = "This video can't be read";
 "无法读取这个视频的声音。" = "Can't read the audio in this video.";
@@ -176,7 +179,9 @@
 "星标列表" = "Star List";
 "星标列表（⇧⌘B）" = "Star List (⇧⌘B)";
 "暂停" = "Pause";
+"暂时无法打开视频库" = "The library can't be opened right now";
 "暂时无法打开视频库数据库，请稍后点「重新扫描」。" = "Can't open the library database right now. Please click “Rescan” in a moment.";
+"暂时无法读取视频库：%@" = "Couldn't read the library right now: %@";
 "更新 %@" = "%@ updated";
 "最小化" = "Minimize";
 "未识别" = "Unrecognized";
@@ -198,6 +203,7 @@
 "没有符合条件的视频" = "No Matching Videos";
 "没有识别到说话的声音，可能选错了视频语言。" = "No speech was detected. The video language may be set wrong.";
 "没有重复文件" = "No Duplicates";
+"没能加入视频库" = "Couldn't add it to the library";
 "河流" = "River";
 "法语" = "French";
 "海" = "Sea";
@@ -253,11 +259,13 @@
 "视图" = "View";
 "视频多的话需要一会儿，可以先去看片。" = "With lots of videos this can take a while, so feel free to start watching.";
 "视频库" = "Video Library";
+"视频库的数据库正被占用或无法读取。请稍后再试。" = "Its database is in use or can't be read. Please try again shortly.";
 "视频里说的是：" = "Language spoken in the video:";
 "视频（MP4）" = "Video (MP4)";
 "设为默认播放器" = "Set as Default Player";
 "设为默认视频播放器…" = "Set as Default Video Player…";
 "语言 · Language" = "Language";
+"请填写剧名和集数（集数是数字）。" = "Enter a show name and an episode number.";
 "跟随系统" = "Follow System";
 "跳到这里（提前 2 秒）" = "Jump Here (2 Seconds Before)";
 "运动" = "Sports";

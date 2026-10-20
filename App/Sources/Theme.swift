@@ -24,7 +24,7 @@ enum Theme {
     static let textPrimary = hex(0xF5F5F7)
     static let textSecondary = hex(0xA9A9BC)
     /// Placeholders and hints only (large-text contrast).
-    static let textTertiary = hex(0x7C7C91)
+    static let textTertiary = hex(0x8E8EA3)          // ≥ 4.5:1 on bg2: small hint text too
 
     /// Hot pink: primary actions, selection, "faster".
     static let accent = hex(0xFF2E63)

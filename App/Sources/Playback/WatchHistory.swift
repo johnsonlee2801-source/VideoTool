@@ -9,9 +9,11 @@ struct WatchEntry: Equatable {
 
     var fraction: Double { duration > 0 ? min(max(position / duration, 0), 1) : 0 }
 
-    /// Played to the end, or stopped in the last 10 s / 3 % (end credits).
+    /// Played to the end, or stopped in the last 10 s / 3 % (end credits). For a short
+    /// clip the 10 s shrink to a tenth of it: opening an 8 s clip is not watching it.
     var isWatched: Bool {
-        finished || (duration > 0 && (position >= duration - ResumePositionStore.tailMargin || fraction >= 0.97))
+        let tail = min(ResumePositionStore.tailMargin, duration * 0.1)
+        return finished || (duration > 0 && (position >= duration - tail || fraction >= 0.97))
     }
 }
 

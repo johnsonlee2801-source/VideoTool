@@ -25,7 +25,8 @@ enum SeriesEditDialog {
         let t = title.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !t.isEmpty, let ep = Int(episode.trimmingCharacters(in: .whitespaces)), ep >= 0 else { return nil }
         let s = Int(season.trimmingCharacters(in: .whitespaces))
-        return SeriesOverride(title: t, season: s.flatMap { $0 > 0 ? $0 : nil }, episode: ep)
+        // Season 0 is real (specials, "S00E01"); only an empty field means "no season".
+        return SeriesOverride(title: t, season: s.flatMap { $0 >= 0 ? $0 : nil }, episode: ep)
     }
 
     /// The fields, prefilled with what the series view currently thinks.
@@ -72,20 +73,35 @@ enum SeriesEditDialog {
         }
     }
 
+    /// Save pressed with an unusable form: show it again with what was typed, instead
+    /// of closing and losing the edits (audit 2026-10-20).
+    static func shouldAskAgain(after response: NSApplication.ModalResponse, form: Form) -> Bool {
+        response == .alertFirstButtonReturn && form.result(for: response) == .cancel
+    }
+
     static func run(on window: NSWindow, item: LibraryItem, current: EpisodeInfo?,
                     completion: @escaping (Result) -> Void) {
-        let form = Form(current: current)
+        present(Form(current: current), on: window, item: item, problem: nil, completion: completion)
+    }
+
+    private static func present(_ form: Form, on window: NSWindow, item: LibraryItem, problem: String?,
+                                completion: @escaping (Result) -> Void) {
         let alert = NSAlert()
         alert.messageText = L("修改剧集信息")
-        alert.informativeText = L("「%@」\n改过的信息会记住，文件改名或移动后也有效。", String(describing: item.name))
+        alert.informativeText = problem ?? L("「%@」\n改过的信息会记住，文件改名或移动后也有效。", String(describing: item.name))
         alert.accessoryView = form.view
         alert.addButton(withTitle: L("保存"))
         alert.addButton(withTitle: L("取消"))
         alert.addButton(withTitle: L("不是剧集"))
         alert.beginSheetModal(for: window) { response in
-            let result = form.result(for: response)
-            if response == .alertFirstButtonReturn, result == .cancel { NSSound.beep() }
-            completion(result)
+            if shouldAskAgain(after: response, form: form) {
+                NSSound.beep()
+                DispatchQueue.main.async {
+                    present(form, on: window, item: item, problem: L("请填写剧名和集数（集数是数字）。"), completion: completion)
+                }
+                return
+            }
+            completion(form.result(for: response))
         }
     }
 }
