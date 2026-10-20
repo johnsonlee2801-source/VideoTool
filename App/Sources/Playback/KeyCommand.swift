@@ -1,6 +1,16 @@
 import Foundation
 
 enum PlayerCommand: Equatable {
+    /// Whether holding the key should keep repeating it: steps do (seek, volume, speed,
+    /// subtitle timing); toggles and marks act once per press (audit 2026-10-20: holding
+    /// C marked both ends of a clip, holding B starred and unstarred).
+    var repeats: Bool {
+        switch self {
+        case .seek, .volume, .speedDelta, .subtitleDelay: return true
+        default: return false
+        }
+    }
+
     case togglePause
     case seek(Double)          // relative seconds
     case volume(Double)        // relative percent
@@ -25,6 +35,8 @@ struct KeyInput: Equatable {
     var command = false
     var option = false
     var control = false
+    /// Sent by the system while a key is held down.
+    var isRepeat = false
 
     static let left = "left", right = "right", up = "up", down = "down"
     static let space = "space", delete = "delete", escape = "escape"

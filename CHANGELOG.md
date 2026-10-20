@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.3.7 (2026-10-20)
+
+Fixes from a review of the clip feature:
+
+- **Holding a key** no longer repeats toggles: holding C marks one end, holding B
+  stars once, holding Space pauses once. Arrows, volume, speed and Z/X still repeat.
+- Copies and clips carry the AI subtitles only while they are switched on, with
+  the Z/X timing you set.
+- A slow clip Copy never replaces something you copied meanwhile.
+- Pressing ⌘C repeatedly copies the latest moment without piling up work.
+- Copied clips live in VideoTool's own folder and are cleaned up after a day.
+- Very long video names still export; quick exports never replace a file.
+
 ## 0.3.6 (2026-10-20)
 
 - The clip bar says what Copy gives ("Copy GIF" / "Copy Video") and, for clips over

@@ -63,28 +63,38 @@ enum ClipExporter {
     /// without extension is the name prefix: "<prefix> 1-05.jpg".
     /// `subtitles`: a subtitle file (the AI subtitles as shown, .ass) burned into the picture.
     /// `progress`: 0…1, from a background thread, never decreasing, ending at 1.
-    static func export(source: URL, range: ClipRange, format: Format, subtitles: URL? = nil, to destination: URL,
+    /// `subtitleDelay`: the viewer's Z/X timing, so the burned-in lines match the player.
+    /// `replaceExisting: false` (quick exports): never replace a file, even one that
+    /// appeared while exporting; the clip takes the next free "(n)" name instead.
+    static func export(source: URL, range: ClipRange, format: Format, subtitles: URL? = nil, subtitleDelay: Double = 0,
+                       to destination: URL, replaceExisting: Bool = true,
                        progress: (@Sendable (Double) -> Void)? = nil) async throws -> [URL] {
         let dir = destination.deletingLastPathComponent()
         guard FileManager.default.isWritableFile(atPath: dir.path) else { throw Failure(reason: L("无法写入 %@", dir.path)) }
         let cancel = CancelFlag()
         let made = try await withTaskCancellationHandler {
             try await Task.detached(priority: .userInitiated) {
-                try run(source: source, range: range, format: format, subtitles: subtitles, to: destination,
-                        progress: ProgressReport(progress), cancel: cancel)
+                try run(source: source, range: range, format: format,
+                        subtitles: subtitles.map { Subtitles(file: $0, delay: subtitleDelay) }, to: destination,
+                        replace: replaceExisting, progress: ProgressReport(progress), cancel: cancel)
             }.value
         } onCancel: { cancel.set() }
         return made
     }
 
-    private static func run(source: URL, range: ClipRange, format: Format, subtitles: URL?, to destination: URL,
-                            progress report: ProgressReport, cancel: CancelFlag) throws -> [URL] {
+    /// Subtitles to burn in, with the player's timing offset.
+    struct Subtitles { var file: URL; var delay: Double }
+
+    private static func run(source: URL, range: ClipRange, format: Format, subtitles: Subtitles?, to destination: URL,
+                            replace: Bool, progress report: ProgressReport, cancel: CancelFlag) throws -> [URL] {
         let made: [URL]
         switch format {
         case .video:
-            made = [try encodeVideo(source: source, range: range, subtitles: subtitles, to: destination, progress: report, cancel: cancel)]
+            made = [try encodeVideo(source: source, range: range, subtitles: subtitles, to: destination, replace: replace,
+                                    progress: report, cancel: cancel)]
         case .gif:
-            made = [try makeGIF(source: source, range: range, subtitles: subtitles, to: destination, progress: report, cancel: cancel)]
+            made = [try makeGIF(source: source, range: range, subtitles: subtitles, to: destination, replace: replace,
+                                progress: report, cancel: cancel)]
         case .stills(let count):
             made = try makeStills(source: source, range: range, count: count, subtitles: subtitles, prefix: destination,
                                   progress: report, cancel: cancel)
@@ -119,8 +129,8 @@ enum ClipExporter {
 
     // MARK: video
 
-    private static func encodeVideo(source: URL, range: ClipRange, subtitles: URL?, to out: URL, progress: ProgressReport,
-                                    cancel: CancelFlag) throws -> URL {
+    private static func encodeVideo(source: URL, range: ClipRange, subtitles: Subtitles?, to out: URL, replace: Bool,
+                                    progress: ProgressReport, cancel: CancelFlag) throws -> URL {
         let probe = MPVFrameGrabber.grab(source: source.path, start: "0", thumbnailTo: nil).probe
         guard let probe else { throw Failure(reason: L("无法读取这个视频")) }
         let pixels = max(probe.width * probe.height, 640 * 360)
@@ -128,13 +138,13 @@ enum ClipExporter {
         let tmp = out.deletingLastPathComponent().appendingPathComponent(".\(UUID().uuidString)-\(out.lastPathComponent)")
         defer { try? FileManager.default.removeItem(at: tmp) }
         try runEncoder(source: source, range: range, bitrate: bitrate, subtitles: subtitles, to: tmp, progress: progress, cancel: cancel)
-        return try place(tmp, at: out)
+        return try place(tmp, at: out, replace: replace)
     }
 
     /// The MP4 is complete once the mpv instance is destroyed (on return).
     /// Starts paused: once the file is open, our subtitles are added and selected
     /// explicitly (a file's own subtitle track must never be the one burned in).
-    private static func runEncoder(source: URL, range: ClipRange, bitrate: Int, subtitles: URL?, to tmp: URL,
+    private static func runEncoder(source: URL, range: ClipRange, bitrate: Int, subtitles: Subtitles?, to tmp: URL,
                                    progress: ProgressReport, cancel: CancelFlag) throws {
         guard let h = mpv_create() else { throw Failure(reason: "mpv_create failed") }
         defer { mpv_terminate_destroy(h) }
@@ -146,6 +156,7 @@ enum ClipExporter {
             ("o", tmp.path), ("of", "mp4"), ("ovc", "h264_videotoolbox"), ("ovcopts", "b=\(bitrate)"),
             ("oac", "aac"), ("oacopts", "b=160000"),
             ("start", String(range.start)), ("end", String(range.end)), ("pause", "yes"),
+            ("sub-delay", String(subtitles?.delay ?? 0)),
         ]
         for (k, v) in options where mpv_set_option_string(h, k, v) < 0 {
             throw Failure(reason: "option \(k)=\(v)")
@@ -166,7 +177,7 @@ enum ClipExporter {
             switch ev.pointee.event_id {
             case MPV_EVENT_FILE_LOADED:
                 if let subtitles {
-                    var add: [UnsafePointer<CChar>?] = [UnsafePointer(strdup("sub-add")), UnsafePointer(strdup(subtitles.path)),
+                    var add: [UnsafePointer<CChar>?] = [UnsafePointer(strdup("sub-add")), UnsafePointer(strdup(subtitles.file.path)),
                                                         UnsafePointer(strdup("select")), nil]
                     defer { add.forEach { free(UnsafeMutablePointer(mutating: $0)) } }
                     if add.withUnsafeMutableBufferPointer({ mpv_command(h, $0.baseAddress) }) < 0 {
@@ -201,7 +212,7 @@ enum ClipExporter {
     // MARK: GIF and stills
 
     /// Grabs frames at `times` in parallel (each with its own short-lived mpv).
-    private static func frames(source: URL, at times: [Double], width: Int?, subtitles: URL?, progress: ProgressReport,
+    private static func frames(source: URL, at times: [Double], width: Int?, subtitles: Subtitles?, progress: ProgressReport,
                                cancel: CancelFlag) throws -> [URL] {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("clip-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
@@ -218,7 +229,8 @@ enum ClipExporter {
             var failure: String?
             for _ in 0..<2 {                   // a grab under heavy load occasionally misses; retry once
                 failure = MPVFrameGrabber.grab(source: source.path, start: String(times[i]), thumbnailTo: urls[i],
-                                               subtitles: subtitles?.path, width: width).failure
+                                               subtitles: subtitles?.file.path, subtitleDelay: subtitles?.delay ?? 0,
+                                               width: width).failure
                 if failure == nil { break }
             }
             lock.lock(); failures[i] = failure; done += 1; let fraction = Double(done) / Double(times.count + 1); lock.unlock()
@@ -236,7 +248,7 @@ enum ClipExporter {
         return urls
     }
 
-    private static func makeGIF(source: URL, range: ClipRange, subtitles: URL?, to out: URL, progress: ProgressReport,
+    private static func makeGIF(source: URL, range: ClipRange, subtitles: Subtitles?, to out: URL, replace: Bool, progress: ProgressReport,
                                 cancel: CancelFlag) throws -> URL {
         let count = max(1, Int((range.length * gifFPS).rounded()))
         let times = (0..<count).map { range.start + Double($0) / gifFPS }
@@ -257,10 +269,10 @@ enum ClipExporter {
         }
         guard CGImageDestinationFinalize(dest) else { throw Failure(reason: L("无法写入 %@", out.path)) }
         if cancel.isSet { throw CancellationError() }       // cancelled while the frames were assembled
-        return try place(tmp, at: out)
+        return try place(tmp, at: out, replace: replace)
     }
 
-    private static func makeStills(source: URL, range: ClipRange, count: Int, subtitles: URL?, prefix: URL,
+    private static func makeStills(source: URL, range: ClipRange, count: Int, subtitles: Subtitles?, prefix: URL,
                                    progress: ProgressReport, cancel: CancelFlag) throws -> [URL] {
         let n = max(1, count)
         let times = n == 1 ? [range.start] : (0..<n).map { range.start + range.length * Double($0) / Double(n - 1) }
@@ -293,11 +305,25 @@ enum ClipExporter {
         return made
     }
 
-    /// Moves a finished temp file into place (replacing what the save panel agreed to replace).
-    private static func place(_ tmp: URL, at out: URL) throws -> URL {
+    /// Moves a finished temp file into place: replacing what the save panel agreed to
+    /// replace, or (`replace: false`) taking the next free "name (n)" if the name is taken.
+    private static func place(_ tmp: URL, at out: URL, replace: Bool = true) throws -> URL {
         guard FileManager.default.fileExists(atPath: tmp.path),
               ((try? FileManager.default.attributesOfItem(atPath: tmp.path)[.size] as? Int) ?? 0) > 0 else {
             throw Failure(reason: L("无法读取这个视频"))
+        }
+        if !replace {
+            let stem = out.deletingPathExtension().lastPathComponent, ext = out.pathExtension
+            var target = out, n = 2
+            while true {
+                do { try FileManager.default.moveItem(at: tmp, to: target); return target } catch {
+                    guard FileManager.default.fileExists(atPath: target.path), n < 1000 else {
+                        throw Failure(reason: L("无法写入 %@", target.path))
+                    }
+                    target = out.deletingLastPathComponent().appendingPathComponent("\(stem) (\(n)).\(ext)")
+                    n += 1
+                }
+            }
         }
         do {
             // Replace in one step: deleting first would lose the old file if the move then failed.

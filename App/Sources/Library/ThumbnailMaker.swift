@@ -42,7 +42,7 @@ enum MPVFrameGrabber {
     /// `precise: false` lands on the nearest keyframe (hover previews: speed over accuracy).
     /// `width`: of the image; nil keeps the video's own width.
     static func grab(source: String, start: String, thumbnailTo url: URL?,
-                     subtitles: String? = nil, precise: Bool = true,
+                     subtitles: String? = nil, subtitleDelay: Double = 0, precise: Bool = true,
                      width: Int? = MPVFrameGrabber.width) -> (probe: MediaProbe?, failure: String?) {
         guard let h = mpv_create() else { return (nil, "mpv_create failed") }
         defer { mpv_terminate_destroy(h) }
@@ -57,7 +57,7 @@ enum MPVFrameGrabber {
             // (mp_image_crop, found by FormatMatrixTests with a phone-style 90° flag).
             // Render unrotated and rotate the bitmap ourselves.
             ("video-rotate", "no"),
-        ] + (subtitles != nil ? [("sid", "auto")] : [])
+        ] + (subtitles != nil ? [("sid", "auto"), ("sub-delay", String(subtitleDelay))] : [])
         for (k, v) in options {
             let r = mpv_set_option_string(h, k, v)
             if r < 0 { return (nil, "option \(k)=\(v): \(String(cString: mpv_error_string(r)))") }

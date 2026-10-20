@@ -7,6 +7,8 @@ enum KeyDecision: Equatable {
     case cancelGestureOnly
     /// Gesture was active: cancel it, then let the key reach the menu bar.
     case cancelGestureAndPassThrough
+    /// A held key's repeat of a command that acts once per press: used up, nothing done.
+    case swallow
 }
 
 /// Routes key-downs for the player window. Decision 2026-10-18: while the
@@ -28,6 +30,7 @@ enum KeyRouter {
         // Reached only when idle, or active with plainKeyCancelsOnly == false (the
         // caller has already cancelled the gesture in that case).
         guard let input, let command = KeyCommandMap.command(for: input) else { return .passThrough }
+        if input.isRepeat && !command.repeats { return .swallow }
         return .perform(command)
     }
 
@@ -37,7 +40,8 @@ enum KeyRouter {
                              shift: flags.contains(.shift),
                              command: flags.contains(.command),
                              option: flags.contains(.option),
-                             control: flags.contains(.control))
+                             control: flags.contains(.control),
+                             isRepeat: event.isARepeat)
         switch event.keyCode {
         case 123: input.key = KeyInput.left
         case 124: input.key = KeyInput.right

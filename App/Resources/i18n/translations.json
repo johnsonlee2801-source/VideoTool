@@ -975,6 +975,10 @@
   "en": "Too short — press C somewhere else",
   "ja": "短すぎます。別の位置で C を押してください"
  },
+ "片段已存好，剪贴板里的新内容没有被覆盖": {
+  "en": "Clip saved — what you copied meanwhile was kept on the clipboard",
+  "ja": "クリップを保存しました。その間にコピーした内容はそのままです"
+ },
  "狗": {
   "en": "Dog",
   "ja": "犬"

@@ -63,3 +63,26 @@ import Testing
         #expect(KeyRouter.decide(KeyInput(key: KeyInput.left, option: true), gestureActive: false, isEditingText: true) == .passThrough)
     }
 }
+
+// Audit 2026-10-20 (clip feature): holding a key sends repeats.
+struct KeyRepeatTests {
+    @Test("KR20 a held key acts once for toggles (C, B, Space, F, M, S, A, ⌫) but keeps going for steps (arrows, volume, speed, Z/X)")
+    func repeats() {
+        for key in ["c", "b", KeyInput.space, "f", "m", "s", "a", KeyInput.delete] {
+            #expect(KeyRouter.decide(KeyInput(key: key, isRepeat: true), gestureActive: false) == .swallow, "\(key)")
+            #expect(KeyRouter.decide(KeyInput(key: key), gestureActive: false) != .swallow, "\(key) first press acts")
+        }
+        for key in [KeyInput.left, KeyInput.right, KeyInput.up, KeyInput.down, "[", "]", "z", "x"] {
+            guard case .perform = KeyRouter.decide(KeyInput(key: key, isRepeat: true), gestureActive: false) else {
+                Issue.record("\(key) should repeat"); continue
+            }
+        }
+    }
+
+    @Test("KR21 the repeat flag is read from the key event")
+    func fromEvent() throws {
+        let held = try #require(NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0, windowNumber: 0,
+                                                 context: nil, characters: "c", charactersIgnoringModifiers: "c", isARepeat: true, keyCode: 8))
+        #expect(KeyRouter.input(from: held)?.isRepeat == true)
+    }
+}

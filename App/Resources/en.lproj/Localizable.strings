@@ -243,6 +243,7 @@
 "片段 %1$@ – %2$@ · %3$@ 秒" = "Clip %1$@ – %2$@ · %3$@ s";
 "片段从 %@ 开始，再按 C 标记结尾" = "Clip starts at %@ — press C again at the end";
 "片段太短，换个位置再按 C" = "Too short — press C somewhere else";
+"片段已存好，剪贴板里的新内容没有被覆盖" = "Clip saved — what you copied meanwhile was kept on the clipboard";
 "狗" = "Dog";
 "猫" = "Cat";
 "玩具" = "Toy";

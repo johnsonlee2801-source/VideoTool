@@ -40,10 +40,31 @@ enum ClipNaming {
         FileManager.default.urls(for: .moviesDirectory, in: .userDomainMask)[0].appendingPathComponent("VideoTool", isDirectory: true)
     }
 
+    /// Copied clips: VideoTool's own folder (not the shared temp folder), cleaned daily.
+    static var copyDirectory: URL { AppData.directory.appendingPathComponent("Copied clips", isDirectory: true) }
+
+    /// Deletes files in `dir` last changed more than `age` seconds ago.
+    static func cleanUp(_ dir: URL, olderThan age: TimeInterval, now: Date = Date()) {
+        let fm = FileManager.default
+        for name in (try? fm.contentsOfDirectory(atPath: dir.path)) ?? [] {
+            let url = dir.appendingPathComponent(name)
+            let modified = (try? fm.attributesOfItem(atPath: url.path)[.modificationDate] as? Date) ?? now
+            if now.timeIntervalSince(modified) > age { try? fm.removeItem(at: url) }
+        }
+    }
+
+    /// Longest file name made (bytes): file names stop at 255, and the exporter's
+    /// temporary name adds a UUID prefix (audit 2026-10-20).
+    static let maxNameBytes = 200
+
     /// A name that is not taken yet in `dir` (a quick export never replaces anything).
     static func freeURL(in dir: URL, video: String, range: ClipRange, ext: String) -> URL {
         let (a, b) = range.fieldTexts
-        let stem = "\((video as NSString).deletingPathExtension) \(a)–\(b)".replacingOccurrences(of: ":", with: "-")
+        // Room for " 1-05–2-05 (99).gif": shorten the video's name, never the times.
+        let tail = " \(a)–\(b)".replacingOccurrences(of: ":", with: "-")
+        var title = (video as NSString).deletingPathExtension.replacingOccurrences(of: ":", with: "-")
+        while !title.isEmpty && (title + tail + " (99)." + ext).utf8.count > maxNameBytes { title.removeLast() }
+        let stem = title + tail
         var url = dir.appendingPathComponent("\(stem).\(ext)")
         var n = 2
         while FileManager.default.fileExists(atPath: url.path) {

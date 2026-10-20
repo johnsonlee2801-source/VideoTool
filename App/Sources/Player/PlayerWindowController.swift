@@ -609,15 +609,17 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
             let gif = action == .gif
             try? FileManager.default.createDirectory(at: clipOutputDirectory, withIntermediateDirectories: true)
             let url = ClipNaming.freeURL(in: clipOutputDirectory, video: source.lastPathComponent, range: range, ext: gif ? "gif" : "mp4")
-            runClipExport(source: source, range: range, format: gif ? .gif : .video, subtitles: clipSubtitleFile, to: url)
+            runClipExport(source: source, range: range, format: gif ? .gif : .video, subtitles: clipSubtitleFile, to: url,
+                          replaceExisting: false)
         case .copy:
             // A GIF when it fits, else a video: either pastes into a chat as a file.
             let gif = range.length <= ClipExporter.maxGIFLength
-            let dir = FileManager.default.temporaryDirectory.appendingPathComponent("VideoTool clips", isDirectory: true)
+            let dir = ClipNaming.copyDirectory
             try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            ClipNaming.cleanUp(dir, olderThan: 86400)              // yesterday's copies have been pasted by now
             let url = ClipNaming.freeURL(in: dir, video: source.lastPathComponent, range: range, ext: gif ? "gif" : "mp4")
             runClipExport(source: source, range: range, format: gif ? .gif : .video, subtitles: clipSubtitleFile, to: url,
-                          then: .copy)
+                          replaceExisting: false, then: .copy)
         case .loop:
             setLooping(!clipLooping)
         case .close:
@@ -641,20 +643,39 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
 
     /// Edit › 拷贝 (⌘C) while watching: the picture on screen, with the AI subtitles if
     /// they are showing, ready to paste (typing in a note field copies text instead).
+    /// Grabs one full-size frame (with subtitles and their delay); tests replace it.
+    var frameGrab: (_ source: String, _ time: Double, _ subtitles: String?, _ delay: Double) -> NSImage? = { source, time, subtitles, delay in
+        let jpeg = FileManager.default.temporaryDirectory.appendingPathComponent("frame-\(UUID().uuidString).jpg")
+        defer { try? FileManager.default.removeItem(at: jpeg) }
+        let r = MPVFrameGrabber.grab(source: source, start: String(time), thumbnailTo: jpeg, subtitles: subtitles,
+                                     subtitleDelay: delay, width: nil)
+        return r.failure == nil ? NSImage(contentsOf: jpeg) : nil
+    }
+    /// One frame copy at a time; presses meanwhile are folded into one more, for the
+    /// latest position (each copy is a full software decode; audit 2026-10-20).
+    private var frameCopyRunning = false, frameCopyAgain = false
+
     @objc func copy(_ sender: Any?) {
         guard let engine, let source = currentURL?.path, loadedPath != nil else { return }
-        let time = engine.state.timePos, subtitles = clipSubtitleFile?.path
-        let board = pasteboard
+        if frameCopyRunning { frameCopyAgain = true; return }
+        frameCopyRunning = true
+        let time = engine.state.timePos, subtitles = clipSubtitleFile?.path, delay = subtitleDelay
+        let board = pasteboard, before = board.changeCount, grab = frameGrab
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            let jpeg = FileManager.default.temporaryDirectory.appendingPathComponent("frame-\(UUID().uuidString).jpg")
-            defer { try? FileManager.default.removeItem(at: jpeg) }
-            let r = MPVFrameGrabber.grab(source: source, start: String(time), thumbnailTo: jpeg, subtitles: subtitles, width: nil)
-            let image = r.failure == nil ? NSImage(contentsOf: jpeg) : nil
+            let image = grab(source, time, subtitles, delay)
             DispatchQueue.main.async {
-                guard let image else { self?.playerView?.hud.flash(text: L("没能拷贝画面")); return }
+                guard let self else { return }
+                self.frameCopyRunning = false
+                if self.frameCopyAgain {                         // pressed again meanwhile: copy the newer moment
+                    self.frameCopyAgain = false
+                    self.copy(nil)
+                    return
+                }
+                guard let image else { self.playerView?.hud.flash(text: L("没能拷贝画面")); return }
+                guard board.changeCount == before else { return }       // something else was copied meanwhile
                 board.clearContents()
                 board.writeObjects([image])
-                self?.playerView?.hud.flash(text: L("已拷贝画面"))
+                self.playerView?.hud.flash(text: L("已拷贝画面"))
             }
         }
     }
@@ -671,7 +692,12 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
 
     /// The AI subtitles on screen, as displayed (.ass), for burning into an exported clip.
     var clipSubtitleFile: URL? {
-        aiShown.flatMap { FileManager.default.fileExists(atPath: $0.display.path) ? $0.display : nil }
+        // Only while they are the subtitles being shown: switched off (S) or another
+        // track chosen, copies and clips carry none (audit 2026-10-20).
+        guard let shown = aiShown, FileManager.default.fileExists(atPath: shown.display.path),
+              engine?.property("sid") != "no",
+              engine?.property("current-tracks/sub/external-filename") == shown.display.path else { return nil }
+        return shown.display
     }
 
     /// Play › 导出片段…: start and end (prefilled from the stars), format, then where.
@@ -741,14 +767,17 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     enum AfterExport { case reveal, copy }
 
     func runClipExport(source: URL, range: ClipRange, format: ClipExporter.Format, subtitles: URL?, to url: URL,
-                       then after: AfterExport = .reveal) {
+                       replaceExisting: Bool = true, then after: AfterExport = .reveal) {
         guard exportTask == nil else { playerView?.hud.flash(text: L("已有片段正在导出")); return }
+        // Noted at the click, not when the work starts: a copy made right after must count.
+        let board = pasteboard, before = board.changeCount
         playerView?.hud.flash(text: L("正在导出片段…"))
         exportTask = Task { @MainActor [weak self] in
             defer { self?.exportTask = nil }
             do {
-                let files = try await ClipExporter.export(source: source, range: range, format: format, subtitles: subtitles, to: url,
-                                                          progress: { f in
+                let files = try await ClipExporter.export(source: source, range: range, format: format, subtitles: subtitles,
+                                                          subtitleDelay: self?.subtitleDelay ?? 0, to: url,
+                                                          replaceExisting: replaceExisting, progress: { f in
                     DispatchQueue.main.async { [weak self] in
                         guard self?.exportTask != nil else { return }      // finished or cancelled meanwhile
                         self?.playerView?.hud.flash(text: L("正在导出片段… %@", "\(Int(f * 100))%"))
@@ -758,6 +787,10 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
                 switch after {
                 case .reveal:
                     self.playerView?.hud.flash(text: L("已导出：%@", files.first?.lastPathComponent ?? ""))
+                    self.revealExported(files)
+                case .copy where board.changeCount != before:
+                    // Something else was copied while exporting: keep it, show the file instead.
+                    self.playerView?.hud.flash(text: L("片段已存好，剪贴板里的新内容没有被覆盖"))
                     self.revealExported(files)
                 case .copy:
                     self.pasteboard.clearContents()
@@ -1173,7 +1206,7 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         switch KeyRouter.decide(KeyRouter.input(from: event), gestureActive: gestureActive,
                                 isEditingText: editingText) {
         case .perform(let command): perform(command); return nil
-        case .cancelGestureOnly: return nil
+        case .cancelGestureOnly, .swallow: return nil
         case .cancelGestureAndPassThrough, .passThrough: return event
         }
     }
