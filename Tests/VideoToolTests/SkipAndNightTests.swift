@@ -89,6 +89,58 @@ struct SkipRuleTests {
     }
 }
 
+@Suite(.serialized) @MainActor struct SkipEdgeTests {
+    private func series() throws -> (URL, URL) {
+        let dir = TestTemp.directory.appendingPathComponent("sk-edge-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let e1 = dir.appendingPathComponent("Edge S01E01.mp4"), e2 = dir.appendingPathComponent("Edge S01E02.mp4")
+        try FileManager.default.copyItem(at: sample, to: e1)
+        try FileManager.default.copyItem(at: sample, to: e2)
+        return (e1, e2)
+    }
+
+    @Test("SK5 resuming after the intro keeps your place (no jump back to the intro's end)")
+    func resumeBeyondIntro() async throws {
+        let (e1, _) = try series()
+        let key = SkipStore.key(for: e1.path)
+        SkipStore().update(key) { $0.introEnd = 3 }
+        defer { SkipStore().clear(key) }
+        // 7 s: past the 3 s intro, and far enough from the end of this 20 s clip to resume
+        // (within 10 s of the end the player starts over).
+        ResumePositionStore().save(7, for: e1)
+        let w = PlayerWindowController()
+        defer { w.shutdown() }
+        w.open(e1)
+        let engine = try #require(w.engine)
+        #expect(await waitUntil { w.loadedPath == e1.path })
+        #expect(await waitUntil { abs(engine.state.timePos - 7) < 1 }, "resumed at \(engine.state.timePos)")
+        try await Task.sleep(for: .milliseconds(400))
+        #expect(engine.state.timePos > 6.5, "still at the resume point: \(engine.state.timePos)")
+        #expect(w.playerView?.hud.text != L("已跳过片头"))
+    }
+
+    @Test("SK6 pausing inside the credits does not skip to the next episode")
+    func pausedInOutro() async throws {
+        let (e1, e2) = try series()
+        let key = SkipStore.key(for: e1.path)
+        SkipStore().update(key) { $0.outroStart = 15 }
+        defer { SkipStore().clear(key) }
+        let w = PlayerWindowController()
+        defer { w.shutdown() }
+        w.open(e1)
+        let engine = try #require(w.engine)
+        #expect(await waitUntil { w.loadedPath == e1.path })
+        engine.setPaused(true)
+        #expect(await waitUntil { engine.state.isPaused })      // as a viewer would: paused first, then into the credits
+        engine.seek(to: 16)
+        #expect(await waitUntil { abs(engine.state.timePos - 16) < 0.3 })
+        try await Task.sleep(for: .seconds(1))
+        #expect(w.loadedPath == e1.path, "paused: stays on this episode")
+        engine.setPaused(false)                                  // playing on in the credits: now it moves on
+        #expect(await waitUntil(8) { w.loadedPath == e2.path })
+    }
+}
+
 /// 16 kHz mono WAV: 3 s of a quiet 1 kHz tone (the voice band), then 3 s of a loud
 /// 60 Hz rumble (explosions, a music bass line).
 private func quietThenLoud() throws -> URL {

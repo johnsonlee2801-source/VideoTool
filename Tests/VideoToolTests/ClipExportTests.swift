@@ -31,6 +31,7 @@ struct ClipRangeTests {
             // position, stars, duration → start, end
             (8.0, [5.0, 12, 18], 20.0, 5.0, 12.0),
             (5.0, [5.0, 12, 18], 20.0, 5.0, 12.0),     // standing on a star
+            (5.03, [5.0, 12, 18], 20.0, 5.0, 12.0),    // a jump to a star lands a hair late
             (2.0, [5.0, 12, 18], 20.0, 2.0, 5.0),      // before the first star: from here
             (19.0, [5.0, 12, 18], 20.0, 18.0, 20.0),   // after the last star: to the end
             (3.0, [], 60.0, 3.0, 13.0),                // no stars: ten seconds from here
@@ -124,6 +125,8 @@ struct ClipRangeTests {
             _ = try await ClipExporter.export(source: bad, range: ClipRange(start: 0, end: 1), format: .video, to: out)
         }
         #expect(!FileManager.default.fileExists(atPath: out.path))
+        let left = try FileManager.default.contentsOfDirectory(atPath: dir.path)
+        #expect(left == ["not-a-video.mp4"], "no half-written or hidden temp files: \(left)")
     }
 }
 
@@ -269,5 +272,54 @@ final class Locked<T>: @unchecked Sendable {
         let file = try #require(w.clipSubtitleFile)
         #expect(file.pathExtension == "ass", "what is on screen: the styled version, band included")
         #expect(FileManager.default.fileExists(atPath: file.path))
+    }
+}
+
+@Suite(.serialized) @MainActor struct ClipExportFlowTests {
+    @Test("CE11 from the player: export with subtitles shows progress, then the result, and reveals the file")
+    func flow() async throws {
+        let dir = try outDir()
+        let video = dir.appendingPathComponent("flow.mp4")
+        try FileManager.default.copyItem(at: fixture("testsrc-20s", "mp4"), to: video)
+        let w = PlayerWindowController()
+        defer { w.shutdown() }
+        var revealed: [URL] = []
+        w.revealExported = { revealed = $0 }
+        var huds: [String] = []
+        w.open(video)
+        #expect(await waitUntil { w.loadedPath == video.path })
+        let out = dir.appendingPathComponent("flow clip.gif")
+        w.runClipExport(source: video, range: ClipRange(start: 1, end: 2), format: .gif, subtitles: nil, to: out)
+        let ok = await waitUntil(30) {
+            if let t = w.playerView?.hud.text, huds.last != t { huds.append(t) }
+            return !revealed.isEmpty
+        }
+        #expect(ok, "HUD: \(huds)")
+        #expect(revealed == [out])
+        #expect(FileManager.default.fileExists(atPath: out.path))
+        #expect(huds.contains { $0.hasPrefix(L("正在导出片段…")) })
+        #expect(w.playerView?.hud.text == L("已导出：%@", out.lastPathComponent))
+        try await Task.sleep(for: .milliseconds(300))           // no late progress update overwrites the result
+        #expect(w.playerView?.hud.text == L("已导出：%@", out.lastPathComponent))
+    }
+
+    @Test("CE12 a failed export says why in the HUD and reveals nothing")
+    func failure() async throws {
+        let dir = try outDir()
+        let video = dir.appendingPathComponent("v.mp4")
+        try FileManager.default.copyItem(at: fixture("testsrc-20s", "mp4"), to: video)
+        let bad = dir.appendingPathComponent("broken.mp4")
+        try Data("nope".utf8).write(to: bad)
+        let w = PlayerWindowController()
+        defer { w.shutdown() }
+        var revealed = false
+        w.revealExported = { _ in revealed = true }
+        w.open(video)
+        #expect(await waitUntil { w.loadedPath == video.path })
+        w.runClipExport(source: bad, range: ClipRange(start: 0, end: 1), format: .video, subtitles: nil,
+                        to: dir.appendingPathComponent("x.mp4"))
+        #expect(await waitUntil(20) { w.playerView?.hud.text.hasPrefix(L("导出失败：%@", "")) == true },
+                "HUD: \(w.playerView?.hud.text ?? "")")
+        #expect(!revealed)
     }
 }

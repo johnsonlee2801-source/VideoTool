@@ -396,11 +396,13 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         guard let engine else { return }
         switch event {
         case .fileLoaded(let path, let duration):
-            let resume = resumeTracker.fileLoaded(path: path, duration: duration)
-            resume.forEach(apply)
+            // Read before the tracker acts: with the duration not known yet, its resume
+            // seek comes later, and the intro must not be skipped in the meantime.
+            let resumeAt = ResumePositionStore.resumeTarget(position: resumeStore.position(for: URL(fileURLWithPath: path)),
+                                                            duration: duration)
+            resumeTracker.fileLoaded(path: path, duration: duration).forEach(apply)
             outroDone = false
-            skipIntro(path: path, duration: duration,
-                      resumingAt: resume.compactMap { if case .seek(let t) = $0 { return t } else { return nil } }.first)
+            skipIntro(path: path, duration: duration, resumingAt: resumeAt)
             bookmarks?.open(path: path)         // identifies the file off the main thread
             engine.setPaused(false)
             restoreMemory(for: path)
@@ -604,7 +606,10 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         }
     }
 
-    private func runClipExport(source: URL, range: ClipRange, format: ClipExporter.Format, subtitles: URL?, to url: URL) {
+    /// Shows exported files; tests replace it so no Finder window opens.
+    var revealExported: ([URL]) -> Void = { NSWorkspace.shared.activateFileViewerSelecting($0) }
+
+    func runClipExport(source: URL, range: ClipRange, format: ClipExporter.Format, subtitles: URL?, to url: URL) {
         playerView?.hud.flash(text: L("正在导出片段…"))
         Task { @MainActor [weak self] in
             do {
@@ -615,7 +620,7 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
                     }
                 })
                 self?.playerView?.hud.flash(text: L("已导出：%@", files.first?.lastPathComponent ?? ""))
-                NSWorkspace.shared.activateFileViewerSelecting(files)
+                self?.revealExported(files)
             } catch {
                 self?.playerView?.hud.flash(text: L("导出失败：%@", error.localizedDescription))
             }

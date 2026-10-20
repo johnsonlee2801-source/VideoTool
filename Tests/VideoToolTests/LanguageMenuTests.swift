@@ -86,3 +86,23 @@ struct LanguageSettingTests {
         #expect(LanguageMenuController.restartPrompt(for: "en").message != LanguageMenuController.restartPrompt(for: "ja").message)
     }
 }
+
+@Suite(.serialized) @MainActor struct LanguageAlertTests {
+    @Test("LG6 the reopen alert itself: message, explanation and buttons in the chosen language, Reopen Now first")
+    func alert() throws {
+        let ja = try #require(Localization.bundle(for: "ja"))
+        let alert = LanguageMenuController.makeRestartAlert(for: "ja")
+        #expect(alert.messageText == L("重新打开 VideoTool 后切换语言", in: ja))
+        #expect(alert.informativeText == L("正在播放的位置会保存。", in: ja))
+        #expect(alert.buttons.map(\.title) == [L("现在重新打开", in: ja), L("稍后", in: ja)])
+    }
+
+    @Test("LG7 reopening waits for this process to quit, then opens this app (path quoted safely)")
+    func relaunchScript() {
+        let args = LanguageMenuController.relaunchArguments(pid: 4242, appPath: "/Applications/Video Tool \"x\".app")
+        #expect(args.count == 3 && args[0] == "-c")
+        #expect(args[1].contains("kill -0 4242"))
+        #expect(args[1].contains("/usr/bin/open \"$0\""), "the path is passed as $0, never spliced into the script")
+        #expect(args[2] == "/Applications/Video Tool \"x\".app")
+    }
+}

@@ -66,22 +66,31 @@ final class LanguageMenuController: NSObject, NSMenuItemValidation {
                 L("现在重新打开", in: bundle), L("稍后", in: bundle))
     }
 
-    static func askToRestart(_ code: String?) -> Bool {
+    static func makeRestartAlert(for code: String?) -> NSAlert {
         let text = restartPrompt(for: code)
         let alert = NSAlert()
         alert.messageText = text.message
         alert.informativeText = text.info
         alert.addButton(withTitle: text.now)
         alert.addButton(withTitle: text.later)
-        return alert.runModal() == .alertFirstButtonReturn
+        return alert
+    }
+
+    static func askToRestart(_ code: String?) -> Bool {
+        makeRestartAlert(for: code).runModal() == .alertFirstButtonReturn
+    }
+
+    /// /bin/sh arguments that wait for `pid` to exit, then open the app. The path
+    /// goes in as $0, so no character in it can change the script.
+    static func relaunchArguments(pid: Int32, appPath: String) -> [String] {
+        ["-c", "while kill -0 \(pid) 2>/dev/null; do sleep 0.2; done; /usr/bin/open \"$0\"", appPath]
     }
 
     /// Quits, and opens VideoTool again once this process has gone.
     static func relaunchApp() {
         let task = Process()
         task.executableURL = URL(fileURLWithPath: "/bin/sh")
-        task.arguments = ["-c", "while kill -0 \(getpid()) 2>/dev/null; do sleep 0.2; done; /usr/bin/open \"$0\"",
-                          Bundle.main.bundlePath]
+        task.arguments = relaunchArguments(pid: getpid(), appPath: Bundle.main.bundlePath)
         try? task.run()
         NSApp.terminate(nil)
     }
