@@ -17,7 +17,7 @@ private func clip(_ name: String) -> String { base.appendingPathComponent("clips
 private func frame(_ name: String, at t: Double) -> NSImage? {
     let url = base.appendingPathComponent("frames/\(name)-\(t).jpg")
     if !FileManager.default.fileExists(atPath: url.path) {
-        _ = MPVFrameGrabber.grab(source: clip(name), start: String(t), thumbnailTo: url)
+        _ = MPVFrameGrabber.grab(source: clip(name), start: String(t), thumbnailTo: url, width: nil)   // full size: sharp in the window
     }
     return NSImage(contentsOf: url)
 }
@@ -118,17 +118,6 @@ private func subtitledFrame(_ name: String, at t: Double, _ lines: [String], lan
             w.aiCard.finish(L("字幕已生成，共 %@ 句（按 S 可切换字幕）", "214"))
             try write(try #require(w.window?.contentView), lang, "ai-subtitles")
         }
-        // 3b. an exported clip: a GIF with the AI subtitles burned in, made by the real exporter
-        do {
-            let start = 6.0, step = 1.2
-            let cues = c.clipLines.enumerated().map { ($0.element.0, $0.element.1, start + Double($0.offset) * step,
-                                                       start + Double($0.offset + 1) * step) }
-            let ass = try aiSubtitles(cues, "clip-\(lang)")
-            let out = base.appendingPathComponent("out/\(lang)/clip.gif")
-            _ = try await ClipExporter.export(source: URL(fileURLWithPath: clip("neon")),
-                                              range: ClipRange(start: start, end: start + step * Double(cues.count)),
-                                              format: .gif, subtitles: ass, to: out)
-        }
         // 4–5. library: continue watching, then by series
         let (window, controller) = try library()
         try write(try #require(window.window?.contentView), lang, "library")
@@ -141,6 +130,94 @@ private func subtitledFrame(_ name: String, at t: Double, _ lines: [String], lan
             defer { w.shutdown() }
             w.window?.setContentSize(NSSize(width: 1280, height: 772))
             try write(try #require(w.window?.contentView), lang, "welcome")
+        }
+    }
+
+    // MARK: README feature art (2026-10-20)
+    // Real film frames from Tears of Steel (CC BY 3.0, Blender Foundation, mango.blender.org)
+    // and the real AI subtitles VideoTool made for its opening (docs/demo/tos-open.*.srt),
+    // with the positions of the parts the README art points at.
+
+    private func rect(_ v: NSView, in root: NSView, scale: CGFloat) -> [String: Double] {
+        let r = v.convert(v.bounds, to: root)
+        let y = root.isFlipped ? r.minY : root.bounds.height - r.maxY
+        return ["x": Double(r.minX * scale), "y": Double(y * scale), "w": Double(r.width * scale), "h": Double(r.height * scale)]
+    }
+
+    private func shot(_ w: PlayerWindowController, _ lang: String, _ name: String, marks: [String: NSView]) throws {
+        let view = try #require(w.window?.contentView)
+        view.layoutSubtreeIfNeeded(); view.display()
+        let rep = try #require(view.bitmapImageRepForCachingDisplay(in: view.bounds))
+        view.cacheDisplay(in: view.bounds, to: rep)
+        let dir = base.appendingPathComponent("out/\(lang)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        try #require(rep.representation(using: .png, properties: [:])).write(to: dir.appendingPathComponent("\(name).png"))
+        let scale = CGFloat(rep.pixelsWide) / view.bounds.width
+        let layout = marks.mapValues { rect($0, in: view, scale: scale) }
+        try JSONSerialization.data(withJSONObject: layout).write(to: dir.appendingPathComponent("\(name).json"))
+    }
+
+    /// The film is 2.39:1: a window that fits it, controls below.
+    private func filmWindow() -> PlayerWindowController {
+        let w = PlayerWindowController()
+        w.window?.setContentSize(NSSize(width: 1280, height: 534 + PlayerWindowController.controlBarHeight))
+        return w
+    }
+
+    @Test("D2 README feature art from a real film", arguments: languages.map(\.lang))
+    func featureArt(lang: String) async throws {
+        let c = try #require(Self.languages.first { $0.lang == lang })
+        Localization.bundle = try #require(Localization.bundle(for: c.bundle))
+        defer { Localization.bundle = .main }
+        let film = base.appendingPathComponent("clips/tos-open.mp4")
+        try #require(FileManager.default.fileExists(atPath: film.path), "run tools/make_docs_screens.sh")
+        // The Japanese translation pack is not on the build Mac: every language shows the
+        // Chinese one VideoTool made (both are real output, nothing written by hand).
+        let srt = try String(contentsOf: base.appendingPathComponent("clips/tos-open.zh.srt"), encoding: .utf8)
+        let cues = SRT.parse(srt, bilingual: true)
+        let stars = [60.0, 230, 405, 510, 640].enumerated().map {
+            Bookmark(id: UUID(), fileKey: "docs", time: $0.element, endTime: nil, note: c.notes[$0.offset], createdAt: Date())
+        }
+        // 1. hold to speed up: the robot on the bridge, held at 2.6×
+        do {
+            let w = filmWindow()
+            defer { w.shutdown() }
+            w.stageForSnapshot(frame: frame("tos-robot", at: 20), bookmarks: stars, duration: 734, position: 510,
+                               showList: false, previewFirst: false, hud: "2.6")
+            let view = try #require(w.playerView)
+            try shot(w, lang, "f-speed", marks: ["hud": view.hud, "picture": view])
+        }
+        // 2. AI subtitles: the argument on the bridge, as VideoTool subtitled it
+        do {
+            let line = try #require(cues.first { $0.text.contains("follow our passions") })
+            let ass = try aiSubtitles([(line.translation ?? "", line.text, 0, 600)], "f-sub-\(lang)")
+            let url = base.appendingPathComponent("frames/f-sub-\(lang).jpg")
+            _ = MPVFrameGrabber.grab(source: film.path, start: "25.6", thumbnailTo: url, subtitles: ass.path, width: nil)
+            let w = filmWindow()
+            defer { w.shutdown() }
+            w.stageForSnapshot(frame: NSImage(contentsOf: url), bookmarks: [], duration: 734, position: 25.6,
+                               showList: false, previewFirst: false, hud: nil)
+            w.aiCard.finish(L("字幕已生成，共 %@ 句（按 S 可切换字幕）", String(cues.count)))
+            let view = try #require(w.playerView)
+            try shot(w, lang, "f-subtitles", marks: ["picture": view, "card": w.aiCard])
+        }
+        // 3. C … C: a clip marked on the timeline, the bar offering GIF / video / copy
+        do {
+            let w = filmWindow()
+            defer { w.shutdown() }
+            w.stageForSnapshot(frame: frame("tos-celia", at: 10), bookmarks: stars, duration: 734, position: 403,
+                               showList: false, previewFirst: false, hud: nil)
+            let range = ClipRange(start: 398, end: 405)
+            w.markersForTesting.clipRange = range
+            w.clipBar.show(range)
+            try shot(w, lang, "f-clip", marks: ["bar": w.clipBar, "markers": w.markersForTesting])
+        }
+        // 4. the clip itself: a GIF with the bilingual subtitles, made by the real exporter
+        do {
+            let lines = cues.filter { $0.start >= 22 && $0.end <= 30 }
+            let ass = try aiSubtitles(lines.map { ($0.translation ?? "", $0.text, $0.start, $0.end) }, "f-gif-\(lang)")
+            _ = try await ClipExporter.export(source: film, range: ClipRange(start: 22.9, end: 29.7), format: .gif,
+                                              subtitles: ass, to: base.appendingPathComponent("out/\(lang)/clip.gif"))
         }
     }
 

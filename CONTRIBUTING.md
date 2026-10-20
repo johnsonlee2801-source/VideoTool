@@ -65,9 +65,13 @@ tools/i18n.py check       # every key translated, placeholders kept
 
 ## README screenshots
 
-`tools/make_docs_screens.sh` renders the screenshots in `docs/images/<lang>/`
-in all three languages. The footage is generated with ffmpeg (fractals,
-gradients, cellular automata), so the images carry no third-party content.
+`tools/make_docs_screens.sh` renders the README pictures in `docs/images/<lang>/`
+in all three languages: real player screenshots (DocsScreenshotTests), composed
+into feature cards by `tools/compose_readme_art.py`. The film is
+[Tears of Steel](https://mango.blender.org) (CC BY 3.0, Blender Foundation),
+downloaded once into `~/Library/Caches/VideoTool-docs`; its subtitles in
+`docs/demo/` were made by VideoTool's own recogniser and translator. Keep the
+credit line in every README when changing the pictures.
 
 ## Before you push
 

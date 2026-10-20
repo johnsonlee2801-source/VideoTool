@@ -1,19 +1,17 @@
-<p align="center"><img src="design/icon/AppIcon-1024.png" width="128" alt="VideoTool のアイコン"></p>
-
-<h1 align="center">VideoTool</h1>
+<p align="center"><img src="docs/images/ja/hero.jpg" alt="VideoTool：長押しで 2.6 倍速、AI 2 か国語字幕、C … C でクリップ"></p>
 
 <p align="center"><b>速く見て、どの言語もわかって、いい場面を残す。</b><br>
 無料でオープンソースの Mac 用ビデオプレーヤー。</p>
 
 <p align="center"><a href="README.md">English</a> · <a href="README.zh-CN.md">简体中文</a> · <b>日本語</b></p>
 
-<p align="center"><img src="docs/images/ja/player.jpg" alt="画面を長押しして 2.6 倍速で再生中の VideoTool"></p>
-
 ---
 
 VideoTool がするのは 3 つのことだけ。どれも、ほかのプレーヤーにはないやり方です。
 
 ## 1. 長押しで速く
+
+<p align="center"><img src="docs/images/ja/speed.jpg" alt="長押し中、速度は 2.6×"></p>
 
 画面を長押しすると、すぐ 2 倍速になります。**押したままドラッグ**すれば、右へ最大 6 倍、左へ 0.5 倍まで遅くなります。指を離せば元の速度に戻ります。退屈なところは速く、いい場面は逃さずに。
 
@@ -28,7 +26,7 @@ VideoTool がするのは 3 つのことだけ。どれも、ほかのプレー�
 
 ## 2. AI字幕を Mac の中で作成
 
-<p align="center"><img src="docs/images/ja/ai-subtitles.jpg" alt="細い帯の上に表示される 2 か国語の AI字幕"></p>
+<p align="center"><img src="docs/images/ja/subtitles.jpg" alt="VideoTool が映画に実際に付けた 2 か国語字幕"></p>
 
 英語、日本語、韓国語、中国語などのビデオに字幕がない？ **⌘T** を押すだけです。いま見ている位置から始まり、数秒で表示されます。訳文は原文の上に、細い半透明の帯の上に表示され、続きは見ているあいだに追加されます。
 
@@ -40,7 +38,9 @@ macOS 26 以降が必要です。言語ごとのデータは、システムが�
 
 ## 3. クリップや GIF を字幕ごと書き出し
 
-<p align="center"><img src="docs/images/ja/clip.gif" width="480" alt="2 か国語字幕を焼き込んで VideoTool で書き出した GIF"></p>
+<p align="center"><img src="docs/images/ja/clip.jpg" alt="C で選んだ区間と、GIF・ビデオ・コピー・ループのバー"></p>
+
+<p align="center"><img src="docs/images/clip.gif" width="480" alt="2 か国語字幕を焼き込んで VideoTool で書き出した GIF"></p>
 
 場面の始まりで **C**、終わりでもう一度 **C** を押します。シークバーのその区間が光り、小さなバーが現れます。
 
@@ -86,3 +86,5 @@ macOS 26 以降が必要です。言語ごとのデータは、システムが�
 ## 使用している技術
 
 [mpv](https://mpv.io) と [FFmpeg](https://ffmpeg.org)（[MPVKit](https://github.com/mpvkit/MPVKit) 経由の LGPL ビルド）、Apple の Speech と Translation。ライセンスを含む一覧は [THIRD_PARTY_NOTICES.md](App/Resources/THIRD_PARTY_NOTICES.md) にあります。VideoTool は [Mozilla Public License 2.0](LICENSE) のオープンソースです。
+
+映像：[Tears of Steel](https://mango.blender.org)（CC BY 3.0）© Blender Foundation。字幕は VideoTool が実際に生成したものです。
