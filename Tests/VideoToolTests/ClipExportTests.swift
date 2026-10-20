@@ -148,3 +148,126 @@ struct ClipRangeTests {
         #expect(w.suggestedClipRange() == ClipRange(start: pos, end: min(pos + 10, engine.state.duration)))
     }
 }
+
+// MARK: clips with the AI subtitles burned in
+
+/// An ASS "subtitle" that paints the bottom third solid red for the first minute:
+/// easy to detect in a frame, and unlike any subtitle a file brings itself.
+private func redBandSubtitles() throws -> URL {
+    let url = TestTemp.directory.appendingPathComponent("red-\(UUID().uuidString).ass")
+    try """
+    [Script Info]
+    ScriptType: v4.00+
+    PlayResX: 640
+    PlayResY: 360
+
+    [V4+ Styles]
+    Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+    Style: Default,Arial,40,&H000000FF,&H000000FF,&H000000FF,&H00000000,0,0,0,0,100,100,0,0,1,0,0,7,0,0,0,1
+
+    [Events]
+    Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+    Dialogue: 0,0:00:00.00,0:01:00.00,Default,,0,0,0,,{\\pos(0,240)\\p1}m 0 0 l 640 0 640 120 0 120{\\p0}
+    """.write(to: url, atomically: true, encoding: .utf8)
+    return url
+}
+
+/// RGB at a point given as fractions of the width and height.
+private func rgb(_ image: CGImage, x: Double, y: Double) -> (r: Int, g: Int, b: Int) {
+    var px = [UInt8](repeating: 0, count: 4)
+    let ctx = CGContext(data: &px, width: 1, height: 1, bitsPerComponent: 8, bytesPerRow: 4,
+                        space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue)!
+    let w = Double(image.width), h = Double(image.height)
+    ctx.draw(image, in: CGRect(x: -x * w, y: -(1 - y) * h, width: w, height: h))   // CG's origin is bottom-left
+    return (Int(px[0]), Int(px[1]), Int(px[2]))
+}
+private func isRed(_ c: (r: Int, g: Int, b: Int)) -> Bool { c.r > 170 && c.g < 90 && c.b < 90 }
+
+/// The frame of an exported MP4 at `t` seconds into the clip.
+private func frame(ofMP4 url: URL, at t: Double) throws -> CGImage {
+    let jpeg = TestTemp.directory.appendingPathComponent("f-\(UUID().uuidString).jpg")
+    let r = MPVFrameGrabber.grab(source: url.path, start: String(t), thumbnailTo: jpeg, width: nil)
+    #expect(r.failure == nil, "\(r.failure ?? "")")
+    let src = try #require(CGImageSourceCreateWithURL(jpeg as CFURL, nil))
+    return try #require(CGImageSourceCreateImageAtIndex(src, 0, nil))
+}
+
+@Suite(.serialized) struct ClipSubtitleTests {
+    // multi_audio_subs.mkv has a subtitle track of its own: the export must burn in
+    // ours (the AI subtitles on screen), never the file's.
+    private var source: URL { fixture("multi_audio_subs", "mkv") }
+
+    @Test("CE7 an MP4 clip can carry the AI subtitles burned into the picture")
+    func mp4WithSubtitles() async throws {
+        let dir = try outDir()
+        let plain = dir.appendingPathComponent("plain.mp4"), subbed = dir.appendingPathComponent("subbed.mp4")
+        let range = ClipRange(start: 0.5, end: 2.5)
+        _ = try await ClipExporter.export(source: source, range: range, format: .video, to: plain)
+        _ = try await ClipExporter.export(source: source, range: range, format: .video,
+                                          subtitles: try redBandSubtitles(), to: subbed)
+        #expect(!isRed(rgb(try frame(ofMP4: plain, at: 1), x: 0.5, y: 0.85)), "no subtitles unless asked")
+        #expect(isRed(rgb(try frame(ofMP4: subbed, at: 1), x: 0.5, y: 0.85)), "our subtitles are in the picture")
+        #expect(!isRed(rgb(try frame(ofMP4: subbed, at: 1), x: 0.5, y: 0.3)), "…only where they belong")
+    }
+
+    @Test("CE8 a GIF can carry the AI subtitles too")
+    func gifWithSubtitles() async throws {
+        let dir = try outDir()
+        let out = dir.appendingPathComponent("subbed.gif")
+        _ = try await ClipExporter.export(source: source, range: ClipRange(start: 0.5, end: 1.5), format: .gif,
+                                          subtitles: try redBandSubtitles(), to: out)
+        let src = try #require(CGImageSourceCreateWithURL(out as CFURL, nil))
+        let first = try #require(CGImageSourceCreateImageAtIndex(src, 0, nil))
+        let last = try #require(CGImageSourceCreateImageAtIndex(src, CGImageSourceGetCount(src) - 1, nil))
+        #expect(isRed(rgb(first, x: 0.5, y: 0.85)) && isRed(rgb(last, x: 0.5, y: 0.85)))
+        #expect(!isRed(rgb(first, x: 0.5, y: 0.3)))
+    }
+
+    @Test("CE9 export reports its progress, ending at 100%")
+    func progress() async throws {
+        let dir = try outDir()
+        let seen = Locked<[Double]>([])
+        _ = try await ClipExporter.export(source: fixture("testsrc-20s", "mp4"), range: ClipRange(start: 1, end: 5),
+                                          format: .video, to: dir.appendingPathComponent("p.mp4"),
+                                          progress: { f in seen.withLock { $0.append(f) } })
+        let values = seen.withLock { $0 }
+        #expect(values.count >= 2, "\(values)")
+        #expect(values == values.sorted(), "never goes backwards: \(values)")
+        #expect(values.last == 1)
+        #expect(values.allSatisfy { (0...1).contains($0) })
+    }
+}
+
+/// A tiny lock-protected box for values written from export threads.
+final class Locked<T>: @unchecked Sendable {
+    private var value: T
+    private let lock = NSLock()
+    init(_ value: T) { self.value = value }
+    func withLock<R>(_ body: (inout T) -> R) -> R { lock.lock(); defer { lock.unlock() }; return body(&value) }
+}
+
+@Suite(.serialized) @MainActor struct ClipSubtitlePlayerTests {
+    @Test("CE10 the export offers the AI subtitles that are on screen, and nothing when none are")
+    func offersShownSubtitles() async throws {
+        let dir = try outDir()
+        let video = dir.appendingPathComponent("talk.mp4")
+        try FileManager.default.copyItem(at: fixture("testsrc-20s", "mp4"), to: video)
+        let w = PlayerWindowController()
+        defer { w.shutdown() }
+        w.open(video)
+        #expect(await waitUntil { w.loadedPath == video.path })
+        #expect(w.clipSubtitleFile == nil, "no AI subtitles yet")
+
+        let prefs = AISubtitlePreferences()
+        prefs.source = "en-US"; prefs.target = nil
+        let srt = SubtitleCache.url(forVideo: video.path, source: "en-US", target: nil)
+        try FileManager.default.createDirectory(at: srt.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try SRT.document([SubtitleCue(start: 0, end: 30, text: "Hello.")]).write(to: srt, atomically: true, encoding: .utf8)
+        defer { try? FileManager.default.removeItem(at: srt) }
+        w.open(video)                                            // reopening loads the cached AI subtitles
+        #expect(await waitUntil { w.clipSubtitleFile != nil })
+        let file = try #require(w.clipSubtitleFile)
+        #expect(file.pathExtension == "ass", "what is on screen: the styled version, band included")
+        #expect(FileManager.default.fileExists(atPath: file.path))
+    }
+}

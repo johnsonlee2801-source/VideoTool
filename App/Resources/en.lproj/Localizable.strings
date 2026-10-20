@@ -48,6 +48,7 @@
 "修改剧集信息" = "Edit Series Info";
 "修改剧集信息…" = "Edit Series Info…";
 "儿童" = "Kids";
+"先用 AI 字幕（⌘T）生成字幕，就能带进片段里" = "Make AI subtitles first (⌘T) to include them in the clip";
 "全屏" = "Full Screen";
 "全部视频" = "All Videos";
 "共 %@ 个视频" = "%@ videos";
@@ -113,6 +114,7 @@
 "已清除本系列的片头片尾" = "Intro and credits cleared for this series";
 "已跳过片头" = "Intro skipped";
 "已跳过片尾" = "Credits skipped";
+"带上 AI 字幕" = "Include AI subtitles";
 "帮助" = "Help";
 "庆祝" = "Celebration";
 "建筑" = "Building";
@@ -157,6 +159,7 @@
 "文字" = "Text";
 "新增 %@" = "%@ added";
 "无法写入 %@" = "Can't write %@";
+"无法读取字幕文件" = "The subtitle file can't be read";
 "无法读取这个视频" = "This video can't be read";
 "无法读取这个视频的声音。" = "Can't read the audio in this video.";
 "日出日落" = "Sunrise & Sunset";
@@ -180,6 +183,7 @@
 "森林" = "Forest";
 "植物" = "Plant";
 "正在导出片段…" = "Exporting clip…";
+"正在导出片段… %@" = "Exporting clip… %@";
 "正在扫描 %1$@… %2$@/%3$@" = "Scanning %1$@… %2$@/%3$@";
 "正在扫描…" = "Scanning…";
 "正在翻译字幕…" = "Translating subtitles…";

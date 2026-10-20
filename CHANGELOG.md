@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.3.1 (2026-10-20)
+
+- **Clips and GIFs can carry the AI subtitles**: tick *Include AI subtitles* in
+  Export Clip (⌘E) and the subtitles on screen are burned into the picture
+  (never a subtitle track the file brings itself).
+- Export shows its progress.
+- The README now focuses on the three things VideoTool does differently:
+  hold to speed up, AI subtitles, clips and GIFs.
+
 ## 0.3.0 (2026-10-19)
 
 First public release.

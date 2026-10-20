@@ -195,6 +195,10 @@
   "en": "Kids",
   "ja": "子ども"
  },
+ "先用 AI 字幕（⌘T）生成字幕，就能带进片段里": {
+  "en": "Make AI subtitles first (⌘T) to include them in the clip",
+  "ja": "先に AI字幕（⌘T）を作成すると、クリップに入れられます"
+ },
  "全屏": {
   "en": "Full Screen",
   "ja": "フルスクリーン"
@@ -455,6 +459,10 @@
   "en": "Credits skipped",
   "ja": "エンディングをスキップしました"
  },
+ "带上 AI 字幕": {
+  "en": "Include AI subtitles",
+  "ja": "AI字幕を入れる"
+ },
  "帮助": {
   "en": "Help",
   "ja": "ヘルプ"
@@ -631,6 +639,10 @@
   "en": "Can't write %@",
   "ja": "%@ に書き込めません"
  },
+ "无法读取字幕文件": {
+  "en": "The subtitle file can't be read",
+  "ja": "字幕ファイルを読み込めません"
+ },
  "无法读取这个视频": {
   "en": "This video can't be read",
   "ja": "このビデオを読み込めません"
@@ -722,6 +734,10 @@
  "正在导出片段…": {
   "en": "Exporting clip…",
   "ja": "クリップを書き出しています…"
+ },
+ "正在导出片段… %@": {
+  "en": "Exporting clip… %@",
+  "ja": "クリップを書き出しています… %@"
  },
  "正在扫描 %1$@… %2$@/%3$@": {
   "en": "Scanning %1$@… %2$@/%3$@",

@@ -25,6 +25,7 @@ for lang in zh en ja; do
   for png in "$OUT/$lang"/*.png(N); do
     sips -s format jpeg -s formatOptions 82 -Z 1600 "$png" --out "docs/images/$lang/${${png:t}%.png}.jpg" >/dev/null
   done
+  cp "$OUT/$lang"/*.gif(N) docs/images/$lang/
 done
 rm -f "$BASE/RUN"
 du -sh docs/images | cut -f1 | xargs echo "docs/images:"

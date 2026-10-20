@@ -544,6 +544,11 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
                                    stars: bookmarks?.bookmarks.map(\.time) ?? [], duration: engine.state.duration)
     }
 
+    /// The AI subtitles on screen, as displayed (.ass), for burning into an exported clip.
+    var clipSubtitleFile: URL? {
+        aiShown.flatMap { FileManager.default.fileExists(atPath: $0.display.path) ? $0.display : nil }
+    }
+
     /// Play › 导出片段…: start and end (prefilled from the stars), format, then where.
     @objc func exportClip(_ sender: Any?) {
         guard let window, let source = currentURL, source.isFileURL, let range = suggestedClipRange() else { return }
@@ -556,10 +561,16 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         ]
         let popup = NSPopUpButton()
         popup.addItems(withTitles: formats.map(\.0))
+        let subtitles = clipSubtitleFile
+        let withSubtitles = NSButton(checkboxWithTitle: L("带上 AI 字幕"), target: nil, action: nil)
+        withSubtitles.state = subtitles != nil ? .on : .off
+        withSubtitles.isEnabled = subtitles != nil
+        if subtitles == nil { withSubtitles.toolTip = L("先用 AI 字幕（⌘T）生成字幕，就能带进片段里") }
         let grid = NSGridView(views: [[NSTextField(labelWithString: L("开始")), startField],
                                       [NSTextField(labelWithString: L("结束")), endField],
-                                      [NSTextField(labelWithString: L("格式")), popup]])
-        grid.frame = NSRect(x: 0, y: 0, width: 280, height: 90)
+                                      [NSTextField(labelWithString: L("格式")), popup],
+                                      [NSGridCell.emptyContentView, withSubtitles]])
+        grid.frame = NSRect(x: 0, y: 0, width: 280, height: 120)
         startField.widthAnchor.constraint(equalToConstant: 120).isActive = true
         let alert = NSAlert()
         alert.messageText = L("导出片段")
@@ -586,17 +597,23 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
             DispatchQueue.main.async {
                 panel.beginSheetModal(for: window) { response in
                     guard response == .OK, let url = panel.url else { return }
-                    self.runClipExport(source: source, range: chosen, format: format.1, to: url)
+                    self.runClipExport(source: source, range: chosen, format: format.1,
+                                       subtitles: withSubtitles.state == .on ? subtitles : nil, to: url)
                 }
             }
         }
     }
 
-    private func runClipExport(source: URL, range: ClipRange, format: ClipExporter.Format, to url: URL) {
+    private func runClipExport(source: URL, range: ClipRange, format: ClipExporter.Format, subtitles: URL?, to url: URL) {
         playerView?.hud.flash(text: L("正在导出片段…"))
         Task { @MainActor [weak self] in
             do {
-                let files = try await ClipExporter.export(source: source, range: range, format: format, to: url)
+                let files = try await ClipExporter.export(source: source, range: range, format: format, subtitles: subtitles, to: url,
+                                                          progress: { f in
+                    DispatchQueue.main.async { [weak self] in
+                        self?.playerView?.hud.flash(text: L("正在导出片段… %@", "\(Int(f * 100))%"))
+                    }
+                })
                 self?.playerView?.hud.flash(text: L("已导出：%@", files.first?.lastPathComponent ?? ""))
                 NSWorkspace.shared.activateFileViewerSelecting(files)
             } catch {

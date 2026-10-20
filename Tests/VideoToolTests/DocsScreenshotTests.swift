@@ -22,29 +22,22 @@ private func frame(_ name: String, at t: Double) -> NSImage? {
     return NSImage(contentsOf: url)
 }
 
-/// The frame with two subtitle lines burnt in the way the player shows them
-/// (translation above the original), for the AI subtitle screenshot.
-private func withSubtitles(_ image: NSImage, _ lines: [String]) -> NSImage {
-    let size = NSSize(width: 1920, height: 1080)
-    return NSImage(size: size, flipped: false) { rect in
-        image.draw(in: rect)
-        var y: CGFloat = 70
-        let font = NSFont.systemFont(ofSize: 54, weight: .semibold)
-        for line in lines.reversed() {
-            // Two passes like the player's subtitles: a dark outline, then the white text on top.
-            let shadow = NSShadow()
-            shadow.shadowColor = NSColor.black.withAlphaComponent(0.6); shadow.shadowBlurRadius = 8; shadow.shadowOffset = .zero
-            let outline = NSAttributedString(string: line, attributes: [
-                .font: font, .strokeColor: NSColor.black.withAlphaComponent(0.85), .strokeWidth: 12, .shadow: shadow])
-            let fill = NSAttributedString(string: line, attributes: [.font: font, .foregroundColor: NSColor.white])
-            let s = fill.size()
-            let at = NSPoint(x: (rect.width - s.width) / 2, y: y)
-            outline.draw(at: at)
-            fill.draw(at: at)
-            y += s.height + 4
-        }
-        return true
-    }
+/// The player's own subtitle file (ASS, translation above the original, thin band)
+/// for bilingual cues given as (translation, original, start, end).
+private func aiSubtitles(_ cues: [(String, String, Double, Double)], _ name: String) throws -> URL {
+    let url = base.appendingPathComponent("frames/\(name).ass")
+    try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+    let doc = ASS.document(cues.map { SubtitleCue(start: $0.2, end: $0.3, text: $0.1, translation: $0.0) }, band: true)
+    try doc.write(to: url, atomically: true, encoding: .utf8)
+    return url
+}
+
+/// A frame with the AI subtitles drawn by the real renderer (libass), as the player shows them.
+private func subtitledFrame(_ name: String, at t: Double, _ lines: [String], lang: String) throws -> NSImage? {
+    let ass = try aiSubtitles([(lines[0], lines[1], 0, 600)], "still-\(lang)")
+    let url = base.appendingPathComponent("frames/\(name)-\(t)-\(lang)-sub.jpg")
+    _ = MPVFrameGrabber.grab(source: clip(name), start: String(t), thumbnailTo: url, subtitles: ass.path, width: nil)
+    return NSImage(contentsOf: url)
 }
 
 @Suite(.serialized, .enabled(if: requested)) @MainActor struct DocsScreenshotTests {
@@ -52,14 +45,24 @@ private func withSubtitles(_ image: NSImage, _ lines: [String]) -> NSImage {
         var lang: String, bundle: String
         var notes: [String]
         var subtitle: [String]                // translation, original
+        var clipLines: [(String, String)]     // the demo GIF: translation, original
     }
     static let languages = [
         Copy(lang: "zh", bundle: "zh-Hans", notes: ["开场彩蛋", "", "名场面", "笑死", ""],
-             subtitle: ["按住画面，就能加速播放。", "Press and hold the picture to speed up."]),
+             subtitle: ["按住画面，就能加速播放。", "Press and hold the picture to speed up."],
+             clipLines: [("看到喜欢的地方，按 B 打颗星。", "Press B to star the moment."),
+                         ("两颗星之间，一键导出。", "Export what's between two stars."),
+                         ("字幕也一起带走。", "The subtitles come along.")]),
         Copy(lang: "en", bundle: "en", notes: ["Opening easter egg", "", "Best scene", "LOL", ""],
-             subtitle: ["Press and hold the picture to speed up.", "画面を長押しすると、速く再生できます。"]),
+             subtitle: ["Press and hold the picture to speed up.", "画面を長押しすると、速く再生できます。"],
+             clipLines: [("Press B to star the moment.", "Bでいい場面にスターを。"),
+                         ("Export what's between two stars.", "スターの間をそのまま書き出し。"),
+                         ("The subtitles come along.", "字幕もいっしょに。")]),
         Copy(lang: "ja", bundle: "ja", notes: ["オープニングの小ネタ", "", "名場面", "爆笑", ""],
-             subtitle: ["画面を長押しすると、速く再生できます。", "Press and hold the picture to speed up."]),
+             subtitle: ["画面を長押しすると、速く再生できます。", "Press and hold the picture to speed up."],
+             clipLines: [("Bでいい場面にスターを。", "Press B to star the moment."),
+                         ("スターの間をそのまま書き出し。", "Export what's between two stars."),
+                         ("字幕もいっしょに。", "The subtitles come along.")]),
     ]
 
     private func write(_ view: NSView, _ lang: String, _ name: String) throws {
@@ -109,11 +112,22 @@ private func withSubtitles(_ image: NSImage, _ lines: [String]) -> NSImage {
             let w = PlayerWindowController()
             defer { w.shutdown() }
             w.window?.setContentSize(NSSize(width: 1280, height: 772))
-            let picture = try #require(frame("aurora", at: 6))
-            w.stageForSnapshot(frame: withSubtitles(picture, c.subtitle), bookmarks: [], duration: 1500, position: 300,
+            let picture = try #require(try subtitledFrame("aurora", at: 6, c.subtitle, lang: lang))
+            w.stageForSnapshot(frame: picture, bookmarks: [], duration: 1500, position: 300,
                                showList: false, previewFirst: false, hud: nil)
             w.aiCard.finish(L("字幕已生成，共 %@ 句（按 S 可切换字幕）", "214"))
             try write(try #require(w.window?.contentView), lang, "ai-subtitles")
+        }
+        // 3b. an exported clip: a GIF with the AI subtitles burned in, made by the real exporter
+        do {
+            let start = 6.0, step = 1.2
+            let cues = c.clipLines.enumerated().map { ($0.element.0, $0.element.1, start + Double($0.offset) * step,
+                                                       start + Double($0.offset + 1) * step) }
+            let ass = try aiSubtitles(cues, "clip-\(lang)")
+            let out = base.appendingPathComponent("out/\(lang)/clip.gif")
+            _ = try await ClipExporter.export(source: URL(fileURLWithPath: clip("neon")),
+                                              range: ClipRange(start: start, end: start + step * Double(cues.count)),
+                                              format: .gif, subtitles: ass, to: out)
         }
         // 4–5. library: continue watching, then by series
         let (window, controller) = try library()
