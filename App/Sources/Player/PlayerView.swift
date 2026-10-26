@@ -9,6 +9,7 @@ final class PlayerView: NSView {
     private let placeholder = EmptyStateView()
     private(set) var gesture: SpeedGestureController!
     var onFilesDropped: (([URL]) -> Void)?
+    var contextMenuProvider: (() -> NSMenu)?
 
     init(session: PlaybackSession) {
         renderLayer = session.renderLayer
@@ -73,6 +74,12 @@ final class PlayerView: NSView {
     }
     override func mouseDragged(with event: NSEvent) { /* position is polled by the gesture tick */ }
     override func mouseUp(with event: NSEvent) { gesture.mouseUp() }
+
+    override func menu(for event: NSEvent) -> NSMenu? {
+        gesture.cancel()                      // restore a held speed before any menu action
+        window?.makeFirstResponder(self)
+        return contextMenuProvider?()
+    }
 
     // MARK: drag & drop
 

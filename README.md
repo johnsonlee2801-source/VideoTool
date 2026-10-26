@@ -80,6 +80,9 @@ Build it yourself · 自己编译: [CONTRIBUTING.md](CONTRIBUTING.md)
 
 ## Keyboard · 快捷键
 
+**Right-click the picture** for playback speed, AI subtitles and clipping, plus play/pause and copying the current frame.<br>
+**在播放画面上点鼠标右键**，就能调倍速、生成 AI 字幕、截取片段，也能播放/暂停和拷贝当前画面。
+
 | Key · 按键 | Action · 作用 | Key · 按键 | Action · 作用 |
 |---|---|---|---|
 | Hold the picture · 按住画面 | Speed up · 加速 | Space · 空格 | Play / pause · 播放 / 暂停 |

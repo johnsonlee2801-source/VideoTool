@@ -117,3 +117,63 @@ import Testing
         #expect(PlayerView.mediaURLs(on: board).isEmpty)
     }
 }
+
+@Suite(.serialized) @MainActor struct PlayerContextMenuTests {
+    private func menu(_ controller: PlayerWindowController) throws -> NSMenu {
+        let view = try #require(controller.playerView)
+        let event = try #require(NSEvent.mouseEvent(with: .rightMouseDown, location: .zero,
+            modifierFlags: [], timestamp: 0, windowNumber: controller.window?.windowNumber ?? 0,
+            context: nil, eventNumber: 0, clickCount: 1, pressure: 1))
+        return try #require(view.menu(for: event), "right-click on the picture must offer the player's features")
+    }
+
+    private func actions(in menu: NSMenu) -> [NSMenuItem] {
+        menu.items.flatMap { item in
+            if let submenu = item.submenu { return actions(in: submenu) }
+            return item.action == nil ? [] : [item]
+        }
+    }
+
+    @Test("CM1 right-click exposes speed, AI subtitles and clipping; unavailable actions are disabled")
+    func threeFeatures() throws {
+        let w = PlayerWindowController()
+        defer { w.shutdown() }
+        let menu = try menu(w)
+        #expect(menu.item(withTitle: L("播放速度"))?.submenu != nil)
+        #expect(menu.item(withTitle: L("AI 字幕…"))?.action == #selector(PlayerWindowController.generateAISubtitles(_:)))
+        let clips = try #require(menu.item(withTitle: L("截取片段"))?.submenu)
+        #expect(clips.item(withTitle: L("标记片段起点   C"))?.action == #selector(PlayerWindowController.markClip(_:)))
+        #expect(clips.item(withTitle: L("导出片段…"))?.action == #selector(PlayerWindowController.exportClip(_:)))
+        let commands = actions(in: menu)
+        #expect(!commands.isEmpty)
+        #expect(commands.allSatisfy { !$0.isEnabled }, "opening an empty player must not offer unusable actions")
+        #expect(commands.allSatisfy { $0.target === w }, "actions belong to the window that was right-clicked")
+    }
+
+    @Test("CM2 opening the context menu cancels a left-button hold without starting a new gesture")
+    func contextCancelsHold() throws {
+        let w = PlayerWindowController()
+        defer { w.shutdown() }
+        let view = try #require(w.playerView)
+        view.gesture.mouseDown()
+        #expect(view.gesture.isActive)
+        _ = try menu(w)
+        #expect(!view.gesture.isActive)
+        #expect(w.window?.firstResponder === view)
+        view.gesture.mouseUp()
+        #expect(!view.gesture.isActive)
+    }
+
+    @Test("CM3 rebuilding the context menu reflects the chosen speed, independently for each window")
+    func currentSpeed() throws {
+        let first = PlayerWindowController(), second = PlayerWindowController()
+        defer { first.shutdown(); second.shutdown(); first.perform(.setSpeed(1)) }
+        first.perform(.setSpeed(1.5))
+        let speeds = try #require(try menu(first).item(withTitle: L("播放速度"))?.submenu)
+        #expect(speeds.items.filter { $0.state == .on }.map(\.title) == ["1.5×"])
+        #expect(actions(in: try menu(second)).allSatisfy { $0.target === second })
+        first.perform(.setSpeed(2.5))
+        let updated = try #require(try menu(first).item(withTitle: L("播放速度"))?.submenu)
+        #expect(updated.items.filter { $0.state == .on }.map(\.title) == ["2.5×"])
+    }
+}

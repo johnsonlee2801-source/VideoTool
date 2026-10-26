@@ -17,6 +17,113 @@ private func waitUntil(_ timeout: Double = 5, _ condition: () -> Bool) async -> 
     return condition()
 }
 
+extension PlayerWiringTests {
+    private func contextMenu(_ w: PlayerWindowController) throws -> NSMenu {
+        let event = try #require(NSEvent.mouseEvent(with: .rightMouseDown, location: .zero,
+            modifierFlags: [], timestamp: 0, windowNumber: w.window?.windowNumber ?? 0,
+            context: nil, eventNumber: 0, clickCount: 1, pressure: 1))
+        return try #require(w.playerView?.menu(for: event))
+    }
+
+    private func contextClick(_ item: NSMenuItem) throws {
+        #expect(item.isEnabled)
+        #expect(NSApp.sendAction(try #require(item.action), to: item.target, from: item))
+    }
+
+    private func contextSeek(_ engine: MPVEngine, to time: Double) async {
+        engine.seek(to: time)
+        #expect(await waitUntil { abs(engine.state.timePos - time) < 0.05 })
+    }
+
+    @Test("CM4 context actions change real playback speed, mark clip endpoints, loop, and clear")
+    func contextControls() async throws {
+        let saved = PreferredSpeedStore().speed
+        defer { PreferredSpeedStore().speed = saved }
+        let w = PlayerWindowController()
+        defer { w.shutdown() }
+        w.open(sample)
+        let engine = try #require(w.engine)
+        #expect(await waitUntil { w.loadedPath == sample.path })
+        engine.setPaused(true)
+        #expect(await waitUntil { engine.state.isPaused })
+
+        let menu = try contextMenu(w)
+        let ai = try #require(menu.item(withTitle: L("AI 字幕…")))
+        if #available(macOS 26, *) { #expect(ai.isEnabled) } else { #expect(!ai.isEnabled) }
+        #expect(ai.target === w && ai.action == #selector(PlayerWindowController.generateAISubtitles(_:)))
+        let speed = try #require(menu.item(withTitle: L("播放速度"))?.submenu?.item(withTitle: "2.5×"))
+        try contextClick(speed)
+        #expect(await waitUntil { abs(engine.state.speed - 2.5) < 0.001 })
+        #expect(w.preferredSpeed == 2.5)
+        let refreshed = try contextMenu(w)
+        #expect(refreshed.item(withTitle: L("播放速度"))?.submenu?.item(withTitle: "2.5×")?.state == .on)
+
+        await contextSeek(engine, to: 1)
+        var clips = try #require(refreshed.item(withTitle: L("截取片段"))?.submenu)
+        #expect(clips.item(withTitle: L("GIF"))?.isEnabled == false)
+        try contextClick(try #require(clips.item(withTitle: L("标记片段起点   C"))))
+        #expect(w.markersForTesting.clipStart == 1)
+        await contextSeek(engine, to: 4)
+        clips = try #require(try contextMenu(w).item(withTitle: L("截取片段"))?.submenu)
+        try contextClick(try #require(clips.item(withTitle: L("标记片段终点   C"))))
+        #expect(w.markersForTesting.clipRange == ClipRange(start: 1, end: 4))
+        #expect(!w.clipBar.isHidden)
+
+        clips = try #require(try contextMenu(w).item(withTitle: L("截取片段"))?.submenu)
+        try contextClick(try #require(clips.item(withTitle: L("循环预览"))))
+        #expect(await waitUntil { engine.property("ab-loop-a") == "1.000000" && engine.property("ab-loop-b") == "4.000000" })
+        clips = try #require(try contextMenu(w).item(withTitle: L("截取片段"))?.submenu)
+        #expect(clips.item(withTitle: L("循环预览"))?.state == .on)
+        try contextClick(try #require(clips.item(withTitle: L("清除片段选择"))))
+        #expect(w.markersForTesting.clipRange == nil && w.markersForTesting.clipStart == nil)
+        #expect(w.clipBar.isHidden)
+        #expect(await waitUntil { engine.property("ab-loop-a") == "no" && engine.property("ab-loop-b") == "no" })
+        clips = try #require(try contextMenu(w).item(withTitle: L("截取片段"))?.submenu)
+        #expect(clips.item(withTitle: L("GIF"))?.isEnabled == false)
+    }
+
+    @Test("CM5 context GIF, video and copy export the marked range and disable duplicate exports while busy")
+    func contextQuickExports() async throws {
+        let w = PlayerWindowController()
+        defer { w.shutdown() }
+        let out = TestTemp.directory.appendingPathComponent("context-\(UUID().uuidString)")
+        let board = NSPasteboard(name: .init("context-\(UUID().uuidString)"))
+        defer { board.releaseGlobally(); try? FileManager.default.removeItem(at: out) }
+        w.clipOutputDirectory = out
+        w.pasteboard = board
+        w.revealExported = { _ in }
+        w.open(sample)
+        let engine = try #require(w.engine)
+        #expect(await waitUntil { w.loadedPath == sample.path })
+        engine.setPaused(true)
+        #expect(await waitUntil { engine.state.isPaused })
+        await contextSeek(engine, to: 1)
+        w.markClip(nil)
+        await contextSeek(engine, to: 2)
+        w.markClip(nil)
+        for (title, ext) in [(L("GIF"), "gif"), (L("视频"), "mp4")] {
+            let clips = try #require(try contextMenu(w).item(withTitle: L("截取片段"))?.submenu)
+            try contextClick(try #require(clips.item(withTitle: title)))
+            #expect(w.isExportingClip)
+            let busy = try #require(try contextMenu(w).item(withTitle: L("截取片段"))?.submenu)
+            #expect(busy.item(withTitle: L("GIF"))?.isEnabled == false)
+            #expect(busy.item(withTitle: L("视频"))?.isEnabled == false)
+            #expect(busy.item(withTitle: L("拷贝 GIF"))?.isEnabled == false)
+            #expect(await waitUntil(20) { !w.isExportingClip })
+            let files = try FileManager.default.contentsOfDirectory(at: out, includingPropertiesForKeys: nil)
+            let file = try #require(files.first { $0.pathExtension == ext })
+            #expect(try Data(contentsOf: file).count > 100)
+        }
+        let clips = try #require(try contextMenu(w).item(withTitle: L("截取片段"))?.submenu)
+        try contextClick(try #require(clips.item(withTitle: L("拷贝 GIF"))))
+        #expect(await waitUntil(20) { !w.isExportingClip })
+        let copied = try #require(board.readObjects(forClasses: [NSURL.self]) as? [URL])
+        let gif = try #require(copied.first)
+        #expect(gif.pathExtension == "gif")
+        #expect(try Data(contentsOf: gif).starts(with: Data("GIF8".utf8)))
+    }
+}
+
 @Suite(.serialized) @MainActor struct PlayerWiringTests {
     private func cue(_ text: String) -> String { SRT.document([SubtitleCue(start: 0, end: 30, text: text)]) }
 

@@ -239,6 +239,7 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
             playerView.onFilesDropped = { [weak self] urls in
                 if let first = urls.first { self?.open(first) }
             }
+            playerView.contextMenuProvider = { [weak self] in self?.playbackContextMenu() ?? NSMenu() }
             playerView.showsPlaceholder = true
         } else {
             let error = NSTextField(labelWithString: L("播放引擎初始化失败（libmpv）"))
@@ -497,6 +498,69 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     @objc private func showSpeedMenu(_ sender: NSButton) {
         let menu = PlaybackSpeed.menu(current: preferredSpeed, target: self, action: #selector(chooseSpeedPreset(_:)))
         menu.popUp(positioning: nil, at: NSPoint(x: 0, y: sender.bounds.height + 4), in: sender)
+    }
+
+    /// Built on each right-click so speed, clip selection and export availability
+    /// reflect this window. Actions reuse the keyboard/control-bar implementations.
+    private func playbackContextMenu() -> NSMenu {
+        let hasMedia = loadedPath != nil
+        let menu = NSMenu()
+        menu.autoenablesItems = false
+
+        @discardableResult
+        func add(_ title: String, _ action: Selector, to menu: NSMenu,
+                 key: String = "", tag: Int = 0, available: Bool = true) -> NSMenuItem {
+            let item = NSMenuItem(title: title, action: action, keyEquivalent: key)
+            item.target = self
+            item.tag = tag
+            item.isEnabled = hasMedia && available && validateMenuItem(item)
+            menu.addItem(item)
+            return item
+        }
+
+        let pause = add(L("播放 / 暂停"), #selector(togglePause(_:)), to: menu, key: " ")
+        pause.keyEquivalentModifierMask = []
+        menu.addItem(.separator())
+
+        let speeds = PlaybackSpeed.menu(current: preferredSpeed, target: self, action: #selector(chooseSpeedPreset(_:)))
+        speeds.autoenablesItems = false
+        for item in speeds.items { item.isEnabled = hasMedia && validateMenuItem(item) }
+        speeds.addItem(.separator())
+        add(L("加速 0.1×"), #selector(speedUp(_:)), to: speeds)
+        add(L("减速 0.1×"), #selector(speedDown(_:)), to: speeds)
+        add(L("恢复 1.0×"), #selector(resetSpeed(_:)), to: speeds)
+        let speedItem = menu.addItem(withTitle: L("播放速度"), action: nil, keyEquivalent: "")
+        speedItem.submenu = speeds
+        speedItem.isEnabled = hasMedia
+
+        add(L("AI 字幕…"), #selector(generateAISubtitles(_:)), to: menu, key: "t")
+
+        let clips = NSMenu(title: L("截取片段"))
+        clips.autoenablesItems = false
+        let choosingEnd = clipSelection.start != nil && clipSelection.range == nil
+        add(choosingEnd ? L("标记片段终点   C") : L("标记片段起点   C"), #selector(markClip(_:)), to: clips)
+        add(L("清除片段选择"), #selector(clearClip(_:)), to: clips)
+        clips.addItem(.separator())
+        add(L("GIF"), #selector(performContextClipAction(_:)), to: clips, tag: ClipBar.Action.gif.rawValue)
+        add(L("视频"), #selector(performContextClipAction(_:)), to: clips, tag: ClipBar.Action.video.rawValue)
+        let copyTitle = (clipSelection.range?.length ?? 0) <= ClipExporter.maxGIFLength ? L("拷贝 GIF") : L("拷贝视频")
+        add(copyTitle, #selector(performContextClipAction(_:)), to: clips, tag: ClipBar.Action.copy.rawValue)
+        add(L("循环预览"), #selector(performContextClipAction(_:)), to: clips, tag: ClipBar.Action.loop.rawValue)
+        clips.addItem(.separator())
+        add(L("导出片段…"), #selector(exportClip(_:)), to: clips, key: "e", available: !isExportingClip)
+        add(L("取消导出片段"), #selector(cancelClipExport(_:)), to: clips)
+        let clipItem = menu.addItem(withTitle: clips.title, action: nil, keyEquivalent: "")
+        clipItem.submenu = clips
+        clipItem.isEnabled = hasMedia && currentURL?.isFileURL == true
+
+        menu.addItem(.separator())
+        add(L("拷贝当前画面"), #selector(copy(_:)), to: menu, key: "c")
+        return menu
+    }
+
+    @objc private func performContextClipAction(_ sender: NSMenuItem) {
+        guard validateMenuItem(sender), let action = ClipBar.Action(rawValue: sender.tag) else { return }
+        clipAction(action)
     }
 
     /// The speed label is always shown; highlighted only when not at normal speed.
@@ -948,6 +1012,20 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
             return aiShown != nil
         case #selector(cancelClipExport(_:)):
             return isExportingClip
+        case #selector(performContextClipAction(_:)):
+            guard currentURL?.isFileURL == true, loadedPath != nil,
+                  let range = clipSelection.range, let action = ClipBar.Action(rawValue: item.tag) else { return false }
+            switch action {
+            case .gif:
+                let fits = range.length <= ClipExporter.maxGIFLength
+                item.toolTip = fits ? nil : L("动图最长 %@ 秒", String(Int(ClipExporter.maxGIFLength)))
+                return fits && !isExportingClip
+            case .video, .copy: return !isExportingClip
+            case .loop:
+                item.state = clipLooping ? .on : .off
+                return true
+            case .close: return false
+            }
         case #selector(markClip(_:)), #selector(copy(_:)):
             return currentURL?.isFileURL == true && loadedPath != nil
         case #selector(clearClip(_:)):

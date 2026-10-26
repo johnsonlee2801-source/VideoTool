@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Right-click the picture for playback speed, on-device AI subtitles and clip
+  marking/export, with play/pause and frame copying alongside. Clip actions show
+  the current selection and export availability; opening the menu cancels a hold.
+
 ## 0.3.8 (2026-10-20)
 
 - Made by ChengNuo: the About window, the first screen and the copyright line
