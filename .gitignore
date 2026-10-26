@@ -7,3 +7,9 @@ DerivedData-build.log
 
 # cc-suite audit reports (local)
 .cc-suite/
+
+# TDD Guardian runtime evidence stays local; configuration is shared.
+.claude/tdd-guardian/state.json
+.claude/tdd-guardian/receipts.json
+.claude/tdd-guardian/.state.*.tmp
+.claude/tdd-guardian/.receipts*

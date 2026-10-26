@@ -49,6 +49,36 @@ Tests never touch your data: under the test runner, `AppData` points the
 database, thumbnails, subtitles and preferences at a per-run temp folder, the
 player makes no sound, and old runs' leftovers are removed.
 
+### Codex TDD Guardian
+
+The repo-local bundle at `tools/tdd-guardian/` is based on xiaolai's ISC-licensed
+TDD Guardian, pinned in `UPSTREAM.json`. Its local adapter rejects timestamp-only
+state, a failed rerun, and source/configuration changes after a pass. A dirty tree
+can earn a pass, but the tested contents must stay unchanged. Swift Testing counts
+are parsed separately from XCTest's `Executed 0 tests` summary.
+
+Run from the repo root:
+
+```zsh
+node tools/tdd-guardian/local/gate.js commit  # every commit lane, real execution
+node tools/tdd-guardian/local/gate.js core    # only the core lane
+node tools/tdd-guardian/local/status.js       # read-only readiness
+```
+
+Codex discovers its skills through `.agents/skills/` and its project hook through
+`.codex/hooks.json`, with hooks enabled by `.codex/config.toml`. No global plugin
+registry or configuration is changed. In a new Codex session, use `/hooks`
+to review and trust `tools/tdd-guardian/local/pretool.js`. Until that native trust
+step is complete, the automatic commit/push guard is not active; the explicit
+runner still works. Passing a gate does not authorize a commit or push.
+
+This adapter enforces the existing lane gates. Coverage/mutation policy is
+currently disabled in the shared config; it refuses to refresh gates if those
+policies are enabled without an explicit adapter. `scripts/coverage.sh` remains
+the separate 90% application coverage check.
+
+Validate the bundled tool with `cd tools/tdd-guardian && node --test`.
+
 ## Interface languages
 
 Chinese is the source language: the lookup key *is* the Chinese text.

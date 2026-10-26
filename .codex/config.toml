@@ -1,0 +1,3 @@
+# Project-local skills and hook. Native hook trust is reviewed separately.
+[features]
+hooks = true

@@ -1,0 +1,43 @@
+{
+  "name": "tdd-guardian",
+  "version": "0.10.2-videotool.1",
+  "description": "TDD Guardian — enforces strict test-driven development with per-lane gates (unit/integration/e2e/contract), specification-strength levels S1-S6 with property tooling, adversarial spec review before implementation, red receipts proving spec/implementation separation, per-path critical thresholds, CI-first tooling detection with dry-run verification, 9-format coverage merging, and mutation testing across 25+ languages",
+  "author": {
+    "name": "xiaolai"
+  },
+  "homepage": "https://github.com/xiaolai/tdd-guardian-for-claude",
+  "repository": "https://github.com/xiaolai/tdd-guardian-for-claude",
+  "license": "ISC",
+  "keywords": [
+    "tdd",
+    "testing",
+    "coverage",
+    "mutation-testing",
+    "quality-gates",
+    "e2e",
+    "integration-testing",
+    "property-testing",
+    "invariants"
+  ],
+  "skills": "./codex/skills/",
+  "commands": [],
+  "hooks": "./codex/hooks.json",
+  "interface": {
+    "displayName": "TDD Guardian",
+    "shortDescription": "Strict TDD with per-lane test gates, adversarial spec review, red receipts, coverage and mutation gates",
+    "longDescription": "VideoTool local fork: upstream TDD workflow and red receipts, with a project-local gate runner that records real lane results and requires matching source content fingerprints. The trusted PreToolUse hook refuses commits and pushes after source changes, failed reruns, or legacy timestamp-only state. No background service, network backend, or Claude model is required.",
+    "developerName": "xiaolai",
+    "category": "Coding",
+    "capabilities": [
+      "Read",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Use $tdd-guardian-init to set up TDD Guardian's test lanes for this project.",
+      "Use $tdd-guardian-workflow to build this feature test-first.",
+      "Use $tdd-guardian-gate commit to run the lanes that gate a commit."
+    ],
+    "websiteURL": "https://github.com/xiaolai/tdd-guardian-for-claude",
+    "screenshots": []
+  }
+}

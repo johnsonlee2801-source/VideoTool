@@ -7,6 +7,12 @@ goals, layout, build and test commands. `CLAUDE.md` only imports this file.
 
 - Test first. Write the failing test, run it red, implement, run green, then a
   review pass. Every user decision about behaviour lands as a test.
+- Codex TDD Guardian is bundled in `tools/tdd-guardian` (repo-local skills + hook).
+  Use `$tdd-guardian-gate` or `node tools/tdd-guardian/local/gate.js commit`
+  before committing, and `.../gate.js push` before pushing. A named lane only
+  refreshes that lane. Never write passing gate state by hand: the strict runner
+  records actual results and the tested source fingerprint. A new/changed hook
+  needs native Codex `/hooks` trust; configured does not mean active.
 - Keep logic in small pure units (VideoToolCore, `App/Sources/Playback/*`) and
   keep AppKit/libmpv glue thin; the glue gets integration tests against real mpv.
 - Never hand-edit `VideoTool.xcodeproj`: change `project.yml`, then

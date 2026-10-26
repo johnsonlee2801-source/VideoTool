@@ -1,0 +1,8 @@
+◇ Test run started.
+↳ Testing Library Version: 2084
+↳ Target Platform: arm64e-apple-macos14.0
+➜ Test "D2 feature art" skipped.
+◇ Test "RF7 when translation is skipped" started.
+➜ Test "D1 screenshots" skipped.
+✔ Test "RF7 when translation is skipped" passed after 0.001 seconds.
+✔ Test run with 3 tests in 0 suites passed after 0.001 seconds.

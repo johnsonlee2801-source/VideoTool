@@ -1,0 +1,7 @@
+{
+  "repository": "https://github.com/xiaolai/tdd-guardian-for-claude",
+  "commit": "188ee8c9df5682a0dad37d35444e40fcbe0bb8f8",
+  "version": "0.10.2",
+  "license": "ISC",
+  "local_extension": "local/ strict runner and hook; Codex gate/status skills and hook registration; Swift/Node count parsers in lib/exec.js; regression tests"
+}
