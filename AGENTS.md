@@ -17,7 +17,12 @@ goals, layout, build and test commands. `CLAUDE.md` only imports this file.
   keep AppKit/libmpv glue thin; the glue gets integration tests against real mpv.
 - Never hand-edit `VideoTool.xcodeproj`: change `project.yml`, then
   `scripts/regen.sh` (it also writes `App/Info.plist` from `x-info-properties`).
-- Push to `origin` (private GitHub repo) after each finished step.
+- Push to `origin` (GitHub repo) after each finished step.
+- Every GitHub update must have a dated Chinese user-facing entry in CHANGELOG.md:
+  what was added/fixed, behavior or compatibility changes, actual verification
+  (including skips/limitations), and source vs. installer release status. Use a
+  descriptive commit message; copy the matching notes into a GitHub Release when
+  publishing one. The final reply links the update and summarizes its contents.
 
 ## Settled behaviour (user decisions)
 

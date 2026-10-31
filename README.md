@@ -9,6 +9,8 @@
 
 <p align="center"><a href="https://github.com/johnsonlee2801-source/VideoTool/releases/latest"><b>⬇︎ Download for Mac · 下载 Mac 版</b></a></p>
 
+<p align="center"><a href="CHANGELOG.md">更新记录 · Changelog</a></p>
+
 ---
 
 VideoTool does three things other players don't do this way.<br>

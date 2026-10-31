@@ -1,13 +1,45 @@
 # Changelog
 
-## Unreleased
+## Unreleased / 待发布安装包
 
-- Double-click the picture or empty player space to enter fullscreen; double-click
-  again to restore the previous window size. Controls keep their own interactions,
-  and double-clicking does not pause or resume playback.
-- Right-click the picture for playback speed, on-device AI subtitles and clip
-  marking/export, with play/pause and frame copying alongside. Clip actions show
-  the current selection and export availability; opening the menu cancels a hold.
+以下按源码提交日期记录；测试数字为对应功能更新当次的验收结果。
+源码已推送不等于发布了新的 DMG，安装包发布会另行标注。
+
+Source updates are listed by commit date. Validation belongs to that update;
+installer releases are recorded separately.
+
+### 2026-10-31 — 更新说明 / Update notes
+
+- 文档：每次 GitHub 更新按日期说明新增或修复内容、交互变化、验证结果和安装包发布状态。
+- 入口：三种语言的 README 均增加更新记录链接。
+- 验证与发布：本次只更新文档，核对链接、提交记录及已有源码门禁；不发布新安装包。
+
+### 2026-10-31 — 双击全屏 / Double-click fullscreen · [d09c761](https://github.com/johnsonlee2801-source/VideoTool/commit/d09c7619701ebdac75a98324be17fea77c1d8ad4)
+
+- 新增：双击播放画面或空白区域进入 macOS 原生全屏，再次双击恢复原窗口尺寸。
+- 交互：按钮、进度条和星标列表保留原操作。单击在系统双击间隔后播放/暂停；双击不会误暂停，按住加速不延迟。
+- 当次验证：先失败、后实现的 4 个交互用例通过，并补充 3 个计时边界用例；应用回归 552 项通过，2 项文档截图测试跳过。安装版实测全屏往返及原窗口尺寸恢复通过。
+- 发布状态：已推送源码，未随此提交发布新 DMG。
+
+Double-click the picture or empty player space to toggle native fullscreen.
+Controls keep their actions, and playback state is preserved.
+
+### 2026-10-26 — 右键菜单 / Player context menu · [c43bd8a](https://github.com/johnsonlee2801-source/VideoTool/commit/c43bd8adba8f756495ad73c243fac94b3e7c9263)
+
+- 新增：右键调播放速度、生成本机 AI 字幕，以及标记片段起止点、导出 GIF / 视频、拷贝片段和循环预览；另有播放/暂停和拷贝当前画面。
+- 交互：菜单反映当前倍速和片段选择；无视频或导出进行中时，相应操作置灰。打开菜单会取消按住加速。
+- 当次验证：5 个新增行为用例先失败、实现后通过，包含真实 mpv 播放及文件/剪贴板导出；应用回归 545 项通过，2 项文档截图测试跳过。安装版实际右键菜单已验证。
+- 发布状态：已推送源码，未随此提交发布新 DMG。
+
+Right-click for playback speed, on-device AI subtitles, clipping and export,
+with play/pause and frame copying alongside.
+
+### 2026-10-26 — 开发测试门禁 / Codex TDD Guardian · [a79b017](https://github.com/johnsonlee2801-source/VideoTool/commit/a79b017)
+
+- 开发工具：接入项目内的 Codex 技能和提交/推送前门禁，保留固定上游版本及 ISC 许可。
+- 检查：测试结果绑定实际源码内容；源码变化或最新测试失败后，不再沿用旧的通过记录。支持 Swift Testing 和 Node 测试数量解析。
+- 当次验证：Guardian 325 项测试通过；新会话已验证原生 Hook 自动拦截。新机器或 Hook 定义变更后仍需通过 `/hooks` 审阅信任。
+- 发布状态：开发工具源码更新，不发布播放器安装包。
 
 ## 0.3.8 (2026-10-20)
 

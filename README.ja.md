@@ -7,6 +7,8 @@
 
 <p align="center"><a href="README.md">English</a> · <a href="README.zh-CN.md">简体中文</a> · <b>日本語</b></p>
 
+<p align="center"><a href="CHANGELOG.md">更新履歴 · Changelog</a></p>
+
 ---
 
 VideoTool がするのは 3 つのことだけ。どれも、ほかのプレーヤーにはないやり方です。

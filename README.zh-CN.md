@@ -7,6 +7,8 @@
 
 <p align="center"><a href="README.md">English</a> · <b>简体中文</b> · <a href="README.ja.md">日本語</a></p>
 
+<p align="center"><a href="CHANGELOG.md">更新记录</a></p>
+
 ---
 
 VideoTool 只做好三件事，这三件事别的播放器都没这样做。
