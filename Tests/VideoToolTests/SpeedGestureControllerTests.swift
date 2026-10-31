@@ -54,7 +54,9 @@ private final class Rig {
     let scheduler = FakeScheduler()
     var now = 0.0
     var mouseX: Double? = 500
+    var singleClickDelay = 0.0
     lazy var controller = SpeedGestureController(engine: engine, hud: hud, scheduler: scheduler,
+                                                 singleClickDelay: singleClickDelay,
                                                  clock: { [unowned self] in self.now },
                                                  mouseX: { [unowned self] in self.mouseX })
     func press() { controller.mouseDown() }
@@ -158,5 +160,46 @@ private final class Rig {
         #expect(!r.controller.isActive)
         r.press(); r.controller.cancel()
         #expect(!r.controller.isActive)
+    }
+
+    @Test("A16 a delayed single click fires once at its deadline; cancel drops the next pending tap")
+    func delayedTap() {
+        let r = Rig()
+        r.singleClickDelay = 0.5
+        r.press(); r.advance(0.1); r.release()
+        #expect(r.engine.togglePauseCount == 0 && r.scheduler.isRunning)
+        #expect(!r.controller.isActive)
+        r.advance(0.49)
+        #expect(r.engine.togglePauseCount == 0)
+        r.advance(0.02)
+        #expect(r.engine.togglePauseCount == 1 && !r.scheduler.isRunning)
+        r.advance(1)
+        #expect(r.engine.togglePauseCount == 1)
+        r.press(); r.advance(0.1); r.release()
+        r.controller.cancel(); r.advance(1)
+        #expect(r.engine.togglePauseCount == 1 && !r.scheduler.isRunning)
+    }
+
+    @Test("A17 delaying taps never delays a hold or schedules a pause after releasing it")
+    func delayedTapStillHolds() {
+        let r = Rig()
+        r.singleClickDelay = 0.5
+        r.engine.state.speed = 1.5
+        r.press(); r.advance(0.3)
+        #expect(r.controller.isHolding && r.engine.state.speed == 2)
+        r.release(); r.advance(1)
+        #expect(r.engine.state.speed == 1.5)
+        #expect(r.engine.togglePauseCount == 0 && !r.scheduler.isRunning)
+    }
+
+    @Test("A18 a new separate click completes the previous single tap and schedules only its own")
+    func separateClicks() {
+        let r = Rig()
+        r.singleClickDelay = 0.5
+        r.press(); r.advance(0.1); r.release()
+        r.advance(0.1); r.press()
+        #expect(r.engine.togglePauseCount == 1)
+        r.advance(0.1); r.release(); r.advance(0.51)
+        #expect(r.engine.togglePauseCount == 2 && !r.scheduler.isRunning)
     }
 }

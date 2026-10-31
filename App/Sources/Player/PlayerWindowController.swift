@@ -21,7 +21,7 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     })
     private var isShutDown = false
 
-    private let controlBar = NSView()
+    private let controlBar = FullscreenClickView()
     /// "Add this folder to the library?" card (the app delegate decides when to offer).
     let libraryOffer = LibraryOfferBar()
     let clipBar = ClipBar()
@@ -118,7 +118,11 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
 
     private func buildContent() {
         guard let window else { return }
-        let content = NSView()
+        let content = FullscreenClickView()
+        let doubleClick: () -> Void = { [weak self] in self?.toggleFullscreen() }
+        content.onDoubleClick = doubleClick
+        controlBar.onDoubleClick = doubleClick
+        playerView?.onDoubleClick = doubleClick
         content.wantsLayer = true
         content.layer?.backgroundColor = Theme.bg0.cgColor
         window.contentView = content
@@ -444,6 +448,7 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
 
     func open(_ url: URL) {
         guard let engine else { return }
+        playerView?.gesture.cancel()
         flushPendingTrackMemory()
         saveResumeNow()
         bookmarks?.fileClosed()
@@ -952,7 +957,7 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         case .seek(let d): engine.seek(by: d)
         case .volume(let d): engine.setVolume(engine.state.volume + d)
         case .toggleMute: engine.toggleMute()
-        case .toggleFullscreen: window?.toggleFullScreen(nil)
+        case .toggleFullscreen: toggleFullscreen()
         case .cycleSubtitle: engine.cycleSubtitle(); rememberTracks()
         case .cycleAudio: engine.cycleAudio(); rememberTracks()
         case .subtitleDelay(let d): changeSubtitleDelay(by: d)
@@ -1259,6 +1264,11 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
 
     // MARK: keyboard
 
+    private func toggleFullscreen() {
+        playerView?.gesture.cancel()
+        window?.toggleFullScreen(nil)
+    }
+
     private func installKeyMonitor() {
         keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             Self.keyMonitorResult(self, event)
@@ -1279,7 +1289,7 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         guard event.window === window else { return event }
         let gestureActive = playerView?.gesture.isActive ?? false
         // Any key press while the button is down ends the gesture without a tap.
-        if gestureActive { playerView?.gesture.cancel() }
+        playerView?.gesture.cancel()         // also cancel a released click awaiting the double-click deadline
         let editingText = window?.firstResponder is NSText      // typing a star note
         switch KeyRouter.decide(KeyRouter.input(from: event), gestureActive: gestureActive,
                                 isEditingText: editingText) {

@@ -80,6 +80,9 @@ Build it yourself · 自己编译: [CONTRIBUTING.md](CONTRIBUTING.md)
 
 ## Keyboard · 快捷键
 
+**Double-click the picture or empty player space** to enter fullscreen; double-click again to restore the window. Buttons, the timeline and the star list keep their usual actions.<br>
+**双击播放画面或空白区域**进入全屏，再次双击恢复原窗口尺寸；按钮、进度条和星标列表保留原操作。
+
 **Right-click the picture** for playback speed, AI subtitles and clipping, plus play/pause and copying the current frame.<br>
 **在播放画面上点鼠标右键**，就能调倍速、生成 AI 字幕、截取片段，也能播放/暂停和拷贝当前画面。
 

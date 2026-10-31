@@ -1,9 +1,28 @@
 import AppKit
 import UniformTypeIdentifiers
 
+/// Empty player surfaces share the native fullscreen action. Controls consume
+/// their own clicks, so buttons, sliders and editable text keep their behavior.
+class FullscreenClickView: NSView {
+    var onDoubleClick: (() -> Void)?
+
+    static func isFullscreenDoubleClick(_ event: NSEvent) -> Bool {
+        event.type == .leftMouseDown && event.clickCount >= 2 && event.clickCount.isMultiple(of: 2)
+            && !event.modifierFlags.contains(.control)
+    }
+
+    override func mouseDown(with event: NSEvent) {
+        if Self.isFullscreenDoubleClick(event) {
+            if let onDoubleClick { onDoubleClick() } else { window?.toggleFullScreen(nil) }
+        } else {
+            super.mouseDown(with: event)
+        }
+    }
+}
+
 /// Hosts the mpv render layer, the HUD, the idle placeholder, and turns mouse
 /// input into the hold-and-drag speed gesture. Keyboard goes to the window.
-final class PlayerView: NSView {
+final class PlayerView: FullscreenClickView {
     let renderLayer: MPVRenderLayer
     let hud = SpeedHUDView()
     private let placeholder = EmptyStateView()
@@ -18,7 +37,8 @@ final class PlayerView: NSView {
         wantsLayer = true                      // layer-backed; backing layer comes from makeBackingLayer()
         layerContentsRedrawPolicy = .duringViewResize
 
-        gesture = SpeedGestureController(engine: engine, hud: hud, mouseX: { [weak self] in
+        gesture = SpeedGestureController(engine: engine, hud: hud, singleClickDelay: NSEvent.doubleClickInterval,
+                                         mouseX: { [weak self] in
             guard let self, let window = self.window else { return nil }
             return self.convert(window.mouseLocationOutsideOfEventStream, from: nil).x
         })
@@ -70,6 +90,11 @@ final class PlayerView: NSView {
 
     override func mouseDown(with event: NSEvent) {
         window?.makeFirstResponder(self)      // ends a note edit; keys go back to the player
+        if Self.isFullscreenDoubleClick(event) {
+            gesture.cancel()
+            super.mouseDown(with: event)
+            return
+        }
         gesture.mouseDown()
     }
     override func mouseDragged(with event: NSEvent) { /* position is polled by the gesture tick */ }

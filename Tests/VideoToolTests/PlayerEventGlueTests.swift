@@ -177,3 +177,116 @@ import Testing
         #expect(updated.items.filter { $0.state == .on }.map(\.title) == ["2.5×"])
     }
 }
+
+/// Only the macOS fullscreen transition is replaced here. Mouse routing,
+/// layout and pause/speed properties use the real views and libmpv engine.
+@MainActor private final class FullscreenBoundaryWindow: NSWindow {
+    private(set) var fullscreenRequested = false
+    override func toggleFullScreen(_ sender: Any?) { fullscreenRequested.toggle() }
+}
+
+@Suite(.serialized) @MainActor struct PlayerDoubleClickTests {
+    private func player() throws -> (PlayerWindowController, FullscreenBoundaryWindow, PlayerView) {
+        let w = PlayerWindowController()
+        let old = try #require(w.window)
+        let content = try #require(old.contentView)
+        let view = try #require(w.playerView)
+        let window = FullscreenBoundaryWindow(contentRect: NSRect(x: 0, y: 0, width: 900, height: 560),
+            styleMask: [.titled, .resizable, .closable], backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false
+        old.delegate = nil
+        old.contentView = nil
+        old.orderOut(nil)
+        window.contentView = content
+        w.window = window
+        window.delegate = w
+        window.orderBack(nil)
+        return (w, window, view)
+    }
+
+    private func mouse(_ type: NSEvent.EventType, count: Int, in window: NSWindow) -> NSEvent {
+        NSEvent.mouseEvent(with: type, location: NSPoint(x: 100, y: 200), modifierFlags: [], timestamp: 0,
+            windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: count, pressure: 1)!
+    }
+
+    private func click(_ view: NSView, count: Int, in window: NSWindow) {
+        view.mouseDown(with: mouse(.leftMouseDown, count: count, in: window))
+        view.mouseUp(with: mouse(.leftMouseUp, count: count, in: window))
+    }
+
+    private func wait(_ seconds: Double = 2, until condition: () -> Bool) async throws -> Bool {
+        let end = Date().addingTimeInterval(seconds)
+        while !condition(), Date() < end { try await Task.sleep(for: .milliseconds(10)) }
+        return condition()
+    }
+
+    @Test("DC1 double-clicking the picture enters fullscreen; the next pair exits without changing pause")
+    func togglesFullscreen() async throws {
+        let (w, window, view) = try player()
+        defer { w.shutdown() }
+        let engine = try #require(w.engine)
+        engine.setPaused(false)
+        #expect(try await wait { engine.property("pause") == "no" })
+        click(view, count: 1, in: window)
+        try await Task.sleep(for: .seconds(min(0.05, NSEvent.doubleClickInterval / 4)))
+        #expect(engine.property("pause") == "no", "the first click must wait to distinguish a double-click")
+        click(view, count: 2, in: window)
+        #expect(window.fullscreenRequested)
+        #expect(!view.gesture.isActive)
+        try await Task.sleep(for: .seconds(NSEvent.doubleClickInterval + 0.1))
+        #expect(engine.property("pause") == "no", "no delayed pause may fire after a double-click")
+        click(view, count: 3, in: window)
+        #expect(window.fullscreenRequested, "an odd third click is not another fullscreen toggle")
+        click(view, count: 4, in: window)
+        #expect(!window.fullscreenRequested)
+        try await Task.sleep(for: .seconds(NSEvent.doubleClickInterval + 0.1))
+        #expect(engine.property("pause") == "no")
+    }
+
+    @Test("DC2 a single click still toggles pause once after the double-click interval")
+    func singleClickStillPauses() async throws {
+        let (w, window, view) = try player()
+        defer { w.shutdown() }
+        let engine = try #require(w.engine)
+        engine.setPaused(false)
+        #expect(try await wait { engine.property("pause") == "no" })
+        click(view, count: 1, in: window)
+        try await Task.sleep(for: .seconds(min(0.05, NSEvent.doubleClickInterval / 4)))
+        #expect(engine.property("pause") == "no")
+        #expect(try await wait(NSEvent.doubleClickInterval + 1) { engine.property("pause") == "yes" })
+        #expect(!window.fullscreenRequested)
+    }
+
+    @Test("DC3 double-clicking empty content or control-bar space toggles fullscreen")
+    func emptyAreas() throws {
+        let (w, window, _) = try player()
+        defer { w.shutdown() }
+        let content = try #require(window.contentView)
+        click(content, count: 2, in: window)
+        #expect(window.fullscreenRequested)
+        let bar = try #require(w.slider.superview?.superview)
+        click(bar, count: 2, in: window)
+        #expect(!window.fullscreenRequested)
+    }
+
+    @Test("DC4 a key or context menu cancels a pending single click without a late pause")
+    func pendingTapCancellation() async throws {
+        let (w, window, view) = try player()
+        defer { w.shutdown() }
+        let engine = try #require(w.engine)
+        engine.setPaused(false)
+        #expect(try await wait { engine.property("pause") == "no" })
+        click(view, count: 1, in: window)
+        let key = try #require(NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0,
+            windowNumber: window.windowNumber, context: nil, characters: " ", charactersIgnoringModifiers: " ",
+            isARepeat: false, keyCode: 49))
+        #expect(w.handleKeyDown(key) == nil)
+        #expect(try await wait { engine.property("pause") == "yes" })
+        try await Task.sleep(for: .seconds(NSEvent.doubleClickInterval + 0.1))
+        #expect(engine.property("pause") == "yes", "Space must not be followed by a second delayed toggle")
+        click(view, count: 1, in: window)
+        _ = view.menu(for: mouse(.rightMouseDown, count: 1, in: window))
+        try await Task.sleep(for: .seconds(NSEvent.doubleClickInterval + 0.1))
+        #expect(engine.property("pause") == "yes")
+    }
+}

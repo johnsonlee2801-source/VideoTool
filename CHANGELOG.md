@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Double-click the picture or empty player space to enter fullscreen; double-click
+  again to restore the previous window size. Controls keep their own interactions,
+  and double-clicking does not pause or resume playback.
 - Right-click the picture for playback speed, on-device AI subtitles and clip
   marking/export, with play/pause and frame copying alongside. Clip actions show
   the current selection and export availability; opening the menu cancels a hold.

@@ -37,6 +37,8 @@ final class SpeedGestureController {
     private let scheduler: TickScheduler
     private let clock: () -> Double
     private let mouseXProvider: () -> Double?
+    private let singleClickDelay: Double
+    private var pendingTapDeadline: Double?
     private var machine: SpeedGestureMachine!
     private var lastSetSpeed: Double?
 
@@ -44,6 +46,7 @@ final class SpeedGestureController {
          hud: SpeedHUD,
          scheduler: TickScheduler = TimerTickScheduler(),
          options: SpeedGestureOptions = .defaults,
+         singleClickDelay: Double = 0,
          clock: @escaping () -> Double = { CACurrentMediaTime() },
          mouseX: @escaping () -> Double?) {
         self.engine = engine
@@ -51,6 +54,7 @@ final class SpeedGestureController {
         self.scheduler = scheduler
         self.clock = clock
         self.mouseXProvider = mouseX
+        self.singleClickDelay = singleClickDelay.isFinite ? max(0, singleClickDelay) : 0
         self.machine = SpeedGestureMachine(options: options, host: self)
     }
 
@@ -59,9 +63,27 @@ final class SpeedGestureController {
     var isActive: Bool { machine.isPressed || machine.isHolding }
 
     func mouseDown() {
+        // Two separate single clicks (e.g. far apart) must both take effect.
+        // A genuine double-click is intercepted and cancels this pending tap.
+        if pendingTapDeadline != nil {
+            pendingTapDeadline = nil
+            engine.togglePause()
+        }
         machine.mouseDown(at: clock())
+        startPolling()
+    }
+
+    private func startPolling() {
         scheduler.start(interval: Self.pollInterval) { [weak self] in
             guard let self else { return }
+            if let deadline = self.pendingTapDeadline {
+                if self.clock() >= deadline {
+                    self.pendingTapDeadline = nil
+                    self.scheduler.stop()
+                    self.engine.togglePause()
+                }
+                return
+            }
             self.machine.tick(at: self.clock())
         }
     }
@@ -71,11 +93,13 @@ final class SpeedGestureController {
         let wasHolding = machine.isHolding
         machine.mouseUp(at: clock())
         if wasHolding { hud.flash(speed: lastSetSpeed ?? engine.state.speed) }
+        if pendingTapDeadline != nil { startPolling() }
     }
 
     /// Key press, focus loss, file end: end the hold without a tap.
     func cancel() {
         scheduler.stop()
+        pendingTapDeadline = nil
         machine.cancel()
     }
 }
@@ -85,7 +109,10 @@ extension SpeedGestureController: SpeedGestureHost {
     func setSpeed(_ speed: Double) { lastSetSpeed = speed; engine.setSpeed(speed) }
     var isPaused: Bool { engine.state.isPaused }
     func setPaused(_ paused: Bool) { engine.setPaused(paused) }
-    func togglePause() { engine.togglePause() }
+    func togglePause() {
+        if singleClickDelay > 0 { pendingTapDeadline = clock() + singleClickDelay }
+        else { engine.togglePause() }
+    }
     func show(speed: Double, dx: Double) { hud.show(speed: speed, dx: dx) }
     func hide() { hud.hide() }
     var mouseX: Double? { mouseXProvider() }
