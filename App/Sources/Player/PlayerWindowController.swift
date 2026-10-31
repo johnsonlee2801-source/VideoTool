@@ -119,7 +119,14 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     private func buildContent() {
         guard let window else { return }
         let content = FullscreenClickView()
-        let doubleClick: () -> Void = { [weak self] in self?.toggleFullscreen() }
+        let doubleClick: (NSEvent) -> Void = { [weak self] event in
+            guard let self else { return }
+            // Unhandled sidebar clicks can reach the root through the responder
+            // chain. Keep the entire star panel outside the fullscreen surface.
+            if !self.listPanel.isHidden,
+               self.listPanel.bounds.contains(self.listPanel.convert(event.locationInWindow, from: nil)) { return }
+            self.toggleFullscreen()
+        }
         content.onDoubleClick = doubleClick
         controlBar.onDoubleClick = doubleClick
         playerView?.onDoubleClick = doubleClick

@@ -4,7 +4,7 @@ import UniformTypeIdentifiers
 /// Empty player surfaces share the native fullscreen action. Controls consume
 /// their own clicks, so buttons, sliders and editable text keep their behavior.
 class FullscreenClickView: NSView {
-    var onDoubleClick: (() -> Void)?
+    var onDoubleClick: ((NSEvent) -> Void)?
 
     static func isFullscreenDoubleClick(_ event: NSEvent) -> Bool {
         event.type == .leftMouseDown && event.clickCount >= 2 && event.clickCount.isMultiple(of: 2)
@@ -13,7 +13,7 @@ class FullscreenClickView: NSView {
 
     override func mouseDown(with event: NSEvent) {
         if Self.isFullscreenDoubleClick(event) {
-            if let onDoubleClick { onDoubleClick() } else { window?.toggleFullScreen(nil) }
+            if let onDoubleClick { onDoubleClick(event) } else { window?.toggleFullScreen(nil) }
         } else {
             super.mouseDown(with: event)
         }

@@ -8,6 +8,13 @@
 Source updates are listed by commit date. Validation belongs to that update;
 installer releases are recorded separately.
 
+### 2026-10-31 — 修复星标面板双击边界 / Sidebar double-click boundary
+
+- 修复：双击星标列表顶部等空白区域，不再沿响应链误触发播放器全屏；画面和控制栏空白处仍可双击切换全屏。
+- 验证：新增实际命中视图及响应链的回归用例，修复前失败、修复后通过；双击、右键菜单与按住调速相关 21 项测试通过，测试断言在修复过程中保持不变。完整门禁：应用 553 项通过、2 项文档截图测试跳过，核心 68 项和 Guardian 325 项通过，原型测试通过。
+- 验证边界：自动化替换原生全屏切换边界；本机安装版另行核对星标标题双击不切换全屏、播放区域双击全屏往返。
+- 发布状态：源码修复已同步 GitHub，本机 `/Applications/VideoTool.app` 已更新并保留旧版备份；未发布新 DMG，版本仍为 0.3.8。
+
 ### 2026-10-31 — 更新说明 / Update notes
 
 - 文档：每次 GitHub 更新按日期说明新增或修复内容、交互变化、验证结果和安装包发布状态。

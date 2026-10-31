@@ -289,4 +289,45 @@ import Testing
         try await Task.sleep(for: .seconds(NSEvent.doubleClickInterval + 0.1))
         #expect(engine.property("pause") == "yes")
     }
+
+    @Test("DC5 sidebar clicks stay local while picture and control-bar background double-clicks toggle fullscreen")
+    func sidebarBackgroundKeepsItsClicks() throws {
+        let (w, window, view) = try player()
+        defer { w.shutdown() }
+        w.toggleBookmarkList(nil)
+        let content = try #require(window.contentView)
+        content.layoutSubtreeIfNeeded()
+
+        func doubleClick(at location: NSPoint, receiver expected: NSView) throws {
+            let receiver = try #require(content.hitTest(location))
+            #expect(receiver === expected, "dispatch to the actual hit-tested view")
+            // Bypass only NSWindow's inactive-app first-click suppression. Keep
+            // real hit testing and the receiver's AppKit responder chain intact.
+            for count in 1...2 {
+                let down = try #require(NSEvent.mouseEvent(with: .leftMouseDown, location: location,
+                    modifierFlags: [], timestamp: Double(count) * 0.05, windowNumber: window.windowNumber,
+                    context: nil, eventNumber: count, clickCount: count, pressure: 1))
+                let up = try #require(NSEvent.mouseEvent(with: .leftMouseUp, location: location,
+                    modifierFlags: [], timestamp: Double(count) * 0.05 + 0.01, windowNumber: window.windowNumber,
+                    context: nil, eventNumber: count, clickCount: count, pressure: 1))
+                receiver.mouseDown(with: down)
+                receiver.mouseUp(with: up)
+            }
+        }
+
+        let panel = w.listPanel
+        #expect(!panel.isHidden && panel.bounds.width > 0)
+        let header = panel.convert(NSPoint(x: panel.bounds.maxX - 8, y: panel.bounds.maxY - 8), to: nil)
+        try doubleClick(at: header, receiver: panel)
+        #expect(!window.fullscreenRequested, "sidebar events must not trigger the player's fullscreen action")
+
+        let picture = view.convert(NSPoint(x: view.bounds.midX, y: view.bounds.midY), to: nil)
+        try doubleClick(at: picture, receiver: view)
+        #expect(window.fullscreenRequested, "picture double-click must work through the same dispatch")
+
+        let bar = try #require(w.slider.superview?.superview)
+        let background = bar.convert(NSPoint(x: 8, y: 4), to: nil)
+        try doubleClick(at: background, receiver: bar)
+        #expect(!window.fullscreenRequested, "empty control-bar space must still toggle back")
+    }
 }
