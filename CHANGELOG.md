@@ -8,6 +8,12 @@
 Source updates are listed by commit date. Validation belongs to that update;
 installer releases are recorded separately.
 
+### 2026-11-01 — 本机版本更新与重启 / Local app update
+
+- 安装：经用户确认，正常退出旧版后，将已验证的右侧栏 Release 更新到本机 `/Applications/VideoTool.app`，旧版保留备份，再重新启动新版。
+- 核对：安装后签名与构建产物哈希一致；旧进程已结束，仅有一个新版进程，主线程采样处于正常事件循环。界面自动化仍报 `cgWindowNotFound`，AppleEvent 窗口读取也超时，因此未宣称完成安装后的完整界面验收。
+- 验证与发布：本次仅记录安装状态，没有修改程序代码，也未重跑上一条功能更新的测试；未发布新 DMG，版本仍为 0.3.8。
+
 ### 2026-11-01 — 播放器右侧统一侧栏 / Unified player sidebar
 
 - 新增：视频库直接放进播放器右侧，提供「视频库／最近播放／星标」三个标签；分类、搜索、观看进度和选片都在同一个窗口内完成。
