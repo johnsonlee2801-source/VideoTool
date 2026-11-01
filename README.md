@@ -85,8 +85,8 @@ Build it yourself · 自己编译: [CONTRIBUTING.md](CONTRIBUTING.md)
 **Library in the player:** `⌘L` or the library button opens the right sidebar. Switch between **Library / Recent / Stars** to browse categories, last-played times and progress; double-click a video to play it on the left. Drag the divider to resize, or collapse the sidebar. Files stay where they are.<br>
 **视频库就在播放器右侧：**按 `⌘L` 或点视频库按钮，切换「视频库／最近播放／星标」，查看分类、最近播放时间和进度；双击视频就在左侧播放。分隔线可拖动调宽，也可收起侧栏；原文件位置不变。安装包是否包含此更新见 [更新记录](CHANGELOG.md)。
 
-**Double-click the picture or empty player space** to enter fullscreen; double-click again to restore the window. Buttons, the timeline and the star list keep their usual actions.<br>
-**双击播放画面或空白区域**进入全屏，再次双击恢复原窗口尺寸；按钮、进度条和星标列表保留原操作。
+**Single-click the picture** to pause or resume immediately on release. Double-click the picture or empty player space to toggle fullscreen; the second picture click restores the playback state before the pair, so playback may briefly pause or resume between clicks. Buttons, the timeline and the star list keep their usual actions.<br>
+**单击播放画面**，松开鼠标即暂停／继续；双击画面或空白区域切换全屏。画面双击的第二下恢复点击前的播放状态，两下之间可能短暂停顿或播放；按钮、进度条和星标列表保留原操作。
 
 **Right-click the picture** for playback speed, AI subtitles and clipping, plus play/pause and copying the current frame.<br>
 **在播放画面上点鼠标右键**，就能调倍速、生成 AI 字幕、截取片段，也能播放/暂停和拷贝当前画面。

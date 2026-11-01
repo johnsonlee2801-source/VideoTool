@@ -54,9 +54,9 @@ private final class Rig {
     let scheduler = FakeScheduler()
     var now = 0.0
     var mouseX: Double? = 500
-    var singleClickDelay = 0.0
+    var doubleClickInterval = 0.5
     lazy var controller = SpeedGestureController(engine: engine, hud: hud, scheduler: scheduler,
-                                                 singleClickDelay: singleClickDelay,
+                                                 doubleClickInterval: doubleClickInterval,
                                                  clock: { [unowned self] in self.now },
                                                  mouseX: { [unowned self] in self.mouseX })
     func press() { controller.mouseDown() }
@@ -162,28 +162,30 @@ private final class Rig {
         #expect(!r.controller.isActive)
     }
 
-    @Test("A16 a delayed single click fires once at its deadline; cancel drops the next pending tap")
-    func delayedTap() {
+    @Test("A16 a picture tap toggles immediately on release, with no timer or later toggle")
+    func immediateTap() {
         let r = Rig()
-        r.singleClickDelay = 0.5
+        r.doubleClickInterval = 0.5
         r.press(); r.advance(0.1); r.release()
-        #expect(r.engine.togglePauseCount == 0 && r.scheduler.isRunning)
+        #expect(r.engine.togglePauseCount == 1 && !r.scheduler.isRunning)
+        #expect(r.engine.state.isPaused)
         #expect(!r.controller.isActive)
         r.advance(0.49)
-        #expect(r.engine.togglePauseCount == 0)
+        #expect(r.engine.togglePauseCount == 1)
         r.advance(0.02)
         #expect(r.engine.togglePauseCount == 1 && !r.scheduler.isRunning)
         r.advance(1)
         #expect(r.engine.togglePauseCount == 1)
         r.press(); r.advance(0.1); r.release()
         r.controller.cancel(); r.advance(1)
-        #expect(r.engine.togglePauseCount == 1 && !r.scheduler.isRunning)
+        #expect(r.engine.togglePauseCount == 2 && !r.scheduler.isRunning)
+        #expect(!r.engine.state.isPaused)
     }
 
-    @Test("A17 delaying taps never delays a hold or schedules a pause after releasing it")
-    func delayedTapStillHolds() {
+    @Test("A17 a hold starts normally and never schedules a pause after releasing it")
+    func immediateTapStillHolds() {
         let r = Rig()
-        r.singleClickDelay = 0.5
+        r.doubleClickInterval = 0.5
         r.engine.state.speed = 1.5
         r.press(); r.advance(0.3)
         #expect(r.controller.isHolding && r.engine.state.speed == 2)
@@ -192,14 +194,54 @@ private final class Rig {
         #expect(r.engine.togglePauseCount == 0 && !r.scheduler.isRunning)
     }
 
-    @Test("A18 a new separate click completes the previous single tap and schedules only its own")
+    @Test("A18 separate clicks each toggle on release without waiting for another press")
     func separateClicks() {
         let r = Rig()
-        r.singleClickDelay = 0.5
+        r.doubleClickInterval = 0.5
         r.press(); r.advance(0.1); r.release()
+        #expect(r.engine.togglePauseCount == 1)
         r.advance(0.1); r.press()
         #expect(r.engine.togglePauseCount == 1)
-        r.advance(0.1); r.release(); r.advance(0.51)
+        r.advance(0.1); r.release()
         #expect(r.engine.togglePauseCount == 2 && !r.scheduler.isRunning)
+    }
+
+    @Test("A19 double-click undoes exactly one completed tap", arguments: [false, true])
+    func doubleClickRestores(initiallyPaused: Bool) {
+        let r = Rig()
+        r.engine.state.isPaused = initiallyPaused
+        r.press(); r.advance(0.05); r.release()
+        #expect(r.engine.state.isPaused != initiallyPaused)
+        r.controller.doubleClick()
+        #expect(r.engine.state.isPaused == initiallyPaused)
+        #expect(r.engine.togglePauseCount == 2)
+        #expect(r.engine.setPausedCalls.isEmpty)
+        r.release(); r.controller.doubleClick(); r.advance(1)
+        #expect(r.engine.togglePauseCount == 2 && !r.scheduler.isRunning)
+    }
+
+    @Test("A20 a double-click without a tap, after expiry, or after cancel never undoes playback")
+    func doubleClickWithoutEligibleTap() {
+        let r = Rig()
+        r.controller.doubleClick()
+        #expect(r.engine.togglePauseCount == 0)
+        r.press(); r.release(); r.advance(0.51)
+        r.controller.doubleClick()
+        #expect(r.engine.togglePauseCount == 1 && r.engine.state.isPaused)
+        r.press(); r.release(); r.controller.cancel()
+        r.controller.doubleClick()
+        #expect(r.engine.togglePauseCount == 2 && !r.engine.state.isPaused)
+    }
+
+    @Test("A21 a later press and hold cannot undo an earlier completed tap")
+    func holdDiscardsTapUndo() {
+        let r = Rig()
+        r.press(); r.release()
+        r.press(); r.advance(0.3)
+        #expect(r.controller.isHolding && r.engine.state.speed == 2)
+        r.controller.doubleClick(); r.release()
+        #expect(r.engine.state.speed == 1 && !r.controller.isActive)
+        #expect(r.engine.togglePauseCount == 1 && !r.scheduler.isRunning)
+        #expect(!r.engine.state.isPaused, "the hold still resumes paused playback")
     }
 }

@@ -1323,7 +1323,7 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         guard event.window === window else { return event }
         let gestureActive = playerView?.gesture.isActive ?? false
         // Any key press while the button is down ends the gesture without a tap.
-        playerView?.gesture.cancel()         // also cancel a released click awaiting the double-click deadline
+        playerView?.gesture.cancel()         // discard tap undo when another command intervenes
         let editingText = window?.firstResponder is NSText      // typing a star note or search
         if !gestureActive, sidebar.containsFocus(window?.firstResponder),
            event.modifierFlags.intersection([.command, .control, .option]).isEmpty { return event }

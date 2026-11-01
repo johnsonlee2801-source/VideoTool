@@ -220,30 +220,32 @@ import Testing
         return condition()
     }
 
-    @Test("DC1 double-clicking the picture enters fullscreen; the next pair exits without changing pause")
-    func togglesFullscreen() async throws {
+    @Test("DC1 picture double-click restores the state before its immediate first tap", arguments: [false, true])
+    func togglesFullscreen(initiallyPaused: Bool) async throws {
         let (w, window, view) = try player()
         defer { w.shutdown() }
         let engine = try #require(w.engine)
-        engine.setPaused(false)
-        #expect(try await wait { engine.property("pause") == "no" })
+        let original = initiallyPaused ? "yes" : "no"
+        let tapped = initiallyPaused ? "no" : "yes"
+        engine.setPaused(initiallyPaused)
+        #expect(try await wait { engine.property("pause") == original })
         click(view, count: 1, in: window)
         try await Task.sleep(for: .seconds(min(0.05, NSEvent.doubleClickInterval / 4)))
-        #expect(engine.property("pause") == "no", "the first click must wait to distinguish a double-click")
+        #expect(engine.property("pause") == tapped, "the first click takes effect without the double-click wait")
         click(view, count: 2, in: window)
         #expect(window.fullscreenRequested)
         #expect(!view.gesture.isActive)
         try await Task.sleep(for: .seconds(NSEvent.doubleClickInterval + 0.1))
-        #expect(engine.property("pause") == "no", "no delayed pause may fire after a double-click")
+        #expect(engine.property("pause") == original, "the second click restores the state before the pair")
         click(view, count: 3, in: window)
         #expect(window.fullscreenRequested, "an odd third click is not another fullscreen toggle")
         click(view, count: 4, in: window)
         #expect(!window.fullscreenRequested)
         try await Task.sleep(for: .seconds(NSEvent.doubleClickInterval + 0.1))
-        #expect(engine.property("pause") == "no")
+        #expect(engine.property("pause") == original)
     }
 
-    @Test("DC2 a single click still toggles pause once after the double-click interval")
+    @Test("DC2 a picture single-click pauses and resumes before the double-click interval")
     func singleClickStillPauses() async throws {
         let (w, window, view) = try player()
         defer { w.shutdown() }
@@ -252,9 +254,29 @@ import Testing
         #expect(try await wait { engine.property("pause") == "no" })
         click(view, count: 1, in: window)
         try await Task.sleep(for: .seconds(min(0.05, NSEvent.doubleClickInterval / 4)))
+        #expect(engine.property("pause") == "yes")
+        click(view, count: 1, in: window)
+        try await Task.sleep(for: .seconds(min(0.05, NSEvent.doubleClickInterval / 4)))
         #expect(engine.property("pause") == "no")
-        #expect(try await wait(NSEvent.doubleClickInterval + 1) { engine.property("pause") == "yes" })
+        try await Task.sleep(for: .seconds(NSEvent.doubleClickInterval + 0.1))
+        #expect(engine.property("pause") == "no", "no late toggle may follow either click")
         #expect(!window.fullscreenRequested)
+    }
+
+    @Test("DC7 rapid picture double-clicks restore playback before queued state notifications", arguments: [false, true])
+    func rapidDoubleClick(initiallyPaused: Bool) async throws {
+        let (w, window, view) = try player()
+        defer { w.shutdown() }
+        let engine = try #require(w.engine)
+        let original = initiallyPaused ? "yes" : "no"
+        engine.setPaused(initiallyPaused)
+        #expect(try await wait { engine.property("pause") == original })
+        click(view, count: 1, in: window)
+        click(view, count: 2, in: window)
+        #expect(window.fullscreenRequested && !view.gesture.isActive)
+        #expect(try await wait { engine.property("pause") == original })
+        try await Task.sleep(for: .seconds(NSEvent.doubleClickInterval + 0.1))
+        #expect(engine.property("pause") == original)
     }
 
     @Test("DC3 double-clicking empty content or control-bar space toggles fullscreen")
@@ -269,7 +291,7 @@ import Testing
         #expect(!window.fullscreenRequested)
     }
 
-    @Test("DC4 a key or context menu cancels a pending single click without a late pause")
+    @Test("DC4 a key or context menu keeps completed taps and never adds a late toggle")
     func pendingTapCancellation() async throws {
         let (w, window, view) = try player()
         defer { w.shutdown() }
@@ -281,9 +303,9 @@ import Testing
             windowNumber: window.windowNumber, context: nil, characters: " ", charactersIgnoringModifiers: " ",
             isARepeat: false, keyCode: 49))
         #expect(w.handleKeyDown(key) == nil)
-        #expect(try await wait { engine.property("pause") == "yes" })
+        #expect(try await wait { engine.property("pause") == "no" })
         try await Task.sleep(for: .seconds(NSEvent.doubleClickInterval + 0.1))
-        #expect(engine.property("pause") == "yes", "Space must not be followed by a second delayed toggle")
+        #expect(engine.property("pause") == "no", "Space toggles after the completed picture tap")
         click(view, count: 1, in: window)
         _ = view.menu(for: mouse(.rightMouseDown, count: 1, in: window))
         try await Task.sleep(for: .seconds(NSEvent.doubleClickInterval + 0.1))

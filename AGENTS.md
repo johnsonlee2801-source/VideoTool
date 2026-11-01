@@ -35,8 +35,11 @@ goals, layout, build and test commands. `CLAUDE.md` only imports this file.
   playback immediately, including files outside the indexed library.
 - Double-click the picture or empty player space to toggle native fullscreen and
   restore the previous window size on exit. Buttons, the timeline and the star
-  list retain their own interactions. A single-click pause waits for the system
-  double-click interval; double-clicking never changes pause. Holds start normally.
+  list retain their own interactions. A picture single-click toggles pause
+  immediately on release. The second click undoes that completed tap before
+  toggling fullscreen, restoring the state before the pair (a brief pause or
+  resume between clicks is expected). Holds start normally. Cancellation discards
+  the double-click undo without reverting a completed single click.
 - Hold left mouse on video → 2.0×. Drag right: +0.1× per 20 pt up to 3.0×,
   then +0.1× per 10 pt up to 6.0×. Drag left: −0.1× per 20 pt down to 0.5×.
   Release restores the previous speed. Short click toggles pause.

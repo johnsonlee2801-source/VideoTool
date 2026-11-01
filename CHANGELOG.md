@@ -8,6 +8,13 @@
 Source updates are listed by commit date. Validation belongs to that update;
 installer releases are recorded separately.
 
+### 2026-11-01 — 修复画面单击暂停延迟 / Immediate picture-click pause
+
+- 修复：单击播放画面后，松开鼠标即发出暂停／继续指令，取消原先等待系统双击间隔的延迟。
+- 交互：按用户选择，双击画面的第一下立即切换播放状态，第二下恢复这一对点击前的状态并切换全屏；两下之间可能短暂停顿或播放。长按调速、键盘取消、按钮、进度条和侧栏保留原操作。
+- 验证：延迟回归用例实际先失败、修复后通过；定向 23 项通过，覆盖播放／暂停初态、快速双击、超时／取消、连续单击和长按。完整 TDD 门禁：应用 584 项通过、2 项文档截图测试按配置跳过；核心 68 项、Guardian 325 项及原型测试通过。Codex Suite 当前会话审查未发现遗留明确问题，非独立代理审查。
+- 本机与发布：Release 构建通过，已正常退出旧版、保留备份、更新并重启本机 `/Applications/VideoTool.app`；签名有效、安装二进制与构建产物一致，仅有一个新版进程。自动化交互测试替换原生全屏切换边界，安装后的实际鼠标手感仍待用户验收。源码同步 GitHub，未发布新 DMG，版本仍为 0.3.8。
+
 ### 2026-11-01 — 本机版本更新与重启 / Local app update
 
 - 安装：经用户确认，正常退出旧版后，将已验证的右侧栏 Release 更新到本机 `/Applications/VideoTool.app`，旧版保留备份，再重新启动新版。

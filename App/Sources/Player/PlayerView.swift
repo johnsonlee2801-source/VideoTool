@@ -37,7 +37,7 @@ final class PlayerView: FullscreenClickView {
         wantsLayer = true                      // layer-backed; backing layer comes from makeBackingLayer()
         layerContentsRedrawPolicy = .duringViewResize
 
-        gesture = SpeedGestureController(engine: engine, hud: hud, singleClickDelay: NSEvent.doubleClickInterval,
+        gesture = SpeedGestureController(engine: engine, hud: hud, doubleClickInterval: NSEvent.doubleClickInterval,
                                          mouseX: { [weak self] in
             guard let self, let window = self.window else { return nil }
             return self.convert(window.mouseLocationOutsideOfEventStream, from: nil).x
@@ -91,7 +91,7 @@ final class PlayerView: FullscreenClickView {
     override func mouseDown(with event: NSEvent) {
         window?.makeFirstResponder(self)      // ends a note edit; keys go back to the player
         if Self.isFullscreenDoubleClick(event) {
-            gesture.cancel()
+            gesture.doubleClick()
             super.mouseDown(with: event)
             return
         }
