@@ -6,7 +6,11 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     var engine: MPVEngine? { session?.engine }       // internal: QualityTests read player stats
     let playerView: PlayerView?          // internal for the event-glue tests
     private let resumeStore = ResumePositionStore()
-    private let history = WatchHistoryStore()
+    private let history: WatchHistoryStore
+    private let libraryProvider: () -> LibraryController?
+    private let sidebarPreferences: PlayerSidebarPreferences?
+    lazy var sidebar = PlayerSidebarView(bookmarks: listPanel, preferences: sidebarPreferences, history: history,
+        libraryProvider: libraryProvider, onOpen: { [weak self] in self?.open($0) })
     private let memory = PlaybackMemory()
     /// The file whose load has been fully handled (settings restored, subtitles attached).
     private(set) var loadedPath: String?
@@ -69,17 +73,21 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     private var hoverTime: Double?
     var previewCard: BookmarkPreviewView { preview }       // tests
     let listPanel = BookmarkListView()    // internal: tests use the list
-    private var listWidth: NSLayoutConstraint?
+    private var sidebarWidth: NSLayoutConstraint?
+    private let libraryButton = NSButton(title: "", target: nil, action: nil)
     private let starButton = NSButton(title: "", target: nil, action: nil)
     private let listButton = NSButton(title: "", target: nil, action: nil)
     /// AI subtitles, visible in the control bar (the menu item alone was not found).
     let aiButton = NSButton(title: "", target: nil, action: nil)
     /// Pixels around a star in which a click on the bar snaps to it.
     private static let snapRadius: CGFloat = 6
-    static let listPanelWidth: CGFloat = 300
     static let controlBarHeight: CGFloat = 52
 
-    init() {
+    init(libraryProvider: @escaping () -> LibraryController? = { nil },
+         sidebarPreferences: PlayerSidebarPreferences? = nil, history: WatchHistoryStore = WatchHistoryStore()) {
+        self.libraryProvider = libraryProvider
+        self.sidebarPreferences = sidebarPreferences
+        self.history = history
         let session = try? PlaybackSession()
         self.session = session
         self.playerView = session.map { PlayerView(session: $0) }
@@ -123,8 +131,8 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
             guard let self else { return }
             // Unhandled sidebar clicks can reach the root through the responder
             // chain. Keep the entire star panel outside the fullscreen surface.
-            if !self.listPanel.isHidden,
-               self.listPanel.bounds.contains(self.listPanel.convert(event.locationInWindow, from: nil)) { return }
+            if !self.sidebar.isHidden,
+               self.sidebar.bounds.contains(self.sidebar.convert(event.locationInWindow, from: nil)) { return }
             self.toggleFullscreen()
         }
         content.onDoubleClick = doubleClick
@@ -195,7 +203,13 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
             button.widthAnchor.constraint(equalToConstant: 24).isActive = true
         }
 
-        let stack = NSStackView(views: [playButton, timeLabel, slider, durationLabel, speedChip, aiButton, starButton, listButton])
+        libraryButton.isBordered = false
+        libraryButton.image = NSImage(systemSymbolName: "film.stack", accessibilityDescription: L("视频库"))
+        libraryButton.contentTintColor = Theme.textPrimary
+        libraryButton.toolTip = L("视频库（⌘L）")
+        libraryButton.target = self; libraryButton.action = #selector(showLibrary(_:))
+        libraryButton.widthAnchor.constraint(equalToConstant: 24).isActive = true
+        let stack = NSStackView(views: [playButton, timeLabel, slider, durationLabel, speedChip, aiButton, libraryButton, starButton, listButton])
         updateAIButton()
         stack.orientation = .horizontal
         stack.spacing = 12
@@ -226,16 +240,16 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
             markers.bottomAnchor.constraint(equalTo: controlBar.bottomAnchor),
         ]
 
-        listPanel.translatesAutoresizingMaskIntoConstraints = false
-        listPanel.isHidden = true
-        content.addSubview(listPanel)
-        let width = listPanel.widthAnchor.constraint(equalToConstant: 0)
-        listWidth = width
+        sidebar.translatesAutoresizingMaskIntoConstraints = false
+        sidebar.onLayoutChange = { [weak self] in self?.updateSidebarLayout() }
+        content.addSubview(sidebar)
+        let width = sidebar.widthAnchor.constraint(equalToConstant: sidebar.state.fittedWidth(available: content.bounds.width))
+        sidebarWidth = width
         constraints += [
             width,
-            listPanel.trailingAnchor.constraint(equalTo: content.trailingAnchor),
-            listPanel.topAnchor.constraint(equalTo: content.topAnchor),
-            listPanel.bottomAnchor.constraint(equalTo: controlBar.topAnchor),
+            sidebar.trailingAnchor.constraint(equalTo: content.trailingAnchor),
+            sidebar.topAnchor.constraint(equalTo: content.topAnchor),
+            sidebar.bottomAnchor.constraint(equalTo: controlBar.topAnchor),
         ]
 
         if let playerView {
@@ -243,7 +257,7 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
             content.addSubview(playerView, positioned: .below, relativeTo: controlBar)
             constraints += [
                 playerView.leadingAnchor.constraint(equalTo: content.leadingAnchor),
-                playerView.trailingAnchor.constraint(equalTo: listPanel.leadingAnchor),
+                playerView.trailingAnchor.constraint(equalTo: sidebar.leadingAnchor),
                 playerView.topAnchor.constraint(equalTo: content.topAnchor),
                 playerView.bottomAnchor.constraint(equalTo: controlBar.topAnchor),
             ]
@@ -284,6 +298,7 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         ]
         NSLayoutConstraint.activate(constraints)
         content.addSubview(preview)            // last: floats above everything, never takes clicks
+        updateSidebarLayout()
     }
 
     // MARK: stars
@@ -293,6 +308,7 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         bookmarks.onChange = { [weak self] list in
             self?.markers.bookmarks = list
             self?.listPanel.show(list)
+            self?.sidebar.refreshMetadata()
         }
         bookmarks.onError = { error in NSLog("bookmarks: %@", "\(error)") }
         listPanel.onJump = { [weak bookmarks] b in bookmarks?.jump(to: b) }
@@ -368,12 +384,20 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         if bookmarks?.jumpToPrevious() == false { playerView?.hud.flash(text: L("前面没有星标了")) }
     }
 
-    @objc func toggleBookmarkList(_ sender: Any?) {
-        let show = listPanel.isHidden
-        listPanel.isHidden = !show
-        listWidth?.constant = show ? Self.listPanelWidth : 0
-        listButton.contentTintColor = show ? Theme.accent : Theme.textPrimary
+    @objc func toggleBookmarkList(_ sender: Any?) { sidebar.toggleStars() }
+
+    @objc func showLibrary(_ sender: Any?) { sidebar.show(.library) }
+
+    private func updateSidebarLayout() {
+        guard let content = window?.contentView else { return }
+        let width = sidebar.state.fittedWidth(available: content.bounds.width)
+        if sidebarWidth?.constant != width { sidebarWidth?.constant = width }
+        listButton.contentTintColor = sidebar.state.isExpanded && sidebar.state.tab == .stars ? Theme.accent : Theme.textPrimary
+        libraryButton.contentTintColor = sidebar.state.isExpanded && sidebar.state.tab == .library ? Theme.accent : Theme.textPrimary
+        content.needsLayout = true
     }
+
+    func windowDidResize(_ notification: Notification) { updateSidebarLayout() }
 
     // MARK: engine wiring
 
@@ -439,6 +463,8 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
             restoreMemory(for: path)
             loadCachedAISubtitles(for: path)
             loadedPath = path
+            sidebar.currentPath = path
+            if currentURL?.isFileURL == true { history.recordOpened(path: path, duration: duration) }
         case .endFile:
             // With keep-open, natural EOF does not end the file; eofReached in
             // render() handles that. This fires on replace/stop/errors.
@@ -485,6 +511,7 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         keyMonitor.map(NSEvent.removeMonitor)
         keyMonitor = nil
         playerView?.gesture.cancel()
+        sidebar.shutdown()
         session?.shutdown()                    // render context first, then mpv
     }
 
@@ -1297,7 +1324,9 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         let gestureActive = playerView?.gesture.isActive ?? false
         // Any key press while the button is down ends the gesture without a tap.
         playerView?.gesture.cancel()         // also cancel a released click awaiting the double-click deadline
-        let editingText = window?.firstResponder is NSText      // typing a star note
+        let editingText = window?.firstResponder is NSText      // typing a star note or search
+        if !gestureActive, sidebar.containsFocus(window?.firstResponder),
+           event.modifierFlags.intersection([.command, .control, .option]).isEmpty { return event }
         switch KeyRouter.decide(KeyRouter.input(from: event), gestureActive: gestureActive,
                                 isEditingText: editingText) {
         case .perform(let command): perform(command); return nil

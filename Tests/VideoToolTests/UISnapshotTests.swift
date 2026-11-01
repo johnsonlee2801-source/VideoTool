@@ -86,7 +86,7 @@ enum Snapshot {
         try Snapshot.write(try #require(w.window?.contentView), "P4b-player-library-added")
     }
 
-    private func library(empty: Bool = false) throws -> LibraryWindowController {
+    private func library(empty: Bool = false) throws -> LibraryTestHost {
         let db = TestTemp.directory.appendingPathComponent("snap-\(UUID().uuidString).sqlite").path
         let store = try LibraryStore(path: db)
         let thumbs = TestTemp.directory.appendingPathComponent("snapthumbs-\(UUID().uuidString)")
@@ -119,7 +119,7 @@ enum Snapshot {
         }
         let c = LibraryController(store: store, stars: nil, makeIndexer: { nil }, thumbnailDirectory: thumbs,
                                   background: { _ in }, main: { $0() }, history: history)
-        let w = LibraryWindowController(controller: c, onOpen: { _ in })
+        let w = LibraryTestHost(controller: c, onOpen: { _ in })
         w.window?.setContentSize(NSSize(width: 1180, height: 760))
         return w
     }
@@ -144,5 +144,41 @@ enum Snapshot {
     @Test("L3 library: empty") func libraryEmpty() throws {
         let w = try library(empty: true)
         try Snapshot.write(try #require(w.window?.contentView), "L3-library-empty")
+    }
+
+    @Test("P5 player: embedded library, recent playback and stars share the right sidebar")
+    func unifiedSidebar() throws {
+        let fixture = try library()
+        let suite = "videotool-tests-sidebar-snapshot-\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let history = WatchHistoryStore(defaults: defaults)
+        for item in fixture.model.items {
+            guard let watch = item.watch else { continue }
+            if watch.isWatched { history.markFinished(path: item.record.path, duration: watch.duration) }
+            else { history.recordProgress(path: item.record.path, position: watch.position, duration: watch.duration) }
+        }
+        let w = PlayerWindowController(libraryProvider: { fixture.model }, history: history)
+        defer { w.shutdown() }
+        w.window?.setContentSize(NSSize(width: 1280, height: 720))
+        w.stageForSnapshot(frame: Snapshot.frame(at: 8), bookmarks: stars(), duration: 1500, position: 420,
+                           showList: false, previewFirst: false, hud: nil)
+        for (tab, name) in [(PlayerSidebarTab.library, "P5a-sidebar-library"), (.recent, "P5b-sidebar-recent"), (.stars, "P5c-sidebar-stars")] {
+            w.sidebar.show(tab)
+            try Snapshot.write(try #require(w.window?.contentView), name)
+        }
+        w.window?.setContentSize(NSSize(width: 520, height: 560))
+        w.sidebar.show(.library)
+        try Snapshot.write(try #require(w.window?.contentView), "P5d-sidebar-narrow")
+    }
+
+    @Test("P6 player: empty embedded library explains how to add folders")
+    func emptySidebar() throws {
+        let fixture = try library(empty: true)
+        let w = PlayerWindowController(libraryProvider: { fixture.model })
+        defer { w.shutdown() }
+        w.window?.setContentSize(NSSize(width: 1100, height: 660))
+        w.showLibrary(nil)
+        try Snapshot.write(try #require(w.window?.contentView), "P6-sidebar-empty")
     }
 }

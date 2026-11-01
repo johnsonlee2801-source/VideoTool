@@ -221,7 +221,7 @@ private func subtitledFrame(_ name: String, at t: Double, _ lines: [String], lan
         }
     }
 
-    private func library() throws -> (LibraryWindowController, LibraryController) {
+    private func library() throws -> (LibraryTestHost, LibraryController) {
         let db = TestTemp.directory.appendingPathComponent("docs-\(UUID().uuidString).sqlite").path
         let store = try LibraryStore(path: db)
         let thumbs = TestTemp.directory.appendingPathComponent("docsthumbs-\(UUID().uuidString)")
@@ -252,7 +252,7 @@ private func subtitledFrame(_ name: String, at t: Double, _ lines: [String], lan
         history.recordProgress(path: "\(root)/\(videos[4].0)", position: 1500, duration: videos[4].3)
         let c = LibraryController(store: store, stars: nil, makeIndexer: { nil }, thumbnailDirectory: thumbs,
                                   background: { _ in }, main: { $0() }, history: history, series: SeriesOverrideStore(defaults: defaults))
-        let w = LibraryWindowController(controller: c, onOpen: { _ in })
+        let w = LibraryTestHost(controller: c, onOpen: { _ in })
         w.window?.setContentSize(NSSize(width: 1280, height: 820))
         return (w, c)
     }

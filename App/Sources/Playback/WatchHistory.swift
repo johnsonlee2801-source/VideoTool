@@ -20,6 +20,7 @@ struct WatchEntry: Equatable {
 /// Watch progress per file path. Written by the player every few seconds, read by
 /// the library. Separate from resume positions, which are cleared at the end.
 final class WatchHistoryStore {
+    static let didChange = Notification.Name("VideoTool.WatchHistory.didChange")
     static let defaultKey = "videotool.watch-history"
     private let defaults: UserDefaults
     private let key: String
@@ -37,6 +38,14 @@ final class WatchHistoryStore {
     func entry(for path: String) -> WatchEntry? { table()[path].flatMap(Self.decode) }
 
     var all: [String: WatchEntry] { table().compactMapValues(Self.decode) }
+
+    var notificationObject: UserDefaults { defaults }
+
+    func recordOpened(path: String, duration: Double) {
+        let old = entry(for: path)
+        write(path, WatchEntry(position: old?.position ?? 0, duration: duration.isFinite ? max(duration, 0) : (old?.duration ?? 0),
+                               watchedAt: now(), finished: old?.finished ?? false))
+    }
 
     func recordProgress(path: String, position: Double, duration: Double) {
         guard position.isFinite, position >= 0 else { return }
@@ -58,6 +67,7 @@ final class WatchHistoryStore {
             for (p, _) in oldest { t.removeValue(forKey: p) }
         }
         defaults.set(t, forKey: key)
+        NotificationCenter.default.post(name: Self.didChange, object: defaults, userInfo: ["key": key])
     }
 
     private func table() -> [String: [String: Double]] {

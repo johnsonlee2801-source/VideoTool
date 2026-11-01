@@ -1,8 +1,26 @@
 import AppKit
 
-/// The library window: grouping modes and folders on the left, a thumbnail grid
-/// on the right. Organising is virtual; nothing on disk is moved or renamed.
-final class LibraryWindowController: NSWindowController, NSWindowDelegate,
+private final class LibraryLayoutView: NSView {
+    var onLayout: (() -> Void)?
+    override func layout() { super.layout(); onLayout?() }
+}
+
+private final class LibraryFlowLayout: NSCollectionViewFlowLayout {
+    override func invalidationContext(forBoundsChange newBounds: NSRect) -> NSCollectionViewLayoutInvalidationContext {
+        let context = super.invalidationContext(forBoundsChange: newBounds)
+        if let collectionView, newBounds.width != collectionView.bounds.width,
+           let flow = context as? NSCollectionViewFlowLayoutInvalidationContext {
+            // Native flow invalidation otherwise keeps the old delegate widths
+            // while the sidebar is shrinking, producing transient overflow.
+            flow.invalidateFlowLayoutDelegateMetrics = true
+        }
+        return context
+    }
+}
+
+/// Reusable library content. Its host owns the window and indexing lifetime.
+/// Organising is virtual; nothing on disk is moved or renamed.
+class LibraryBrowserViewController: NSViewController,
     NSCollectionViewDataSource, NSCollectionViewDelegate, NSCollectionViewDelegateFlowLayout,
     NSTableViewDataSource, NSTableViewDelegate, NSSearchFieldDelegate, NSMenuDelegate {
 
@@ -12,6 +30,17 @@ final class LibraryWindowController: NSWindowController, NSWindowDelegate,
 
     private let sidebar = NSTableView()
     private let grid = NSCollectionView()
+    private let gridScroll = NSScrollView()
+    private let modePicker = NSPopUpButton()
+    private let folderPicker = NSPopUpButton()
+    private let folderManager = NSButton()
+    private var sideWidth: NSLayoutConstraint?
+    private var lastLayoutWidth: CGFloat = -1
+    private(set) var selectedRoot: String?
+    var onItemsChange: (() -> Void)?
+    var currentPath: String? { didSet { if oldValue != currentPath { reloadVisibleCards() } } }
+    var window: NSWindow? { view.window }
+    var gridForTesting: NSCollectionView { grid }
     private let searchField = NSSearchField()
     private let status = NSTextField(labelWithString: "")
     private let empty = NSTextField(wrappingLabelWithString: "")
@@ -32,20 +61,12 @@ final class LibraryWindowController: NSWindowController, NSWindowDelegate,
     init(controller: LibraryController, onOpen: @escaping (URL) -> Void) {
         self.controller = controller
         self.onOpen = onOpen
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1100, height: 720),
-                              styleMask: [.titled, .closable, .miniaturizable, .resizable],
-                              backing: .buffered, defer: false)
-        window.title = L("视频库")
-        window.appearance = NSAppearance(named: .darkAqua)
-        window.backgroundColor = Theme.bg0
-        window.titlebarAppearsTransparent = true
-        window.minSize = NSSize(width: 720, height: 420)
-        if !AppData.isTestRun { window.setFrameAutosaveName("VideoTool.LibraryWindow") }   // tests resize windows
-        window.center()
-        super.init(window: window)
-        window.delegate = self
+        super.init(nibName: nil, bundle: nil)
+        let root = LibraryLayoutView(frame: NSRect(x: 0, y: 0, width: 1100, height: 720))
+        root.onLayout = { [weak self] in self?.updateLayout() }
+        view = root
         build()
-        controller.onChange = { [weak self] in self?.refresh() }
+        controller.onChange = { [weak self] in self?.refresh(); self?.onItemsChange?() }
         controller.onProgress = { [weak self] in self?.refreshStatus() }
         refresh()
     }
@@ -55,7 +76,7 @@ final class LibraryWindowController: NSWindowController, NSWindowDelegate,
     // MARK: layout
 
     private func build() {
-        guard let content = window?.contentView else { return }
+        let content = view
         content.wantsLayer = true
         content.layer?.backgroundColor = Theme.bg0.cgColor
 
@@ -79,7 +100,7 @@ final class LibraryWindowController: NSWindowController, NSWindowDelegate,
         sideScroll.backgroundColor = Theme.bg1
         sideScroll.contentInsets = NSEdgeInsets(top: 8, left: 0, bottom: 8, right: 0)
 
-        let layout = NSCollectionViewFlowLayout()
+        let layout = LibraryFlowLayout()
         layout.itemSize = LibraryCardItem.layout(forWidth: 1000).itemSize
         layout.minimumInteritemSpacing = LibraryCardItem.spacing
         layout.minimumLineSpacing = 22
@@ -92,12 +113,12 @@ final class LibraryWindowController: NSWindowController, NSWindowDelegate,
         grid.allowsMultipleSelection = false
         grid.backgroundColors = [Theme.bg0]
         grid.register(LibraryCardItem.self, forItemWithIdentifier: LibraryCardItem.id)
+        grid.register(SidebarMediaItem.self, forItemWithIdentifier: SidebarMediaItem.id)
         grid.register(LibrarySectionHeader.self, forSupplementaryViewOfKind: NSCollectionView.elementKindSectionHeader,
                       withIdentifier: LibrarySectionHeader.id)
         let gridMenu = NSMenu()
         gridMenu.delegate = self
         grid.menu = gridMenu
-        let gridScroll = NSScrollView()
         gridScroll.documentView = grid
         gridScroll.hasVerticalScroller = true
         gridScroll.backgroundColor = Theme.bg0
@@ -120,37 +141,116 @@ final class LibraryWindowController: NSWindowController, NSWindowDelegate,
         emptyTitle.textColor = Theme.textPrimary
         emptyTitle.alignment = .center
 
-        let brand = NSTextField(labelWithString: L("视频库"))
-        brand.font = Theme.display(20, .heavy)
-        brand.textColor = Theme.textPrimary
-        let bar = NSStackView(views: [brand, addButton, rescanButton, status, NSView(), searchField])
-        bar.orientation = .horizontal
-        bar.spacing = 12
-        bar.setCustomSpacing(20, after: brand)
-        bar.edgeInsets = NSEdgeInsets(top: 10, left: 22, bottom: 12, right: 22)
-
+        modePicker.addItems(withTitles: LibraryGroupingMode.allCases.map(\.title))
+        modePicker.target = self; modePicker.action = #selector(modeChanged(_:))
+        modePicker.font = .systemFont(ofSize: 12, weight: .semibold)
+        folderPicker.target = self; folderPicker.action = #selector(folderChanged(_:))
+        folderPicker.font = .systemFont(ofSize: 12, weight: .medium)
+        modePicker.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        folderPicker.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        let filters = NSStackView(views: [modePicker, folderPicker])
+        filters.distribution = .fillEqually
+        filters.spacing = 6
+        rescanButton.title = ""
+        rescanButton.attributedTitle = NSAttributedString(string: "")
+        rescanButton.toolTip = L("重新扫描")
+        folderManager.image = NSImage(systemSymbolName: "ellipsis.circle", accessibilityDescription: L("文件夹"))
+        folderManager.isBordered = false
+        folderManager.contentTintColor = Theme.textSecondary
+        folderManager.target = self; folderManager.action = #selector(showFolderMenu(_:))
+        let actions = NSStackView(views: [addButton, NSView(), rescanButton, folderManager])
+        actions.spacing = 8
+        let bar = NSStackView(views: [searchField, filters, actions, status])
+        bar.orientation = .vertical
+        bar.alignment = .leading
+        bar.spacing = 8
+        bar.edgeInsets = NSEdgeInsets(top: 12, left: 14, bottom: 10, right: 14)
+        searchField.widthAnchor.constraint(equalTo: bar.widthAnchor, constant: -28).isActive = true
+        filters.widthAnchor.constraint(equalTo: searchField.widthAnchor).isActive = true
+        actions.widthAnchor.constraint(equalTo: searchField.widthAnchor).isActive = true
+        status.lineBreakMode = .byTruncatingTail
+        status.widthAnchor.constraint(equalTo: searchField.widthAnchor).isActive = true
+        emptyTitle.font = Theme.display(18, .heavy)
+        empty.font = .systemFont(ofSize: 12, weight: .medium)
         for v in [bar, sideScroll, gridScroll, emptyStack] as [NSView] {
             v.translatesAutoresizingMaskIntoConstraints = false
             content.addSubview(v)
         }
+        let sideWidth = sideScroll.widthAnchor.constraint(equalToConstant: 0)
+        self.sideWidth = sideWidth
         NSLayoutConstraint.activate([
             bar.topAnchor.constraint(equalTo: content.topAnchor),
             bar.leadingAnchor.constraint(equalTo: content.leadingAnchor),
             bar.trailingAnchor.constraint(equalTo: content.trailingAnchor),
-            searchField.widthAnchor.constraint(equalToConstant: 260),
             sideScroll.topAnchor.constraint(equalTo: bar.bottomAnchor),
             sideScroll.leadingAnchor.constraint(equalTo: content.leadingAnchor),
             sideScroll.bottomAnchor.constraint(equalTo: content.bottomAnchor),
-            sideScroll.widthAnchor.constraint(equalToConstant: 220),
+            sideWidth,
             gridScroll.topAnchor.constraint(equalTo: bar.bottomAnchor),
             gridScroll.leadingAnchor.constraint(equalTo: sideScroll.trailingAnchor),
             gridScroll.trailingAnchor.constraint(equalTo: content.trailingAnchor),
             gridScroll.bottomAnchor.constraint(equalTo: content.bottomAnchor),
             emptyStack.centerXAnchor.constraint(equalTo: gridScroll.centerXAnchor),
             emptyStack.centerYAnchor.constraint(equalTo: gridScroll.centerYAnchor),
-            empty.widthAnchor.constraint(equalToConstant: 380),
+            empty.widthAnchor.constraint(equalTo: gridScroll.widthAnchor, constant: -32),
         ])
     }
+
+    private func updateLayout() {
+        guard abs(view.bounds.width - lastLayoutWidth) > 0.5 else { return }
+        lastLayoutWidth = view.bounds.width
+        sideWidth?.constant = view.bounds.width >= 700 ? 180 : 0
+        (sidebar.enclosingScrollView)?.isHidden = view.bounds.width < 700
+        if let layout = grid.collectionViewLayout as? NSCollectionViewFlowLayout {
+            let compact = view.bounds.width < 700
+            layout.minimumLineSpacing = compact ? 8 : 22
+            layout.sectionInset = NSEdgeInsets(top: 6, left: compact ? 10 : 22, bottom: 16, right: compact ? 10 : 22)
+            layout.headerReferenceSize = NSSize(width: 100, height: compact ? 32 : 44)
+        }
+        grid.collectionViewLayout?.invalidateLayout()
+        reloadVisibleCards()
+    }
+
+    private func selectedPaths() -> Set<String> {
+        Set(grid.selectionIndexPaths.compactMap { item(at: $0)?.record.path })
+    }
+
+    private func reloadVisibleCards(keeping selected: Set<String>? = nil) {
+        guard grid.bounds.width > 20 else { return }
+        let selected = selected ?? selectedPaths()
+        let origin = gridScroll.contentView.bounds.origin
+        grid.reloadData()
+        let restored = sections.enumerated().flatMap { section, value in
+            value.items.enumerated().compactMap { index, item in
+                selected.contains(item.record.path) ? IndexPath(item: index, section: section) : nil
+            }
+        }
+        grid.selectionIndexPaths = Set(restored.prefix(1))
+        grid.layoutSubtreeIfNeeded()
+        gridScroll.contentView.scroll(to: origin)
+        gridScroll.reflectScrolledClipView(gridScroll.contentView)
+    }
+
+    @objc private func modeChanged(_ sender: Any?) {
+        guard LibraryGroupingMode.allCases.indices.contains(modePicker.indexOfSelectedItem) else { return }
+        controller.mode = LibraryGroupingMode.allCases[modePicker.indexOfSelectedItem]
+    }
+    @objc private func folderChanged(_ sender: Any?) {
+        let index = folderPicker.indexOfSelectedItem - 1
+        selectedRoot = controller.roots.indices.contains(index) ? controller.roots[index] : nil
+        refresh()
+    }
+    @objc private func showFolderMenu(_ sender: NSButton) {
+        let menu = NSMenu()
+        for root in controller.roots {
+            let sub = NSMenu(title: (root as NSString).lastPathComponent)
+            if let row = sidebarRow(root: root) { sidebarMenuItems(row: row).forEach(sub.addItem) }
+            menu.addItem(withTitle: sub.title, action: nil, keyEquivalent: "").submenu = sub
+        }
+        menu.popUp(positioning: nil, at: NSPoint(x: 0, y: sender.bounds.height), in: sender)
+    }
+    func refreshFromStore() { controller.reload() }
+    func shutdown() { controller.onChange = nil; controller.onProgress = nil }
 
     static func style(_ button: NSButton, primary: Bool, symbol: String) {
         button.isBordered = false
@@ -165,7 +265,7 @@ final class LibraryWindowController: NSWindowController, NSWindowDelegate,
             .font: NSFont.systemFont(ofSize: 13, weight: .bold),
             .foregroundColor: primary ? NSColor.white : Theme.textPrimary])
         button.heightAnchor.constraint(equalToConstant: 30).isActive = true
-        button.widthAnchor.constraint(greaterThanOrEqualToConstant: primary ? 118 : 96).isActive = true
+        button.widthAnchor.constraint(greaterThanOrEqualToConstant: primary ? 118 : 28).isActive = true
     }
 
     // MARK: refresh
@@ -173,17 +273,27 @@ final class LibraryWindowController: NSWindowController, NSWindowDelegate,
     /// Cheap: status line only (called while scanning).
     private func refreshStatus() {
         status.stringValue = controller.notice.map { "\($0)  ·  \(controller.statusText)" } ?? controller.statusText
+        status.toolTip = status.stringValue
     }
 
     private func refresh() {
+        let selection = selectedPaths()
         sidebarRows = [.header(L("整理方式"))] + LibraryGroupingMode.allCases.map { .mode($0) }
             + [.header(L("文件夹"))] + controller.roots.map { .root($0) }
         sidebar.reloadData()
         if let i = sidebarRows.firstIndex(where: { if case .mode(let m) = $0 { return m == controller.mode }; return false }) {
             sidebar.selectRowIndexes([i], byExtendingSelection: false)
         }
-        sections = controller.sections
-        grid.reloadData()
+        if let selectedRoot, !controller.roots.contains(selectedRoot) { self.selectedRoot = nil }
+        modePicker.selectItem(at: LibraryGroupingMode.allCases.firstIndex(of: controller.mode) ?? 0)
+        folderPicker.removeAllItems()
+        folderPicker.addItems(withTitles: [L("所有文件夹")] + controller.roots.map { ($0 as NSString).lastPathComponent })
+        folderPicker.selectItem(at: selectedRoot.flatMap { controller.roots.firstIndex(of: $0).map { $0 + 1 } } ?? 0)
+        sections = controller.sections.compactMap { section in
+            let items = selectedRoot.map { root in section.items.filter { $0.record.root == root } } ?? section.items
+            return items.isEmpty ? nil : LibrarySection(title: section.title, items: items)
+        }
+        reloadVisibleCards(keeping: selection)
         refreshStatus()
         rescanButton.isEnabled = !controller.roots.isEmpty && !controller.isIndexing
         if controller.roots.isEmpty {
@@ -213,7 +323,7 @@ final class LibraryWindowController: NSWindowController, NSWindowDelegate,
         panel.allowsMultipleSelection = true
         panel.prompt = L("添加到视频库")
         panel.message = L("选择放视频的文件夹。VideoTool 只读取、建索引，不会移动或修改文件。")
-        guard let window, panel.runModal() == .OK else { _ = window; return }
+        guard window != nil, panel.runModal() == .OK else { return }
         for url in panel.urls { controller.addRoot(url.path) }
     }
 
@@ -359,7 +469,7 @@ final class LibraryWindowController: NSWindowController, NSWindowDelegate,
 
     /// Back from the player: progress may have changed (继续观看, progress stripes).
     /// Only re-reads the index; no rescan.
-    func windowDidBecomeKey(_ notification: Notification) { controller.reload() }
+    override func viewWillAppear() { super.viewWillAppear(); controller.reload() }
 
     /// Correct how a file is grouped in 按剧集 (kept by content, survives moves).
     private func editSeries(_ item: LibraryItem) {
@@ -382,10 +492,17 @@ final class LibraryWindowController: NSWindowController, NSWindowDelegate,
     }
 
     func collectionView(_ collectionView: NSCollectionView, itemForRepresentedObjectAt indexPath: IndexPath) -> NSCollectionViewItem {
-        let cell = collectionView.makeItem(withIdentifier: LibraryCardItem.id, for: indexPath)
-        if let card = cell as? LibraryCardItem, let item = item(at: indexPath) {
-            card.configure(item, thumbnail: controller.thumbnailURL(for: item))
-            card.onDoubleClick = { [weak self] in self?.open(item) }
+        let compact = view.bounds.width < 700
+        let cell = collectionView.makeItem(withIdentifier: compact ? SidebarMediaItem.id : LibraryCardItem.id, for: indexPath)
+        if let item = item(at: indexPath) {
+            if let card = cell as? LibraryCardItem {
+                card.configure(item, thumbnail: controller.thumbnailURL(for: item))
+                card.onDoubleClick = { [weak self] in self?.open(item) }
+            } else if let card = cell as? SidebarMediaItem {
+                card.row.configure(path: item.record.path, item: item, watch: item.watch,
+                                   thumbnail: controller.thumbnailURL(for: item), recent: false, current: item.record.path == currentPath)
+                card.onDoubleClick = { [weak self] in self?.open(item) }
+            }
         }
         return cell
     }
@@ -401,19 +518,19 @@ final class LibraryWindowController: NSWindowController, NSWindowDelegate,
     /// Cards widen to fill each row (adaptive column count).
     func collectionView(_ collectionView: NSCollectionView, layout collectionViewLayout: NSCollectionViewLayout,
                         sizeForItemAt indexPath: IndexPath) -> NSSize {
-        LibraryCardItem.layout(forWidth: Double(collectionView.bounds.width)).itemSize
+        if view.bounds.width < 700 {
+            let insets = (collectionView.collectionViewLayout as? NSCollectionViewFlowLayout)?.sectionInset ?? .init()
+            let contentInsets = collectionView.enclosingScrollView?.contentInsets ?? .init()
+            // During a shrink, NSClipView has its new width before the collection
+            // applies its new bounds. Fit both, so the interim delegate query is safe.
+            let viewport = collectionView.enclosingScrollView?.contentView.bounds.width ?? collectionView.bounds.width
+            let usable = min(collectionView.bounds.width, viewport) - insets.left - insets.right - contentInsets.left - contentInsets.right
+            return NSSize(width: max(1, usable.rounded(.down)), height: 92)
+        }
+        return LibraryCardItem.layout(forWidth: Double(collectionView.bounds.width)).itemSize
     }
 
-    func windowDidResize(_ notification: Notification) { grid.collectionViewLayout?.invalidateLayout() }
 
-    // MARK: window
-
-    override func showWindow(_ sender: Any?) {
-        super.showWindow(sender)
-        controller.rescanAll()          // incremental: unchanged files are skipped
-    }
-
-    func windowWillClose(_ notification: Notification) { controller.cancelScan() }
 }
 
 /// A thumbnail card: 16:9 image with duration / resolution / star badges, the

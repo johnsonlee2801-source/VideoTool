@@ -18,6 +18,72 @@ private func waitUntil(_ timeout: Double = 5, _ condition: () -> Bool) async -> 
 }
 
 extension PlayerWiringTests {
+    @Test("SBP1 successful file loading appears in recent playback before progress tracking is due")
+    func fileLoadRecordsRecentPlayback() async throws {
+        let suite = "videotool-tests-recent-load-\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let history = WatchHistoryStore(defaults: defaults, now: { Date(timeIntervalSince1970: 100) })
+        let w = PlayerWindowController(history: history)
+        defer { w.shutdown() }
+        w.open(sample)
+        #expect(await waitUntil { w.loadedPath == sample.path })
+        #expect(history.entry(for: sample.path)?.watchedAt == Date(timeIntervalSince1970: 100))
+        #expect((history.entry(for: sample.path)?.duration ?? 0) > 0)
+    }
+
+    @Test("SBP2 double-clicking a compact sidebar card loads the real video in the same player")
+    func compactCardOpensInPlayer() async throws {
+        let store = try LibraryStore(path: TestTemp.directory.appendingPathComponent("sidebar-open-\(UUID().uuidString).sqlite").path)
+        let root = sample.deletingLastPathComponent().path
+        _ = try store.addRoot(root)
+        try store.upsert(MediaRecord(path: sample.path, fileKey: "sidebar-open", size: 1, modified: Date(), duration: 20,
+                                     width: 320, height: 180, root: root))
+        let suite = "videotool-tests-sidebar-open-\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let history = WatchHistoryStore(defaults: defaults)
+        let c = LibraryController(store: store, stars: nil, makeIndexer: { nil }, background: { _ in }, main: { $0() }, history: history)
+        let w = PlayerWindowController(libraryProvider: { c }, history: history)
+        defer { w.shutdown() }
+        let window = try #require(w.window)
+        window.orderBack(nil)
+        w.showLibrary(nil)
+        window.contentView?.layoutSubtreeIfNeeded()
+        let browser = try #require(w.sidebar.libraryBrowser)
+        let grid = browser.gridForTesting
+        grid.layoutSubtreeIfNeeded()
+        let item = try #require(grid.item(at: IndexPath(item: 0, section: 0)) as? SidebarMediaItem)
+        let location = item.view.convert(NSPoint(x: 30, y: 30), to: nil)
+        let down = try #require(NSEvent.mouseEvent(with: .leftMouseDown, location: location, modifierFlags: [], timestamp: 0,
+            windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 2, pressure: 1))
+        let up = try #require(NSEvent.mouseEvent(with: .leftMouseUp, location: location, modifierFlags: [], timestamp: 0.01,
+            windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 2, pressure: 1))
+        NSApp.postEvent(up, atStart: true)
+        item.mouseDown(with: down)
+        #expect(await waitUntil { w.loadedPath == sample.path })
+        #expect(w.window === window && w.sidebar.state.isExpanded && w.sidebar.state.tab == .library)
+    }
+
+    @Test("SBP3 a recent-playback row opens an unindexed real video in the current player")
+    func recentRowOpensInPlayer() async throws {
+        let suite = "videotool-tests-sidebar-recent-open-\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let history = WatchHistoryStore(defaults: defaults)
+        history.recordOpened(path: sample.path, duration: 20)
+        let w = PlayerWindowController(history: history)
+        defer { w.shutdown() }
+        let window = w.window
+        w.sidebar.show(.recent)
+        let recent = w.sidebar.recent
+        #expect(recent.rows.first?.indexed == nil)
+        recent.table.selectRowIndexes([0], byExtendingSelection: false)
+        #expect(NSApp.sendAction(try #require(recent.table.doubleAction), to: recent.table.target, from: recent.table))
+        #expect(await waitUntil { w.loadedPath == sample.path })
+        #expect(w.window === window && w.sidebar.state.tab == .recent)
+    }
+
     private func contextMenu(_ w: PlayerWindowController) throws -> NSMenu {
         let event = try #require(NSEvent.mouseEvent(with: .rightMouseDown, location: .zero,
             modifierFlags: [], timestamp: 0, windowNumber: w.window?.windowNumber ?? 0,

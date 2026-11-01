@@ -3,7 +3,6 @@ import UniformTypeIdentifiers
 
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, NSMenuDelegate {
     private(set) var playerWindow: PlayerWindowController?
-    private var libraryWindow: LibraryWindowController?
     /// One library model for the window and for folders added from the player.
     /// Retried on next use if the database could not be opened (say it was locked),
     /// instead of leaving the library unusable until the app restarts.
@@ -78,7 +77,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
     @discardableResult
     private func ensureWindow() -> PlayerWindowController {
         if let w = playerWindow { return w }
-        let w = PlayerWindowController()
+        let w = PlayerWindowController(libraryProvider: { [weak self] in self?.libraryController })
         w.onClose = { [weak self, weak w] in
             if self?.playerWindow === w { self?.playerWindow = nil }   // a later open builds a fresh window
         }
@@ -202,12 +201,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
         let viewMenu = NSMenu(title: L("视图"))
         let fs = viewMenu.addItem(withTitle: L("全屏"), action: #selector(NSWindow.toggleFullScreen(_:)), keyEquivalent: "f")
         fs.keyEquivalentModifierMask = [.command, .control]
+        viewMenu.addItem(withTitle: L("视频库"), action: #selector(showLibrary(_:)), keyEquivalent: "l")
         viewItem.submenu = viewMenu
 
         let windowItem = NSMenuItem(); main.addItem(windowItem)
         let windowMenu = NSMenu(title: L("窗口"))
-        windowMenu.addItem(withTitle: L("视频库"), action: #selector(showLibrary(_:)), keyEquivalent: "l")
-        windowMenu.addItem(.separator())
         windowMenu.addItem(withTitle: L("最小化"), action: #selector(NSWindow.performMiniaturize(_:)), keyEquivalent: "m")
         windowItem.submenu = windowMenu
         NSApp.windowsMenu = windowMenu
@@ -244,21 +242,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
     }
 
     @objc func showLibrary(_ sender: Any?) {
-        if libraryWindow == nil {
-            guard let controller = libraryController else {
-                let alert = NSAlert()
-                alert.messageText = L("暂时无法打开视频库")
-                alert.informativeText = L("视频库的数据库正被占用或无法读取。请稍后再试。")
-                alert.runModal()
-                return
-            }
-            libraryWindow = LibraryWindowController(controller: controller) { [weak self] url in
-                self?.ensureWindow()
-                self?.open(url)
-            }
-        }
-        libraryWindow?.showWindow(nil)
-        libraryWindow?.window?.makeKeyAndOrderFront(nil)
+        let player = ensureWindow()
+        player.showLibrary(sender)
+        player.window?.makeKeyAndOrderFront(nil)
     }
 
     /// Re-enables the offer after "不再询问" (and lets the user turn it off from the menu).

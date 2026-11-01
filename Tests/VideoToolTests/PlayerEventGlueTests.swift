@@ -330,4 +330,22 @@ import Testing
         try doubleClick(at: background, receiver: bar)
         #expect(!window.fullscreenRequested, "empty control-bar space must still toggle back")
     }
+
+    @Test("DC6 every sidebar tab excludes its empty header background from native fullscreen")
+    func allSidebarTabsExcludeFullscreen() throws {
+        let (w, window, _) = try player()
+        defer { w.shutdown() }
+        let content = try #require(window.contentView)
+        for tab in PlayerSidebarTab.allCases {
+            w.sidebar.show(tab)
+            content.layoutSubtreeIfNeeded()
+            let location = w.sidebar.convert(NSPoint(x: 9, y: w.sidebar.bounds.maxY - 4), to: nil)
+            let receiver = try #require(content.hitTest(location))
+            #expect(receiver === w.sidebar || receiver.isDescendant(of: w.sidebar))
+            let event = try #require(NSEvent.mouseEvent(with: .leftMouseDown, location: location, modifierFlags: [],
+                timestamp: 0, windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 2, pressure: 1))
+            receiver.mouseDown(with: event)
+            #expect(!window.fullscreenRequested)
+        }
+    }
 }

@@ -227,7 +227,7 @@ private func find<T: NSView>(_ type: T.Type, in view: NSView, where match: (T) -
         let c = LibraryController(store: store, stars: nil, makeIndexer: { nil }, background: { _ in }, main: { $0() },
                                   history: WatchHistoryStore(defaults: d), series: SeriesOverrideStore(defaults: d))
         var opened: [URL] = []
-        let w = LibraryWindowController(controller: c, onOpen: { opened.append($0) })
+        let w = LibraryTestHost(controller: c, onOpen: { opened.append($0) })
         w.window?.orderBack(nil)
         defer { w.window?.orderOut(nil) }
         c.mode = .series
@@ -245,7 +245,7 @@ private func find<T: NSView>(_ type: T.Type, in view: NSView, where match: (T) -
 }
 
 @Suite(.serialized) @MainActor struct LibraryWindowActionTests {
-    private func rig(indexing: Bool = false) throws -> (LibraryWindowController, LibraryController) {
+    private func rig(indexing: Bool = false) throws -> (LibraryTestHost, LibraryController) {
         let store = try LibraryStore(path: TestTemp.directory.appendingPathComponent("lwa-\(UUID().uuidString).sqlite").path)
         _ = try store.addRoot("/m")
         for (i, n) in ["alpha.mp4", "beta.mkv"].enumerated() {
@@ -256,7 +256,7 @@ private func find<T: NSView>(_ type: T.Type, in view: NSView, where match: (T) -
         let c = LibraryController(store: store, stars: nil,
                                   makeIndexer: { indexing ? LibraryIndexer(store: path, prober: FakeProber(), tagger: nil) : nil },
                                   background: { _ in }, main: { $0() })
-        return (LibraryWindowController(controller: c, onOpen: { _ in }), c)
+        return (LibraryTestHost(controller: c, onOpen: { _ in }), c)
     }
 
     @Test("C13 typing in the search field filters; picking a sidebar mode regroups") func searchAndModes() throws {
@@ -291,9 +291,11 @@ private func find<T: NSView>(_ type: T.Type, in view: NSView, where match: (T) -
         #expect(c.roots.isEmpty && c.items.isEmpty)
     }
 
-    @Test("C16 opening the library window starts a quick rescan; closing it stops scanning") func showAndClose() throws {
+    @Test("C16 embedding library content does not start scanning; host shutdown cancels requested indexing") func showAndClose() throws {
         let (w, c) = try rig(indexing: true)
         w.showWindow(nil)
+        #expect(!c.isIndexing)
+        c.rescanAll()
         #expect(c.isIndexing)
         w.windowWillClose(Notification(name: NSWindow.willCloseNotification, object: w.window))
         c.rescanAll()

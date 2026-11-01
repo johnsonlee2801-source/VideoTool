@@ -179,6 +179,10 @@
   "en": "Crowd",
   "ja": "人混み"
  },
+ "今天 %@": {
+  "en": "Today %@",
+  "ja": "今日 %@"
+ },
  "从视频库移除（不删除文件）": {
   "en": "Remove from Library (Keep File)",
   "ja": "ビデオライブラリから削除（ファイルは削除しない）"
@@ -571,6 +575,10 @@
   "en": "House",
   "ja": "家"
  },
+ "所有文件夹": {
+  "en": "All Folders",
+  "ja": "すべてのフォルダ"
+ },
  "打开…": {
   "en": "Open…",
   "ja": "開く…"
@@ -687,6 +695,10 @@
   "en": "Playback Speed",
   "ja": "再生速度"
  },
+ "收起侧栏": {
+  "en": "Collapse Sidebar",
+  "ja": "サイドバーを閉じる"
+ },
  "整理方式": {
   "en": "Organize By",
   "ja": "整理方法"
@@ -714,6 +726,10 @@
  "无法加入视频库：%@": {
   "en": "Couldn't add to the library: %@",
   "ja": "ライブラリに追加できませんでした：%@"
+ },
+ "无法打开视频：文件不存在或暂时无法访问": {
+  "en": "Cannot open video: the file is missing or currently unavailable.",
+  "ja": "動画を開けません。ファイルが見つからないか、現在アクセスできません。"
  },
  "无法移出视频库：%@": {
   "en": "Couldn't remove from the library: %@",
@@ -798,6 +814,10 @@
  "最小化": {
   "en": "Minimize",
   "ja": "しまう"
+ },
+ "最近播放": {
+  "en": "Recent",
+  "ja": "最近の再生"
  },
  "未识别": {
   "en": "Unrecognized",
@@ -1155,6 +1175,10 @@
   "en": "Its database is in use or can't be read. Please try again shortly.",
   "ja": "データベースが使用中か、読み込めません。しばらくしてからもう一度お試しください。"
  },
+ "视频库（⌘L）": {
+  "en": "Library (⌘L)",
+  "ja": "ライブラリ（⌘L）"
+ },
  "视频里说的是：": {
   "en": "Language spoken in the video:",
   "ja": "ビデオで話されている言語："
@@ -1194,6 +1218,10 @@
  "运动": {
   "en": "Sports",
   "ja": "スポーツ"
+ },
+ "还没有播放记录": {
+  "en": "No playback history yet",
+  "ja": "再生履歴はまだありません"
  },
  "还没有星标。\n播放时按 B 把当前时刻标上星。": {
   "en": "No stars yet.\nPress B while playing to star the current moment.",
@@ -1242,6 +1270,10 @@
  "重新扫描": {
   "en": "Rescan",
   "ja": "再スキャン"
+ },
+ "重试": {
+  "en": "Retry",
+  "ja": "再試行"
  },
  "隐藏 VideoTool": {
   "en": "Hide VideoTool",

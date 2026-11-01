@@ -26,6 +26,13 @@ goals, layout, build and test commands. `CLAUDE.md` only imports this file.
 
 ## Settled behaviour (user decisions)
 
+- The library lives in the player's resizable right sidebar, with Library,
+  Recent and Stars tabs. ⌘L opens Library without another window; ⇧⌘B toggles
+  Stars. Preserve tab/search/scroll state, and keep indexing alive when collapsed.
+  Width defaults to 380 pt, clamps to 280–560 pt while leaving 240 pt for video.
+  Restore visibility/tab/width between launches. Sidebar controls own their keys
+  and never trigger picture fullscreen; successful local loads enter recent
+  playback immediately, including files outside the indexed library.
 - Double-click the picture or empty player space to toggle native fullscreen and
   restore the previous window size on exit. Buttons, the timeline and the star
   list retain their own interactions. A single-click pause waits for the system

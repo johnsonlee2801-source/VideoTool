@@ -299,7 +299,7 @@ struct ResumeOnceTests {
         defer { d.removePersistentDomain(forName: suite) }
         let history = WatchHistoryStore(defaults: d)
         let c = LibraryController(store: store, stars: nil, makeIndexer: { nil }, background: { _ in }, main: { $0() }, history: history)
-        let w = LibraryWindowController(controller: c, onOpen: { _ in })
+        let w = LibraryTestHost(controller: c, onOpen: { _ in })
         #expect(c.sections.map(\.title) == ["全部视频"])
         history.recordProgress(path: "/m/a.mp4", position: 300, duration: 1200)     // watched in the player meanwhile
         w.windowDidBecomeKey(Notification(name: NSWindow.didBecomeKeyNotification, object: w.window))
