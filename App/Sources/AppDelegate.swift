@@ -120,6 +120,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
         let fileItem = NSMenuItem(); main.addItem(fileItem)
         let fileMenu = NSMenu(title: L("文件"))
         fileMenu.addItem(withTitle: L("打开…"), action: #selector(openDocument(_:)), keyEquivalent: "o")
+        let network = fileMenu.addItem(withTitle: L("打开网络视频…"), action: #selector(openNetworkVideo(_:)), keyEquivalent: "o")
+        network.keyEquivalentModifierMask = [.command, .shift]
         fileMenu.addItem(.separator())
         fileMenu.addItem(withTitle: L("设为默认视频播放器…"), action: #selector(makeDefaultPlayer(_:)), keyEquivalent: "")
         fileMenu.addItem(withTitle: L("打开视频时询问加入视频库"), action: #selector(toggleLibraryOffer(_:)), keyEquivalent: "")
@@ -217,6 +219,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
         NSApp.helpMenu = helpMenu
 
         NSApp.mainMenu = main
+    }
+
+    @objc private func openNetworkVideo(_ sender: Any?) {
+        ensureWindow().presentNetworkVideo()
     }
 
     @objc private func openDocument(_ sender: Any?) {

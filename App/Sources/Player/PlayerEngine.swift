@@ -18,6 +18,7 @@ enum PlayerEvent: Equatable {
     /// never depend on the order of property-change notifications.
     case fileLoaded(path: String, duration: Double)
     case endFile(eof: Bool)
+    case playbackFailed(path: String)
     case log(String)
 }
 

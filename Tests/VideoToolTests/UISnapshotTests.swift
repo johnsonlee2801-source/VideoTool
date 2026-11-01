@@ -43,6 +43,14 @@ enum Snapshot {
 }
 
 @Suite(.serialized) @MainActor struct UISnapshotTests {
+    @Test("P8 network video entry sheet fits compact controls and Chinese status text")
+    func networkVideoEntry() throws {
+        let sheet = NetworkVideoSheet { _ in }
+        defer { sheet.cancel() }
+        sheet.urlField.stringValue = "https://www.youtube.com/watch?v=M7lc1UVf-VE"
+        sheet.status.stringValue = L("正在解析视频，可随时取消…")
+        try Snapshot.write(try #require(sheet.panel.contentView), "P8-network-video")
+    }
     private func stars() -> [Bookmark] {
         [(62.0, "开场彩蛋"), (305, ""), (611, "这段笑死"), (1180, "名场面"), (1190, "")].map {
             Bookmark(id: UUID(), fileKey: "k", time: $0.0, endTime: nil, note: $0.1, createdAt: Date())

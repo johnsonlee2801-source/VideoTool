@@ -25,6 +25,7 @@
 "B  打星标" = "B  Star";
 "C … C  截片段" = "C … C  cut a clip";
 "GIF" = "GIF";
+"YouTube 视频链接" = "YouTube video link";
 "iCloud 未下载" = "Not Downloaded from iCloud";
 "⌘O 打开文件  ·  ⌘L 打开视频库" = "⌘O Open File  ·  ⌘L Open Video Library";
 "⌘T  AI 字幕" = "⌘T  AI Subtitles";
@@ -90,6 +91,7 @@
 "后面没有星标了" = "No later stars";
 "含子文件夹，共 %@ 个视频" = "%@ videos including subfolders";
 "在 Finder 中显示" = "Show in Finder";
+"在 VideoTool 中播放 YouTube" = "Watch YouTube in VideoTool";
 "在播放器中打开" = "Open in Player";
 "在这台 Mac 上离线完成，视频和声音不会上传。第一次使用某种语言时，系统会自动下载语音模型。" = "Everything runs offline on this Mac; your video and audio are never uploaded. The first time you use a language, macOS downloads its speech model automatically.";
 "城市" = "City";
@@ -124,6 +126,7 @@
 "已取消。" = "Canceled.";
 "已取消导出" = "Export cancelled";
 "已取消生成字幕" = "Subtitle generation canceled";
+"已取消解析。" = "Resolution cancelled.";
 "已导出：%@" = "Exported: %@";
 "已把 %1$@ 个子文件夹合并进「%2$@」。" = "Merged %1$@ subfolders into “%2$@”.";
 "已把 %@ 种视频格式的默认打开方式设为 VideoTool。" = "VideoTool is now the default app for %@ video formats.";
@@ -156,6 +159,8 @@
 "房屋" = "House";
 "所有文件夹" = "All Folders";
 "打开…" = "Open…";
+"打开网络视频" = "Open Network Video";
+"打开网络视频…" = "Open Network Video…";
 "打开视频库" = "Open Video Library";
 "打开视频时询问加入视频库" = "Offer to Add Videos to Library When Opening";
 "打星标 / 撤销   B" = "Star / Unstar   B";
@@ -198,6 +203,7 @@
 "无法打开视频：文件不存在或暂时无法访问" = "Cannot open video: the file is missing or currently unavailable.";
 "无法移出视频库：%@" = "Couldn't remove from the library: %@";
 "无法自动重新打开 VideoTool，请手动退出后再打开。" = "VideoTool couldn't reopen itself. Please quit and open it again.";
+"无法解析视频，请检查网络、视频可访问性及解析组件版本。" = "Could not resolve this video. Check your connection, video availability and resolver version.";
 "无法读取同目录视频：%@" = "Cannot read videos in this folder: %@";
 "无法读取字幕文件" = "The subtitle file can't be read";
 "无法读取文件夹：%@" = "Cannot read folder: %@";
@@ -213,6 +219,7 @@
 "星标  %@" = "Stars  %@";
 "星标列表" = "Star List";
 "星标列表（⇧⌘B）" = "Star List (⇧⌘B)";
+"暂不支持直播、未发布或需要登录的视频。" = "Live, upcoming and sign-in-only videos are not supported yet.";
 "暂停" = "Pause";
 "暂时无法打开视频库" = "The library can't be opened right now";
 "暂时无法打开视频库数据库，请稍后点「重新扫描」。" = "Can't open the library database right now. Please click “Rescan” in a moment.";
@@ -221,6 +228,7 @@
 "更新 %@" = "%@ updated";
 "最小化" = "Minimize";
 "最近播放" = "Recent";
+"未获得可用的视频流，请检查解析组件是否需要更新。" = "No usable stream was found. The resolver may need an update.";
 "未观看" = "Unwatched";
 "未识别" = "Unrecognized";
 "本层 %@ 个视频 · %@ 个子文件夹" = "%@ videos here · %@ subfolders";
@@ -234,12 +242,14 @@
 "格式" = "Format";
 "森林" = "Forest";
 "植物" = "Plant";
+"正在加载网络视频…" = "Loading network video…";
 "正在导出片段…" = "Exporting clip…";
 "正在导出片段… %@" = "Exporting clip… %@";
 "正在扫描 %1$@… %2$@/%3$@" = "Scanning %1$@… %2$@/%3$@";
 "正在扫描…" = "Scanning…";
 "正在播放的位置会保存。" = "Your place in the video is saved.";
 "正在翻译字幕…" = "Translating subtitles…";
+"正在解析视频，可随时取消…" = "Resolving video. You can cancel at any time…";
 "正在识别文件…" = "Identifying files…";
 "正在读取声音…" = "Reading audio…";
 "正在读取文件夹…" = "Reading folder…";
@@ -295,12 +305,14 @@
 "筛选" = "Filter";
 "简体中文" = "Simplified Chinese";
 "粘贴" = "Paste";
+"粘贴公开视频链接；播放列表仅打开当前视频。" = "Paste a public video link. Playlist links open only the current video.";
 "粤语" = "Cantonese";
 "繁體中文" = "Traditional Chinese";
 "结束" = "End";
 "结束时间要晚于开始时间" = "The end must be after the start";
 "继续观看" = "Continue Watching";
 "编辑" = "Edit";
+"网络视频加载失败，请重新打开链接以重试。" = "Network video could not load. Open the link again to retry.";
 "美食" = "Food";
 "翻译成：" = "Translate to:";
 "聚会" = "Party";
@@ -322,10 +334,12 @@
 "视频库（⌘L）" = "Library (⌘L)";
 "视频里说的是：" = "Language spoken in the video:";
 "视频（MP4）" = "Video (MP4)";
+"解析超时，请检查网络后重试。" = "Resolution timed out. Check your connection and try again.";
 "设为默认播放器" = "Set as Default Player";
 "设为默认视频播放器…" = "Set as Default Video Player…";
 "语言 · Language" = "Language";
 "请填写剧名和集数（集数是数字）。" = "Enter a show name and an episode number.";
+"请输入有效的 YouTube 单个视频链接。" = "Enter a valid link to a single YouTube video.";
 "超过 %@ 秒，只能导出视频" = "over %@ s: video only";
 "跟随系统" = "Follow System";
 "跳到这里（提前 2 秒）" = "Jump Here (2 Seconds Before)";
@@ -348,6 +362,7 @@
 "隐藏 VideoTool" = "Hide VideoTool";
 "雪" = "Snow";
 "需要 macOS 26 或更新版本" = "Requires macOS 26 or later";
+"需要本机安装的 yt-dlp 和 Deno 才能解析 YouTube。" = "YouTube playback requires yt-dlp and Deno installed on this Mac.";
 "静音" = "Mute";
 "韩语" = "Korean";
 "音乐" = "Music";

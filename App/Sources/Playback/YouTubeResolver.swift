@@ -1,0 +1,134 @@
+import Foundation
+
+protocol YouTubeResolving: AnyObject {
+    func resolve(_ video: YouTubeVideo, completion: @escaping (Result<ResolvedYouTubeVideo, YouTubeFailure>) -> Void)
+    func cancel()
+}
+
+protocol YouTubeProcessRunning: AnyObject {
+    func run(executable: URL, arguments: [String], completion: @escaping (Result<Data, YouTubeFailure>) -> Void)
+    func cancel()
+}
+
+/// One bounded subprocess, with no shell, stdin, inherited configuration or logs.
+/// Cancellation only terminates the process created by this object.
+final class YouTubeProcess: YouTubeProcessRunning {
+    private let lock = NSLock()
+    private var process: Process?
+    private var failure: YouTubeFailure?
+    private let timeout: Double
+    private let maxBytes: Int
+    init(timeout: Double = 45, maxBytes: Int = 4 * 1024 * 1024) {
+        self.timeout = timeout; self.maxBytes = maxBytes
+    }
+
+    func cancel() { stop(.cancelled) }
+    private func stop(_ error: YouTubeFailure) {
+        lock.lock()
+        if failure == nil { failure = error }
+        let child = process
+        if child?.isRunning == true { child?.terminate() }
+        lock.unlock()
+        // An unresponsive resolver must not keep a cancelled request alive.
+        DispatchQueue.global().asyncAfter(deadline: .now() + 0.5) { [weak self, weak child] in
+            guard let self else { return }
+            self.lock.lock(); defer { self.lock.unlock() }
+            if let child, self.process === child, child.isRunning { kill(child.processIdentifier, SIGKILL) }
+        }
+    }
+
+    func run(executable: URL, arguments: [String], completion: @escaping (Result<Data, YouTubeFailure>) -> Void) {
+        DispatchQueue.global(qos: .userInitiated).async {
+            let child = Process(), pipe = Pipe()
+            child.executableURL = executable
+            child.arguments = arguments
+            child.standardInput = FileHandle.nullDevice
+            child.standardOutput = pipe
+            child.standardError = FileHandle.nullDevice // never persist signed URLs or account diagnostics
+            child.environment = ["PATH": "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin", "LANG": "en_US.UTF-8"]
+            child.currentDirectoryURL = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
+            self.lock.lock()
+            self.process = child
+            do {
+                if self.failure == nil { try child.run() }
+            } catch { self.failure = .failed }
+            let started = child.isRunning || (self.failure == nil)
+            self.lock.unlock()
+            var data = Data()
+            let deadline = DispatchWorkItem { [weak self] in self?.stop(.timeout) }
+            if started {
+                DispatchQueue.global().asyncAfter(deadline: .now() + self.timeout, execute: deadline)
+                // Read while it runs so large JSON cannot fill the pipe and deadlock.
+                while let bytes = try? pipe.fileHandleForReading.read(upToCount: 16384), !bytes.isEmpty {
+                    if data.count + bytes.count > self.maxBytes { self.stop(.invalidResponse); break }
+                    data.append(bytes)
+                }
+                try? pipe.fileHandleForReading.close()
+                child.waitUntilExit()
+            }
+            deadline.cancel()
+            self.lock.lock()
+            let failure = self.failure
+            self.process = nil
+            self.lock.unlock()
+            let result: Result<Data, YouTubeFailure>
+            if let failure { result = .failure(failure) }
+            else if child.terminationStatus != 0 { result = .failure(.failed) }
+            else { result = .success(data) }
+            DispatchQueue.main.async { completion(result) }
+        }
+    }
+}
+
+/// Main-thread coordinator. Tokens also protect against a cancelled process
+/// delivering its result after another local/network open or window close.
+final class YouTubeResolver: YouTubeResolving {
+    typealias Tools = (executable: URL, deno: String)
+    private let tools: () -> Tools?
+    private let makeProcess: () -> YouTubeProcessRunning
+    private var process: YouTubeProcessRunning?
+    private var generation = 0
+
+    init(tools: @escaping () -> Tools? = YouTubeResolver.installedTools,
+         makeProcess: @escaping () -> YouTubeProcessRunning = { YouTubeProcess() }) {
+        self.tools = tools; self.makeProcess = makeProcess
+    }
+
+    static func installedTools() -> Tools? {
+        let roots = [Bundle.main.bundleURL.appendingPathComponent("Contents/Helpers").path, "/opt/homebrew/bin", "/usr/local/bin"]
+        func executable(_ name: String) -> String? {
+            roots.map { $0 + "/" + name }.first { FileManager.default.isExecutableFile(atPath: $0) }
+        }
+        guard let yt = executable("yt-dlp"), let deno = executable("deno") else { return nil }
+        return (URL(fileURLWithPath: yt), deno)
+    }
+
+    static func arguments(for video: YouTubeVideo, deno: String) -> [String] {
+        ["--ignore-config", "--no-cache-dir", "--no-plugin-dirs", "--no-remote-components",
+         "--no-playlist", "--skip-download", "--dump-single-json", "--no-progress",
+         "--socket-timeout", "10", "--retries", "1", "--extractor-retries", "1",
+         "--no-js-runtimes", "--js-runtimes", "deno:" + deno,
+         "--format", "bestvideo[height<=1080]+bestaudio/best[height<=1080]",
+         "--", video.url.absoluteString]
+    }
+
+    func resolve(_ video: YouTubeVideo, completion: @escaping (Result<ResolvedYouTubeVideo, YouTubeFailure>) -> Void) {
+        cancel()
+        guard let tools = tools() else { completion(.failure(.missingTools)); return }
+        let token = generation, process = makeProcess()
+        self.process = process
+        process.run(executable: tools.executable, arguments: Self.arguments(for: video, deno: tools.deno)) { [weak self] result in
+            guard let self, self.generation == token else { return }
+            self.process = nil
+            switch result {
+            case .success(let data):
+                do { completion(.success(try ResolvedYouTubeVideo.decode(data: data, request: video))) }
+                catch { completion(.failure(error as? YouTubeFailure ?? .invalidResponse)) }
+            case .failure(let error): completion(.failure(error))
+            }
+        }
+    }
+
+    func cancel() { generation += 1; process?.cancel(); process = nil }
+    deinit { process?.cancel() }
+}

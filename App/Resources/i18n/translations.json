@@ -1442,5 +1442,65 @@
  "（根目录）": {
   "en": "(Root Folder)",
   "ja": "（ルートフォルダ）"
+ },
+ "YouTube 视频链接": {
+  "en": "YouTube video link",
+  "ja": "YouTube 動画リンク"
+ },
+ "在 VideoTool 中播放 YouTube": {
+  "en": "Watch YouTube in VideoTool",
+  "ja": "VideoTool で YouTube を再生"
+ },
+ "已取消解析。": {
+  "en": "Resolution cancelled.",
+  "ja": "解析をキャンセルしました。"
+ },
+ "打开网络视频": {
+  "en": "Open Network Video",
+  "ja": "ネットワーク動画を開く"
+ },
+ "打开网络视频…": {
+  "en": "Open Network Video…",
+  "ja": "ネットワーク動画を開く…"
+ },
+ "无法解析视频，请检查网络、视频可访问性及解析组件版本。": {
+  "en": "Could not resolve this video. Check your connection, video availability and resolver version.",
+  "ja": "動画を解析できません。接続、動画へのアクセス、解析ツールのバージョンを確認してください。"
+ },
+ "暂不支持直播、未发布或需要登录的视频。": {
+  "en": "Live, upcoming and sign-in-only videos are not supported yet.",
+  "ja": "ライブ、公開前、ログインが必要な動画にはまだ対応していません。"
+ },
+ "未获得可用的视频流，请检查解析组件是否需要更新。": {
+  "en": "No usable stream was found. The resolver may need an update.",
+  "ja": "再生可能なストリームがありません。解析ツールの更新を確認してください。"
+ },
+ "正在加载网络视频…": {
+  "en": "Loading network video…",
+  "ja": "ネットワーク動画を読み込み中…"
+ },
+ "正在解析视频，可随时取消…": {
+  "en": "Resolving video. You can cancel at any time…",
+  "ja": "動画を解析中です。いつでもキャンセルできます…"
+ },
+ "粘贴公开视频链接；播放列表仅打开当前视频。": {
+  "en": "Paste a public video link. Playlist links open only the current video.",
+  "ja": "公開動画のリンクを貼り付けてください。再生リストは現在の動画のみ開きます。"
+ },
+ "网络视频加载失败，请重新打开链接以重试。": {
+  "en": "Network video could not load. Open the link again to retry.",
+  "ja": "動画を読み込めませんでした。リンクをもう一度開いて再試行してください。"
+ },
+ "解析超时，请检查网络后重试。": {
+  "en": "Resolution timed out. Check your connection and try again.",
+  "ja": "解析がタイムアウトしました。接続を確認して再試行してください。"
+ },
+ "请输入有效的 YouTube 单个视频链接。": {
+  "en": "Enter a valid link to a single YouTube video.",
+  "ja": "有効な YouTube の単一動画リンクを入力してください。"
+ },
+ "需要本机安装的 yt-dlp 和 Deno 才能解析 YouTube。": {
+  "en": "YouTube playback requires yt-dlp and Deno installed on this Mac.",
+  "ja": "YouTube の再生には、この Mac に yt-dlp と Deno が必要です。"
  }
 }

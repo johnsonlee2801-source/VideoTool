@@ -19,6 +19,9 @@ final class MPVEngine: PlayerEngine {
     private let queue = DispatchQueue(label: "io.github.johnsonlee2801-source.videotool.mpv-events")
     private let lock = NSLock()
     private var isShutDown = false
+    /// Once network media has played, also suppress late log events after a
+    /// switch to local media. Raw libmpv logs can contain signed stream URLs.
+    private var redactMediaLogs = false
 
     private(set) var state = PlayerState() {
         didSet { if state != oldValue { onStateChange?(state) } }
@@ -91,6 +94,10 @@ final class MPVEngine: PlayerEngine {
     // MARK: PlayerEngine
 
     func load(_ url: URL) { loadTarget(url.isFileURL ? url.path : url.absoluteString) }
+    func loadNetwork(_ media: ResolvedYouTubeVideo) {
+        lock.lock(); redactMediaLogs = true; lock.unlock()
+        command(media.loadCommand)
+    }
     /// Anything mpv accepts: a path, a URL string, or an `av://lavfi:` source.
     func loadTarget(_ target: String) { command(["loadfile", target, "replace"]) }
     func stop() { command(["stop"]) }
@@ -275,9 +282,34 @@ final class MPVEngine: PlayerEngine {
             guard let data = e.data else { return }
             let ef = data.assumingMemoryBound(to: mpv_event_end_file.self).pointee
             post(.endFile(eof: ef.reason == MPV_END_FILE_REASON_EOF))
+            if ef.error < 0 {
+                var path = ""
+                // `path` has already been cleared after a failed open. Only use
+                // the surviving playlist entry if its ID matches this event;
+                // a late error from the replaced entry must not blame a new one.
+                var entryID: Int64 = -1
+                if mpv_get_property(h, "playlist/0/id", MPV_FORMAT_INT64, &entryID) >= 0,
+                   entryID == ef.playlist_entry_id,
+                   let c = mpv_get_property_string(h, "playlist/0/filename") {
+                    path = String(cString: c); mpv_free(c)
+                }
+                post(.playbackFailed(path: path))
+            }
         case MPV_EVENT_LOG_MESSAGE:
             guard let data = e.data else { return }
             let m = data.assumingMemoryBound(to: mpv_event_log_message.self).pointee
+            if redactMediaLogs {
+                let message = String(cString: m.text)
+                // Only fixed categories/status codes may leave the network engine.
+                if let range = message.range(of: "HTTP error [0-9]{3}", options: .regularExpression) {
+                    post(.log("[network] " + message[range]))
+                } else {
+                    for category in ["Protocol not found", "certificate", "Connection refused", "Connection timed out", "Failed to open", "Error parsing option", "Unrecognized option"] where message.localizedCaseInsensitiveContains(category) {
+                        post(.log("[network] " + category)); break
+                    }
+                }
+                return
+            }
             let text = "[\(String(cString: m.prefix))] \(String(cString: m.level)): \(String(cString: m.text))"
             post(.log(text.trimmingCharacters(in: .newlines)))
         default:

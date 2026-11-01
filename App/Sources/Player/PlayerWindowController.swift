@@ -5,7 +5,7 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     private let session: PlaybackSession?
     var engine: MPVEngine? { session?.engine }       // internal: QualityTests read player stats
     let playerView: PlayerView?          // internal for the event-glue tests
-    private let resumeStore = ResumePositionStore()
+    private let resumeStore: ResumePositionStore
     private let history: WatchHistoryStore
     private let libraryProvider: () -> LibraryController?
     private let sidebarPreferences: PlayerSidebarPreferences?
@@ -20,9 +20,18 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     private let skipStore = SkipStore()
     /// The outro of the current file was handled (skipped once per pass).
     private var outroDone = false
-    private lazy var resumeTracker = ResumeTracker(storedPosition: { [resumeStore] path in
-        resumeStore.position(for: URL(fileURLWithPath: path))
-    })
+    private lazy var resumeTracker = makeResumeTracker()
+    private func makeResumeTracker() -> ResumeTracker {
+        ResumeTracker(storedPosition: { [weak self] path in
+            guard let self else { return nil }
+            if let start = self.networkMedia?.request.start { return start }
+            return self.resumeStore.position(for: self.resumeURL(for: path))
+        })
+    }
+    private func resumeURL(for path: String) -> URL {
+        if let media = networkMedia, path == media.target { return media.request.url }
+        return URL(fileURLWithPath: path)
+    }
     private var isShutDown = false
     private let folderQueue = FolderPlaybackQueue()
     var nextVideoPath: String? { folderQueue.next }
@@ -69,6 +78,13 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     private var isScrubbing = false
     private var keyMonitor: Any?
     private var currentURL: URL?
+    private var networkMedia: ResolvedYouTubeVideo?
+    private var networkLoadDeadline: DispatchWorkItem?
+    private let networkStatus = NSTextField(wrappingLabelWithString: "")
+    private(set) var networkMessage: String? {
+        didSet { networkStatus.stringValue = networkMessage ?? ""; networkStatus.isHidden = networkMessage == nil }
+    }
+    private var networkSheet: NetworkVideoSheet?
 
     // Step 3: starred moments
     private let bookmarks: BookmarkController?
@@ -89,10 +105,12 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     static let controlBarHeight: CGFloat = 52
 
     init(libraryProvider: @escaping () -> LibraryController? = { nil },
-         sidebarPreferences: PlayerSidebarPreferences? = nil, history: WatchHistoryStore = WatchHistoryStore()) {
+         sidebarPreferences: PlayerSidebarPreferences? = nil, history: WatchHistoryStore = WatchHistoryStore(),
+         resumeStore: ResumePositionStore = ResumePositionStore()) {
         self.libraryProvider = libraryProvider
         self.sidebarPreferences = sidebarPreferences
         self.history = history
+        self.resumeStore = resumeStore
         let session = try? PlaybackSession()
         self.session = session
         self.playerView = session.map { PlayerView(session: $0) }
@@ -299,6 +317,19 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
             aiCard.topAnchor.constraint(equalTo: content.topAnchor, constant: 16),
             aiCard.widthAnchor.constraint(lessThanOrEqualTo: content.widthAnchor, constant: -32),
         ]
+        networkStatus.translatesAutoresizingMaskIntoConstraints = false
+        networkStatus.font = Theme.display(13)
+        networkStatus.textColor = Theme.textPrimary
+        networkStatus.drawsBackground = true
+        networkStatus.backgroundColor = Theme.bg1
+        networkStatus.isHidden = true
+        content.addSubview(networkStatus)
+        constraints += [
+            networkStatus.leadingAnchor.constraint(equalTo: content.leadingAnchor, constant: 16),
+            networkStatus.topAnchor.constraint(equalTo: content.topAnchor, constant: 16),
+            networkStatus.widthAnchor.constraint(lessThanOrEqualToConstant: 440),
+            networkStatus.trailingAnchor.constraint(lessThanOrEqualTo: content.trailingAnchor, constant: -16),
+        ]
         libraryOffer.translatesAutoresizingMaskIntoConstraints = false
         content.addSubview(libraryOffer)
         constraints += [
@@ -454,11 +485,11 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     private func apply(_ action: ResumeTracker.Action) {
         switch action {
         case .save(let path, let position):
-            resumeStore.save(position, for: URL(fileURLWithPath: path))
-            history.recordProgress(path: path, position: position, duration: engine?.state.duration ?? 0)
+            resumeStore.save(position, for: resumeURL(for: path))
+            if networkMedia == nil { history.recordProgress(path: path, position: position, duration: engine?.state.duration ?? 0) }
         case .clear(let path):
-            resumeStore.clear(for: URL(fileURLWithPath: path))
-            history.markFinished(path: path, duration: engine?.state.duration ?? 0)
+            resumeStore.clear(for: resumeURL(for: path))
+            if networkMedia == nil { history.markFinished(path: path, duration: engine?.state.duration ?? 0) }
         case .seek(let target): engine?.seek(to: target)
         }
     }
@@ -469,7 +500,22 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         case .fileLoaded(let path, let duration):
             // Only the file asked for last, and only once: a FILE_LOADED queued for the
             // previous file (or delivered twice) must not restore its state onto this one.
-            guard path == currentTarget, loadedPath != path else { return }
+            guard !isShutDown, path == currentTarget, loadedPath != path else { return }
+            networkLoadDeadline?.cancel(); networkLoadDeadline = nil
+            networkMessage = nil
+            if let media = networkMedia {
+                resumeTracker.fileLoaded(path: path, duration: duration).forEach(apply)
+                if let start = media.request.start {
+                    engine.seek(to: duration > 0 ? min(start, max(0, duration - 0.1)) : start)
+                }
+                bookmarks?.openNetwork(media.request)
+                subtitleDelay = 0
+                engine.applyTrackChoice(audio: "auto", subtitle: "auto", subtitleDelay: 0)
+                loadedPath = path
+                sidebar.currentPath = nil
+                engine.setPaused(false)
+                return
+            }
             // Read before the tracker acts: with the duration not known yet, its resume
             // seek comes later, and the intro must not be skipped in the meantime.
             let resumeAt = ResumePositionStore.resumeTarget(position: resumeStore.position(for: URL(fileURLWithPath: path)),
@@ -488,21 +534,46 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
             // With keep-open, natural EOF does not end the file; eofReached in
             // render() handles that. This fires on replace/stop/errors.
             playerView?.gesture.cancel()
+        case .playbackFailed(let path):
+            if networkMedia != nil && path == currentTarget {
+                networkLoadDeadline?.cancel(); networkLoadDeadline = nil
+                networkMessage = L("网络视频加载失败，请重新打开链接以重试。")
+            }
         case .log(let line):
-            NSLog("%@", line)
+            if networkMedia == nil { NSLog("%@", line) }
         }
     }
 
     // MARK: public API
 
     /// What mpv was asked to load for `currentURL` (as MPVEngine.load passes it).
-    private var currentTarget: String? { currentURL.map { $0.isFileURL ? $0.path : $0.absoluteString } }
+    private var currentTarget: String? { networkMedia?.target ?? currentURL.map { $0.isFileURL ? $0.path : $0.absoluteString } }
 
     func open(_ url: URL) {
-        guard let engine else { return }
+        guard url.isFileURL else { presentNetworkVideo(url.absoluteString); return }
+        open(url, media: nil)
+    }
+
+    @discardableResult
+    func presentNetworkVideo(_ text: String = "", resolver: YouTubeResolving = YouTubeResolver()) -> NetworkVideoSheet {
+        networkSheet?.cancel()
+        let sheet = NetworkVideoSheet(resolver: resolver) { [weak self] in self?.openNetwork($0) }
+        networkSheet = sheet
+        if let window, !isShutDown { sheet.present(on: window, text: text) }
+        return sheet
+    }
+
+    func openNetwork(_ media: ResolvedYouTubeVideo) { open(media.request.url, media: media) }
+
+    private func open(_ url: URL, media: ResolvedYouTubeVideo?) {
+        guard let engine, !isShutDown else { return }
+        networkSheet?.cancel()
+        networkLoadDeadline?.cancel(); networkLoadDeadline = nil
         playerView?.gesture.cancel()
         flushPendingTrackMemory()
         saveResumeNow()
+        networkMedia = media
+        resumeTracker = makeResumeTracker()
         bookmarks?.fileClosed()
         preview.hide()
         libraryOffer.hide()
@@ -514,8 +585,21 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         loadedPath = nil
         clearClip()
         defer { updateAIButton() }
-        NSDocumentController.shared.noteNewRecentDocumentURL(url)
-        engine.load(url)
+        sidebar.currentPath = nil
+        networkMessage = media == nil ? nil : L("正在加载网络视频…")
+        if let media {
+            engine.loadNetwork(media)
+            let deadline = DispatchWorkItem { [weak self] in
+                guard let self, self.networkMedia != nil, self.loadedPath == nil else { return }
+                self.engine?.stop()
+                self.networkMessage = L("网络视频加载失败，请重新打开链接以重试。")
+            }
+            networkLoadDeadline = deadline
+            DispatchQueue.main.asyncAfter(deadline: .now() + 35, execute: deadline)
+        } else {
+            NSDocumentController.shared.noteNewRecentDocumentURL(url)
+            engine.load(url)
+        }
         window?.makeKeyAndOrderFront(nil)
         onFileOpened?(url)
     }
@@ -524,6 +608,8 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     func shutdown() {
         guard !isShutDown else { return }
         isShutDown = true
+        networkSheet?.cancel()
+        networkLoadDeadline?.cancel(); networkLoadDeadline = nil
         exportTask?.cancel()                   // no export may outlive its window (audit 2026-10-20)
         flushPendingTrackMemory()
         cancelAISubtitles()
@@ -718,7 +804,7 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
 
     /// Play › 标记片段起点 / 终点 (C).
     @objc func markClip(_ sender: Any?) {
-        guard let engine, loadedPath != nil else { return }
+        guard let engine, currentURL?.isFileURL == true, loadedPath != nil else { return }
         let t = engine.state.timePos
         switch clipSelection.mark(t) {
         case .started(let start):
@@ -800,7 +886,7 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     private var frameCopyRunning = false, frameCopyAgain = false
 
     @objc func copy(_ sender: Any?) {
-        guard let engine, let source = currentURL?.path, loadedPath != nil else { return }
+        guard let engine, currentURL?.isFileURL == true, let source = currentURL?.path, loadedPath != nil else { return }
         if frameCopyRunning { frameCopyAgain = true; return }
         frameCopyRunning = true
         let time = engine.state.timePos, subtitles = clipSubtitleFile?.path, delay = subtitleDelay
@@ -970,7 +1056,7 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     /// After a track switch (the player answers asynchronously): note the choice.
     /// Only embedded subtitle tracks or "off" are kept; AI subtitles come back on their own.
     private func rememberTracks() {
-        guard let path = currentURL?.path else { return }
+        guard currentURL?.isFileURL == true, let path = currentURL?.path else { return }
         pendingTrackMemory = path
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
             guard let self, self.pendingTrackMemory == path else { return }     // flushed already
@@ -1005,7 +1091,7 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         subtitleDelay = delay
         engine.adjustSubtitleDelay(to: delay)
         playerView?.hud.flash(text: L("字幕延迟 %@ 秒", String(format: "%+.1f", delay)))
-        memory.update(path) { $0.subtitleDelay = delay }
+        if currentURL?.isFileURL == true { memory.update(path) { $0.subtitleDelay = delay } }
     }
     @objc func toggleMute(_ sender: Any?) { engine?.toggleMute() }
 

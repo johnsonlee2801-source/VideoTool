@@ -46,6 +46,13 @@ goals, layout, build and test commands. `CLAUDE.md` only imports this file.
 - A key pressed while the gesture is active (button down, before or during the
   hold) only cancels it; Space does not also pause (`KeyRouter.plainKeyCancelsOnly`).
 - The library feature will index and classify, never move user files.
+- YouTube links open in the standalone native player (user chose this direction).
+  Keep canonical video identity separate from signed stream targets; network
+  requests must not enter local folder history, hashing, AI or export pipelines.
+  Resolve with isolated local yt-dlp/Deno, explicit cancellation and timeout,
+  without browser credentials, user config, plugins or remote component downloads.
+  Public VOD only for now; default <=1080p, no playlist auto-next. The opt-in
+  `YouTubeLiveTests` requires `VIDEOTOOL_YOUTUBE_LIVE=1`; ordinary gates stay offline.
 - Library defaults to compact folder browsing: 80×45 pt previews, 62 pt video
   rows, manual folder entry, current-folder search and optional tag/watch filters.
   Keep advanced grouping reachable. Previous/next follow natural filename order

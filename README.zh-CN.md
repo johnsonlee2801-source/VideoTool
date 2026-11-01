@@ -66,6 +66,18 @@ VideoTool 只做好三件事，这三件事别的播放器都没这样做。
 
 <sub>依据 2026 年 10 月各软件的公开资料。如有出入，欢迎提 issue 指正。</sub>
 
+## 在 VideoTool 中看 YouTube
+
+选择 **文件 › 打开网络视频…**（`⇧⌘O`），粘贴公开 YouTube 视频链接。
+支持原生暂停、倍速手势、全屏和星标，默认最高 1080p；链接时间戳优先于续播记录。
+星标和续播按视频身份保存，临时播放地址不会写入记录。
+
+需本机已有 [yt-dlp](https://github.com/yt-dlp/yt-dlp) 和 [Deno](https://deno.com/)，
+放在 `/opt/homebrew/bin` 或 `/usr/local/bin`；VideoTool 不自动安装、更新组件或读取浏览器登录数据。
+解析可取消，失败可重试。第一版支持公开点播，播放列表只打开当前视频，不自动连播；
+直播、登录受限视频、网络视频缩略图、AI 字幕和片段导出暂不支持。文件夹与最近播放仍用于本地文件。
+网站变化或网络限制可能影响可播放性。源码更新与 DMG 发布状态分别见 [更新记录](CHANGELOG.md)。
+
 ## 安装
 
 1. 在 [Releases](https://github.com/johnsonlee2801-source/VideoTool/releases/latest) 下载 **VideoTool-x.y.z.dmg**（Apple 芯片和 Intel 都能用，需要 macOS 14 或更新版本），打开后把 VideoTool 拖进「应用程序」。

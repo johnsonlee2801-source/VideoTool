@@ -18,13 +18,13 @@ final class ResumePositionStore {
     }
 
     func position(for url: URL) -> Double? {
-        (table()[url.path]?["position"]).flatMap { $0 }
+        (table()[storageKey(url)]?["position"]).flatMap { $0 }
     }
 
     func save(_ position: Double, for url: URL) {
         guard position.isFinite, position >= 0 else { return }
         var t = table()
-        t[url.path] = ["position": position, "savedAt": now().timeIntervalSince1970]
+        t[storageKey(url)] = ["position": position, "savedAt": now().timeIntervalSince1970]
         if t.count > Self.maxEntries {
             let sorted = t.sorted { ($0.value["savedAt"] ?? 0) < ($1.value["savedAt"] ?? 0) }
             for (path, _) in sorted.prefix(t.count - Self.maxEntries) { t.removeValue(forKey: path) }
@@ -34,11 +34,12 @@ final class ResumePositionStore {
 
     func clear(for url: URL) {
         var t = table()
-        t.removeValue(forKey: url.path)
+        t.removeValue(forKey: storageKey(url))
         defaults.set(t, forKey: key)
     }
 
     var count: Int { table().count }
+    private func storageKey(_ url: URL) -> String { url.isFileURL ? url.path : "url:" + url.absoluteString }
 
     /// Decides whether a stored position is worth resuming from.
     static func resumeTarget(position: Double?, duration: Double) -> Double? {

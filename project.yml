@@ -29,7 +29,7 @@ targets:
     type: application
     platform: macOS
     sources:
-    - path: App/Sources # Includes folder browsing, playback navigation and the unified player sidebar.
+    - path: App/Sources # Includes folder browsing, native playback and optional YouTube resolution.
     - path: App/Resources
       optional: true
       excludes:
@@ -76,6 +76,8 @@ schemes:
       config: Debug
       targets:
       - VideoToolTests
+      environmentVariables:
+        VIDEOTOOL_YOUTUBE_LIVE: "$(VIDEOTOOL_YOUTUBE_LIVE)"
       # Tests read the Chinese (source) interface text whatever the Mac's language is.
       commandLineArguments:
         "-AppleLanguages (zh-Hans)": true

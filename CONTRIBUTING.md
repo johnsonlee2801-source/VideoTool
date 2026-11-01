@@ -79,6 +79,25 @@ the separate 90% application coverage check.
 
 Validate the bundled tool with `cd tools/tdd-guardian && node --test`.
 
+### Optional YouTube acceptance
+
+Offline regression tests cover URL validation, resolver isolation/cancellation,
+mpv file options, local/network transitions, stars, resume and the input sheet.
+`YouTubePlaybackTests` runs in the integration lane. A separate live test is
+disabled by default and uses one public YouTube Developers example video:
+
+```zsh
+scripts/xcb.sh test -disableAutomaticPackageResolution -onlyUsePackageVersionsFromResolvedFile \
+  -only-testing:VideoToolTests/YouTubeLiveTests VIDEOTOOL_YOUTUBE_LIVE=1
+```
+
+This requires installed yt-dlp and Deno plus working YouTube/CDN access. It uses
+isolated test preferences and muted real decoding, checks separate audio/video,
+2× playback, seek and pause, and does not use browser cookies. Never print raw
+resolver JSON or signed CDN URLs. A live failure is separate from offline gates;
+both must be reported. This does not prove every YouTube video, live content or
+installed-app manual interaction works.
+
 ## Interface languages
 
 Chinese is the source language: the lookup key *is* the Chinese text.
