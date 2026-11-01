@@ -9,10 +9,13 @@ final class SidebarMediaRow: NSView {
     private let metadata = NSTextField(labelWithString: "")
     private let detail = NSTextField(labelWithString: "")
     private let progress = WatchProgressStripe()
+    private let compact: Bool
     var isCurrent = false { didSet { updateBorder() } }
     var isSelected = false { didSet { updateBorder() } }
 
-    override init(frame: NSRect) {
+    override convenience init(frame: NSRect) { self.init(frame: frame, compact: false) }
+    init(frame: NSRect, compact: Bool) {
+        self.compact = compact
         super.init(frame: frame)
         wantsLayer = true
         layer?.backgroundColor = Theme.bg2.cgColor
@@ -41,16 +44,16 @@ final class SidebarMediaRow: NSView {
         NSLayoutConstraint.activate([
             thumb.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 10),
             thumb.centerYAnchor.constraint(equalTo: centerYAnchor),
-            thumb.widthAnchor.constraint(equalToConstant: 112),
-            thumb.heightAnchor.constraint(equalToConstant: 63),
+            thumb.widthAnchor.constraint(equalToConstant: compact ? 80 : 112),
+            thumb.heightAnchor.constraint(equalToConstant: compact ? 45 : 63),
             icon.centerXAnchor.constraint(equalTo: thumb.centerXAnchor),
             icon.centerYAnchor.constraint(equalTo: thumb.centerYAnchor),
             name.leadingAnchor.constraint(equalTo: thumb.trailingAnchor, constant: 10),
             name.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -10),
-            name.topAnchor.constraint(equalTo: topAnchor, constant: 14),
+            name.topAnchor.constraint(equalTo: topAnchor, constant: compact ? 8 : 14),
             metadata.leadingAnchor.constraint(equalTo: name.leadingAnchor),
             metadata.trailingAnchor.constraint(equalTo: name.trailingAnchor),
-            metadata.topAnchor.constraint(equalTo: name.bottomAnchor, constant: 6),
+            metadata.topAnchor.constraint(equalTo: name.bottomAnchor, constant: compact ? 4 : 6),
             detail.leadingAnchor.constraint(equalTo: name.leadingAnchor),
             detail.trailingAnchor.constraint(equalTo: name.trailingAnchor),
             detail.topAnchor.constraint(equalTo: metadata.bottomAnchor, constant: 5),
@@ -59,6 +62,7 @@ final class SidebarMediaRow: NSView {
             progress.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -7),
             progress.heightAnchor.constraint(equalToConstant: 3),
         ])
+        detail.isHidden = compact
     }
     required init?(coder: NSCoder) { fatalError("not supported") }
 
@@ -86,6 +90,11 @@ final class SidebarMediaRow: NSView {
             progress.fraction = 0
         }
         progress.isHidden = progress.fraction <= 0
+        if compact {
+            let state = watch.map { $0.isWatched ? L("✓ 已看完") : L("继续观看") + " · \(Int($0.fraction * 100))%" } ?? item?.tags.first.map { L($0) } ?? ""
+            metadata.stringValue = [duration > 0 ? TimeFormatting.string(duration) : "", state].filter { !$0.isEmpty }.joined(separator: " · ")
+            if item?.record.status == .cloudOnly { metadata.stringValue = L("iCloud 未下载") }
+        }
         thumb.image = thumbnail.flatMap { NSImage(contentsOf: $0) }
         icon.isHidden = thumb.image != nil
         isCurrent = current

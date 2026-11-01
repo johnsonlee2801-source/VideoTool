@@ -82,8 +82,8 @@ Build it yourself · 自己编译: [CONTRIBUTING.md](CONTRIBUTING.md)
 
 ## Keyboard · 快捷键
 
-**Library in the player:** `⌘L` or the library button opens the right sidebar. Switch between **Library / Recent / Stars** to browse categories, last-played times and progress; double-click a video to play it on the left. Drag the divider to resize, or collapse the sidebar. Files stay where they are.<br>
-**视频库就在播放器右侧：**按 `⌘L` 或点视频库按钮，切换「视频库／最近播放／星标」，查看分类、最近播放时间和进度；双击视频就在左侧播放。分隔线可拖动调宽，也可收起侧栏；原文件位置不变。安装包是否包含此更新见 [更新记录](CHANGELOG.md)。
+**Folder-first library:** `⌘L` opens folders and compact video previews in the right sidebar. Double-click folders or videos, navigate the path menu, or locate the current file. Search this folder and filter by tags/watch status; previous grouping is available under **More Views**. Previous/Next follow natural filename order within the playing file’s folder, independent of filters. Playback stops at EOF or skipped credits and waits for you to click Next. Files stay where they are.<br>
+**文件夹优先的视频库：**`⌘L` 展开右侧目录与小预览，双击进入文件夹或打开视频；可返回上层、定位当前文件，并按标签／观看状态筛选。「更多整理」保留原分类。上一集／下一集按同目录自然顺序播放，筛选不改变顺序；本集结束或跳过片尾后停下，点击下一集才继续。原文件不移动。安装包状态见 [更新记录](CHANGELOG.md)。
 
 **Single-click the picture** to pause or resume immediately on release. Double-click the picture or empty player space to toggle fullscreen; the second picture click restores the playback state before the pair, so playback may briefly pause or resume between clicks. Buttons, the timeline and the star list keep their usual actions.<br>
 **单击播放画面**，松开鼠标即暂停／继续；双击画面或空白区域切换全屏。画面双击的第二下恢复点击前的播放状态，两下之间可能短暂停顿或播放；按钮、进度条和星标列表保留原操作。

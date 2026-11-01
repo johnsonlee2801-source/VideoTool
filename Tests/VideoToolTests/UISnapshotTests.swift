@@ -181,4 +181,27 @@ enum Snapshot {
         w.showLibrary(nil)
         try Snapshot.write(try #require(w.window?.contentView), "P6-sidebar-empty")
     }
+
+    @Test("P7 folder-first sidebar: compact rows at 280, 380 and 560 points")
+    func folderSidebar() throws {
+        let fixture = try library()
+        let w = PlayerWindowController(libraryProvider: { fixture.model })
+        defer { w.shutdown() }
+        w.window?.setContentSize(NSSize(width: 1280, height: 720))
+        w.showLibrary(nil)
+        let folders = try #require(w.sidebar.libraryBrowser?.folderBrowser)
+        folders.enter("/Volumes/Media/Movies")
+        w.sidebar.currentPath = "/Volumes/Media/Movies/猫猫日常 vlog.mov"
+        for width in [280.0, 380.0, 560.0] {
+            w.sidebar.resize(to: width)
+            w.window?.contentView?.layoutSubtreeIfNeeded()
+            #expect(abs(w.sidebar.bounds.width - width) < 1)
+            #expect(folders.visibleFolders.count == 1 && folders.visibleVideos.count == 6)
+            try Snapshot.write(w.sidebar, "P7-folders-\(Int(width))")
+        }
+        folders.enter("/Volumes/Media/Movies/旅行")
+        try Snapshot.write(w.sidebar, "P7b-folder-child")
+        w.window?.setContentSize(NSSize(width: 520, height: 560))
+        try Snapshot.write(try #require(w.window?.contentView), "P7c-player-small-folder")
+    }
 }

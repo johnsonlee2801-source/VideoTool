@@ -27,6 +27,9 @@ class LibraryBrowserViewController: NSViewController,
     private let controller: LibraryController
     private let onOpen: (URL) -> Void
     private var sections: [LibrarySection] = []
+    private(set) var folderBrowser: FolderBrowserViewController?
+    private var foldersVisible = true
+    private var legacyBar: NSView?
 
     private let sidebar = NSTableView()
     private let grid = NSCollectionView()
@@ -38,7 +41,7 @@ class LibraryBrowserViewController: NSViewController,
     private var lastLayoutWidth: CGFloat = -1
     private(set) var selectedRoot: String?
     var onItemsChange: (() -> Void)?
-    var currentPath: String? { didSet { if oldValue != currentPath { reloadVisibleCards() } } }
+    var currentPath: String? { didSet { folderBrowser?.currentPath = currentPath; if oldValue != currentPath { reloadVisibleCards() } } }
     var window: NSWindow? { view.window }
     var gridForTesting: NSCollectionView { grid }
     private let searchField = NSSearchField()
@@ -66,6 +69,13 @@ class LibraryBrowserViewController: NSViewController,
         root.onLayout = { [weak self] in self?.updateLayout() }
         view = root
         build()
+        let folders = FolderBrowserViewController(controller: controller, onOpen: onOpen)
+        folderBrowser = folders
+        folders.onShowAdvanced = { [weak self] in self?.showFolderBrowsing(false) }
+        addChild(folders)
+        folders.view.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(folders.view)
+        NSLayoutConstraint.activate([folders.view.leadingAnchor.constraint(equalTo: view.leadingAnchor), folders.view.trailingAnchor.constraint(equalTo: view.trailingAnchor), folders.view.topAnchor.constraint(equalTo: view.topAnchor), folders.view.bottomAnchor.constraint(equalTo: view.bottomAnchor)])
         controller.onChange = { [weak self] in self?.refresh(); self?.onItemsChange?() }
         controller.onProgress = { [weak self] in self?.refreshStatus() }
         refresh()
@@ -158,9 +168,13 @@ class LibraryBrowserViewController: NSViewController,
         folderManager.isBordered = false
         folderManager.contentTintColor = Theme.textSecondary
         folderManager.target = self; folderManager.action = #selector(showFolderMenu(_:))
-        let actions = NSStackView(views: [addButton, NSView(), rescanButton, folderManager])
+        let backToFolders = NSButton(image: NSImage(systemSymbolName: "folder", accessibilityDescription: L("返回文件夹浏览"))!, target: self, action: #selector(showFolders(_:)))
+        backToFolders.isBordered = false; backToFolders.contentTintColor = Theme.accent2; backToFolders.toolTip = L("返回文件夹浏览")
+        backToFolders.widthAnchor.constraint(equalToConstant: 24).isActive = true
+        let actions = NSStackView(views: [addButton, NSView(), backToFolders, rescanButton, folderManager])
         actions.spacing = 8
         let bar = NSStackView(views: [searchField, filters, actions, status])
+        legacyBar = bar
         bar.orientation = .vertical
         bar.alignment = .leading
         bar.spacing = 8
@@ -209,6 +223,21 @@ class LibraryBrowserViewController: NSViewController,
         }
         grid.collectionViewLayout?.invalidateLayout()
         reloadVisibleCards()
+        applyBrowsingVisibility()
+    }
+
+    func showFolderBrowsing(_ visible: Bool) {
+        foldersVisible = visible
+        view.window?.makeFirstResponder(nil)
+        applyBrowsingVisibility()
+    }
+    @objc private func showFolders(_ sender: Any?) { showFolderBrowsing(true) }
+    private func applyBrowsingVisibility() {
+        folderBrowser?.view.isHidden = !foldersVisible
+        legacyBar?.isHidden = foldersVisible
+        sidebar.enclosingScrollView?.isHidden = foldersVisible || view.bounds.width < 700
+        gridScroll.isHidden = foldersVisible
+        emptyStack.isHidden = foldersVisible || empty.stringValue.isEmpty
     }
 
     private func selectedPaths() -> Set<String> {
@@ -250,7 +279,7 @@ class LibraryBrowserViewController: NSViewController,
         menu.popUp(positioning: nil, at: NSPoint(x: 0, y: sender.bounds.height), in: sender)
     }
     func refreshFromStore() { controller.reload() }
-    func shutdown() { controller.onChange = nil; controller.onProgress = nil }
+    func shutdown() { folderBrowser?.shutdown(); controller.onChange = nil; controller.onProgress = nil }
 
     static func style(_ button: NSButton, primary: Bool, symbol: String) {
         button.isBordered = false
@@ -274,6 +303,7 @@ class LibraryBrowserViewController: NSViewController,
     private func refreshStatus() {
         status.stringValue = controller.notice.map { "\($0)  ·  \(controller.statusText)" } ?? controller.statusText
         status.toolTip = status.stringValue
+        folderBrowser?.refreshStatus()
     }
 
     private func refresh() {
@@ -312,6 +342,8 @@ class LibraryBrowserViewController: NSViewController,
             empty.stringValue = ""
         }
         emptyStack.isHidden = empty.stringValue.isEmpty
+        folderBrowser?.refresh()
+        applyBrowsingVisibility()
     }
 
     // MARK: actions

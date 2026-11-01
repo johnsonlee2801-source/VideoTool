@@ -159,10 +159,11 @@ import Testing
         let w = PlayerWindowController(libraryProvider: { c })
         defer { w.shutdown() }
         w.showLibrary(nil)
-        let browser = try #require(w.sidebar.libraryBrowser)
+        let host = try #require(w.sidebar.libraryBrowser)
+        let browser = try #require(host.folderBrowser)
         #expect(w.sidebar.tabTitles == [L("视频库"), L("最近播放"), L("星标")])
-        browser.searchFieldForTesting.stringValue = "alpha"
-        browser.controlTextDidChange(Notification(name: NSControl.textDidChangeNotification, object: browser.searchFieldForTesting))
+        browser.searchField.stringValue = "alpha"
+        browser.controlTextDidChange(Notification(name: NSControl.textDidChangeNotification, object: browser.searchField))
         let paused = w.engine?.state.isPaused
         let recentButton = try #require(descendants(w.sidebar).compactMap { $0 as? NSButton }.first { $0.title == L("最近播放") })
         recentButton.performClick(nil)
@@ -170,7 +171,7 @@ import Testing
         w.toggleBookmarkList(nil)
         #expect(w.sidebar.state.tab == .stars && !w.listPanel.isHidden)
         w.showLibrary(nil)
-        #expect(w.sidebar.libraryBrowser === browser && c.search == "alpha")
+        #expect(w.sidebar.libraryBrowser === host && browser.searchField.stringValue == "alpha")
         #expect(w.engine?.state.isPaused == paused)
     }
 
@@ -223,7 +224,7 @@ import Testing
         w.window?.orderBack(nil)
         w.showLibrary(nil)
         let browser = try #require(w.sidebar.libraryBrowser)
-        let grid = browser.gridForTesting
+        let grid = try #require(browser.folderBrowser).table
         #expect(w.window?.makeFirstResponder(grid) == true)
         func key(_ chars: String, _ code: UInt16) throws -> NSEvent {
             try #require(NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0,
@@ -328,12 +329,14 @@ import Testing
         w.showLibrary(nil)
         w.window?.contentView?.layoutSubtreeIfNeeded()
         let browser = try #require(w.sidebar.libraryBrowser)
-        let grid = browser.gridForTesting
-        grid.selectionIndexPaths = [IndexPath(item: 1, section: 0)]
+        let folders = try #require(browser.folderBrowser)
+        folders.enter("/m")
+        let grid = folders.table
+        grid.selectRowIndexes([1], byExtendingSelection: false)
         history.recordProgress(path: "/m/alpha.mp4", position: 40, duration: 100)
         c.reload()
         #expect(c.sections.map(\.title) == [L("继续观看"), L("全部视频")])
-        #expect(grid.selectionIndexPaths == [IndexPath(item: 1, section: 1)], "beta remains selected in the all-videos section")
+        #expect(grid.selectedRow == 1 && folders.visibleVideos[1].path == "/m/beta.mp4", "beta remains selected by path after progress refresh")
     }
 
     @Test("SB11 folder filtering and search combine inside the sidebar and survive switching tabs")
@@ -349,15 +352,14 @@ import Testing
         defer { w.shutdown() }
         w.showLibrary(nil)
         let browser = try #require(w.sidebar.libraryBrowser)
-        let picker = try #require(descendants(browser.view).compactMap { $0 as? NSPopUpButton }.first { $0.itemTitle(at: 0) == L("所有文件夹") })
-        picker.selectItem(at: 1)
-        #expect(NSApp.sendAction(try #require(picker.action), to: picker.target, from: picker))
-        #expect(browser.selectedRoot == "/a")
-        #expect(browser.collectionView(NSCollectionView(), numberOfItemsInSection: 0) == 1)
-        c.search = "Beta"
-        #expect(browser.numberOfSections(in: NSCollectionView()) == 0)
+        let folders = try #require(browser.folderBrowser)
+        folders.enter("/a")
+        #expect(folders.directory == "/a" && folders.visibleVideos.count == 1)
+        folders.searchField.stringValue = "Beta"
+        folders.controlTextDidChange(Notification(name: NSControl.textDidChangeNotification))
+        #expect(folders.visibleVideos.isEmpty)
         w.sidebar.show(.recent); w.showLibrary(nil)
-        #expect(browser.selectedRoot == "/a" && c.search == "Beta")
+        #expect(folders.directory == "/a" && folders.searchField.stringValue == "Beta")
         #expect(try store.media(inRoot: nil).count == 2, "filtering must not alter the index or source paths")
     }
 }

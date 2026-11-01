@@ -27,6 +27,10 @@
   "en": "%@ unreadable",
   "ja": "読み込めないファイル %@件"
  },
+ "%@ 个视频库文件夹": {
+  "en": "%@ library folders",
+  "ja": "ライブラリフォルダ %@件"
+ },
  "%@ 集": {
   "en": "%@ episodes",
   "ja": "%@話"
@@ -127,9 +131,29 @@
   "en": "Previous Star   ⌥←",
   "ja": "前のスター   ⌥←"
  },
+ "上一级文件夹": {
+  "en": "Parent Folder",
+  "ja": "上のフォルダ"
+ },
+ "上一集": {
+  "en": "Previous Video",
+  "ja": "前の動画"
+ },
+ "上一集：%@": {
+  "en": "Previous: %@",
+  "ja": "前の動画：%@"
+ },
  "下一个星标   ⌥→": {
   "en": "Next Star   ⌥→",
   "ja": "次のスター   ⌥→"
+ },
+ "下一集": {
+  "en": "Next Video",
+  "ja": "次の動画"
+ },
+ "下一集：%@": {
+  "en": "Next: %@",
+  "ja": "次の動画：%@"
  },
  "不再询问": {
   "en": "Don't Ask Again",
@@ -218,6 +242,10 @@
  "全选": {
   "en": "Select All",
   "ja": "すべてを選択"
+ },
+ "全部标签": {
+  "en": "All Tags",
+  "ja": "すべてのタグ"
  },
  "全部视频": {
   "en": "All Videos",
@@ -327,6 +355,10 @@
   "en": "No later stars",
   "ja": "これより後にスターはありません"
  },
+ "含子文件夹，共 %@ 个视频": {
+  "en": "%@ videos including subfolders",
+  "ja": "サブフォルダを含む動画 %@本"
+ },
  "在 Finder 中显示": {
   "en": "Show in Finder",
   "ja": "Finderに表示"
@@ -406,6 +438,10 @@
  "字幕生成中 · 已完成 %@（可以边看边等）": {
   "en": "Making subtitles · %@ done (keep watching)",
   "ja": "字幕を作成中 · %@ 完了（見ながら待てます）"
+ },
+ "定位当前视频所在文件夹": {
+  "en": "Show Current Video’s Folder",
+  "ja": "再生中の動画のフォルダを表示"
  },
  "室内": {
   "en": "Indoors",
@@ -495,6 +531,10 @@
   "en": "Intro and credits cleared for this series",
   "ja": "このシリーズのオープニングとエンディングの設定を消去しました"
  },
+ "已看完": {
+  "en": "Watched",
+  "ja": "視聴済み"
+ },
  "已跳过片头": {
   "en": "Intro skipped",
   "ja": "オープニングをスキップしました"
@@ -522,6 +562,10 @@
  "开始": {
   "en": "Start",
   "ja": "開始"
+ },
+ "当前文件夹没有视频": {
+  "en": "No videos in this folder",
+  "ja": "このフォルダには動画がありません"
  },
  "循环预览": {
   "en": "Loop",
@@ -671,6 +715,10 @@
   "en": "Illustration",
   "ja": "イラスト"
  },
+ "搜索当前文件夹": {
+  "en": "Search this folder",
+  "ja": "このフォルダを検索"
+ },
  "搜索文件名或标签": {
   "en": "Search file names or tags",
   "ja": "ファイル名やタグを検索"
@@ -711,6 +759,14 @@
   "en": "Folder",
   "ja": "フォルダ"
  },
+ "文件夹暂不可用，请检查磁盘后重试。": {
+  "en": "Folder unavailable. Check the drive and try again.",
+  "ja": "フォルダを利用できません。ディスクを確認して再試行してください。"
+ },
+ "文件已不可用：%@": {
+  "en": "File unavailable: %@",
+  "ja": "ファイルを利用できません：%@"
+ },
  "文字": {
   "en": "Text",
   "ja": "文字"
@@ -739,9 +795,17 @@
   "en": "VideoTool couldn't reopen itself. Please quit and open it again.",
   "ja": "VideoTool を自動で開き直せませんでした。いったん終了してから開いてください。"
  },
+ "无法读取同目录视频：%@": {
+  "en": "Cannot read videos in this folder: %@",
+  "ja": "同じフォルダの動画を読み込めません：%@"
+ },
  "无法读取字幕文件": {
   "en": "The subtitle file can't be read",
   "ja": "字幕ファイルを読み込めません"
+ },
+ "无法读取文件夹：%@": {
+  "en": "Cannot read folder: %@",
+  "ja": "フォルダを読み込めません：%@"
  },
  "无法读取这个视频": {
   "en": "This video can't be read",
@@ -807,6 +871,10 @@
   "en": "Couldn't read the library right now: %@",
   "ja": "ライブラリを読み込めませんでした：%@"
  },
+ "更多整理": {
+  "en": "More Views",
+  "ja": "その他の表示"
+ },
  "更新 %@": {
   "en": "%@ updated",
   "ja": "更新 %@"
@@ -819,9 +887,25 @@
   "en": "Recent",
   "ja": "最近の再生"
  },
+ "未观看": {
+  "en": "Unwatched",
+  "ja": "未視聴"
+ },
  "未识别": {
   "en": "Unrecognized",
   "ja": "未識別"
+ },
+ "本层 %@ 个视频 · %@ 个子文件夹": {
+  "en": "%@ videos here · %@ subfolders",
+  "ja": "この階層：動画 %@本 · フォルダ %@件"
+ },
+ "本文件夹已播完": {
+  "en": "End of this folder",
+  "ja": "このフォルダの再生は終了しました"
+ },
+ "本集已结束 · 下一集：%@": {
+  "en": "Finished · Next: %@",
+  "ja": "再生終了 · 次：%@"
  },
  "标清": {
   "en": "SD",
@@ -887,6 +971,10 @@
   "en": "Reading audio…",
   "ja": "音声を読み込み中…"
  },
+ "正在读取文件夹…": {
+  "en": "Reading folder…",
+  "ja": "フォルダを読み込み中…"
+ },
  "此文件无法打星标": {
   "en": "This file can't be starred",
   "ja": "このファイルにはスターを付けられません"
@@ -894,6 +982,14 @@
  "汽车": {
   "en": "Car",
   "ja": "車"
+ },
+ "没有上一集": {
+  "en": "No previous video",
+  "ja": "前の動画はありません"
+ },
+ "没有下一集": {
+  "en": "No next video",
+  "ja": "次の動画はありません"
  },
  "没有符合条件的视频": {
   "en": "No Matching Videos",
@@ -942,6 +1038,10 @@
  "添加文件夹…": {
   "en": "Add Folder…",
   "ja": "フォルダを追加…"
+ },
+ "添加视频文件夹，或定位当前视频所在文件夹。\n只建立索引，不会移动文件。": {
+  "en": "Add a video folder, or show the current video’s folder.\nFiles stay where they are.",
+  "ja": "動画フォルダを追加するか、再生中の動画のフォルダを表示してください。\n元のファイルは移動しません。"
  },
  "清晰度未知": {
   "en": "Unknown Resolution",
@@ -1071,6 +1171,10 @@
   "en": "Episode:",
   "ja": "話数："
  },
+ "筛选": {
+  "en": "Filter",
+  "ja": "絞り込み"
+ },
  "简体中文": {
   "en": "Simplified Chinese",
   "ja": "簡体字中国語"
@@ -1171,6 +1275,10 @@
   "en": "Video Library",
   "ja": "ビデオライブラリ"
  },
+ "视频库文件夹": {
+  "en": "Library Folders",
+  "ja": "ライブラリフォルダ"
+ },
  "视频库的数据库正被占用或无法读取。请稍后再试。": {
   "en": "Its database is in use or can't be read. Please try again shortly.",
   "ja": "データベースが使用中か、読み込めません。しばらくしてからもう一度お試しください。"
@@ -1218,6 +1326,10 @@
  "运动": {
   "en": "Sports",
   "ja": "スポーツ"
+ },
+ "返回文件夹浏览": {
+  "en": "Back to Folders",
+  "ja": "フォルダ表示に戻る"
  },
  "还没有播放记录": {
   "en": "No playback history yet",

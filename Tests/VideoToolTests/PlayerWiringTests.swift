@@ -18,6 +18,40 @@ private func waitUntil(_ timeout: Double = 5, _ condition: () -> Bool) async -> 
 }
 
 extension PlayerWiringTests {
+    @Test("FP5 natural EOF stays on the current file; next and previous only load after clicking")
+    func manualFolderPlayback() async throws {
+        let dir = TestTemp.directory.appendingPathComponent("manual-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let first = dir.appendingPathComponent("1.mp4"), next = dir.appendingPathComponent("2.mp4")
+        try FileManager.default.copyItem(at: sample, to: first)
+        try FileManager.default.copyItem(at: sample, to: next)
+        let store = try LibraryStore(path: dir.appendingPathComponent("index.sqlite").path)
+        _ = try store.addRoot(dir.path)
+        for url in [first, next] {
+            try store.upsert(MediaRecord(path: url.path, fileKey: url.path, size: 1, modified: Date(), duration: 20, width: 320, height: 180, root: dir.path))
+        }
+        let model = LibraryController(store: store, stars: nil, makeIndexer: { nil }, background: { _ in }, main: { $0() })
+        let w = PlayerWindowController(libraryProvider: { model })
+        defer { w.shutdown() }
+        w.open(first)
+        let engine = try #require(w.engine)
+        #expect(await waitUntil { w.loadedPath == first.path && w.nextVideoPath == next.path })
+        w.showLibrary(nil)
+        let folders = try #require(w.sidebar.libraryBrowser?.folderBrowser)
+        folders.enter(dir.path)
+        folders.searchField.stringValue = "1.mp4"
+        folders.controlTextDidChange(Notification(name: NSControl.textDidChangeNotification))
+        #expect(folders.visibleVideos.count == 1 && w.nextVideoPath == next.path, "search cannot change playback sequence")
+        engine.seek(to: 19.8); engine.setPaused(false)
+        #expect(await waitUntil { engine.state.eofReached })
+        try await Task.sleep(for: .milliseconds(250))
+        #expect(w.loadedPath == first.path && w.previousVideoPath == nil)
+        w.nextVideo(nil)
+        #expect(await waitUntil { w.loadedPath == next.path && w.previousVideoPath == first.path })
+        #expect(w.nextVideoPath == nil)
+        w.previousVideo(nil)
+        #expect(await waitUntil { w.loadedPath == first.path })
+    }
     @Test("SBP1 successful file loading appears in recent playback before progress tracking is due")
     func fileLoadRecordsRecentPlayback() async throws {
         let suite = "videotool-tests-recent-load-\(UUID().uuidString)"
@@ -32,7 +66,7 @@ extension PlayerWiringTests {
         #expect((history.entry(for: sample.path)?.duration ?? 0) > 0)
     }
 
-    @Test("SBP2 double-clicking a compact sidebar card loads the real video in the same player")
+    @Test("SBP2 double-clicking a compact folder row loads the real video in the same player")
     func compactCardOpensInPlayer() async throws {
         let store = try LibraryStore(path: TestTemp.directory.appendingPathComponent("sidebar-open-\(UUID().uuidString).sqlite").path)
         let root = sample.deletingLastPathComponent().path
@@ -46,22 +80,32 @@ extension PlayerWiringTests {
         let c = LibraryController(store: store, stars: nil, makeIndexer: { nil }, background: { _ in }, main: { $0() }, history: history)
         let w = PlayerWindowController(libraryProvider: { c }, history: history)
         defer { w.shutdown() }
+        var openedCount = 0
+        w.onFileOpened = { _ in openedCount += 1 }
         let window = try #require(w.window)
         window.orderBack(nil)
         w.showLibrary(nil)
         window.contentView?.layoutSubtreeIfNeeded()
         let browser = try #require(w.sidebar.libraryBrowser)
-        let grid = browser.gridForTesting
-        grid.layoutSubtreeIfNeeded()
-        let item = try #require(grid.item(at: IndexPath(item: 0, section: 0)) as? SidebarMediaItem)
-        let location = item.view.convert(NSPoint(x: 30, y: 30), to: nil)
-        let down = try #require(NSEvent.mouseEvent(with: .leftMouseDown, location: location, modifierFlags: [], timestamp: 0,
-            windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 2, pressure: 1))
-        let up = try #require(NSEvent.mouseEvent(with: .leftMouseUp, location: location, modifierFlags: [], timestamp: 0.01,
-            windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 2, pressure: 1))
-        NSApp.postEvent(up, atStart: true)
-        item.mouseDown(with: down)
+        let folders = try #require(browser.folderBrowser)
+        folders.enter(root)
+        window.contentView?.layoutSubtreeIfNeeded()
+        let table = folders.table
+        let local = NSPoint(x: 30, y: table.rect(ofRow: 0).midY)
+        #expect(table.numberOfRows == 1 && table.row(at: local) == 0)
+        #expect(table.window === window && table.bounds.width > 100)
+        let location = table.convert(local, to: nil)
+        for count in 1...2 {
+            let down = try #require(NSEvent.mouseEvent(with: .leftMouseDown, location: location, modifierFlags: [], timestamp: Double(count) * 0.1,
+                windowNumber: window.windowNumber, context: nil, eventNumber: count, clickCount: count, pressure: 1))
+            let up = try #require(NSEvent.mouseEvent(with: .leftMouseUp, location: location, modifierFlags: [], timestamp: Double(count) * 0.1 + 0.01,
+                windowNumber: window.windowNumber, context: nil, eventNumber: count, clickCount: count, pressure: 1))
+            NSApp.postEvent(up, atStart: true)
+            table.mouseDown(with: down)
+        }
+        #expect(table.selectedRow == 0)
         #expect(await waitUntil { w.loadedPath == sample.path })
+        #expect(openedCount == 1, "one double-click must load exactly once")
         #expect(w.window === window && w.sidebar.state.isExpanded && w.sidebar.state.tab == .library)
     }
 

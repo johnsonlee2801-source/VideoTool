@@ -56,7 +56,7 @@ struct SkipRuleTests {
 }
 
 @Suite(.serialized) @MainActor struct SkipPlayerTests {
-    @Test("SK4 set the intro end and outro start once; episodes then skip both, going on to the next episode")
+    @Test("SK4 skip intro and outro but wait for manual confirmation before the next episode")
     func skipsInPlayer() async throws {
         let dir = TestTemp.directory.appendingPathComponent("sk4-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
@@ -87,8 +87,12 @@ struct SkipRuleTests {
         #expect(await waitUntil { w.playerView?.hud.text == L("已跳过片头") }, "HUD: \(w.playerView?.hud.text ?? "")")
         engine.seek(to: 14)
         engine.setPaused(false)
-        #expect(await waitUntil(8) { w.loadedPath == e2.path }, "outro skipped to the next episode")
-        #expect(await waitUntil { engine.state.timePos >= 2.9 }, "the next episode skips its intro too")
+        #expect(await waitUntil(8) { engine.state.isPaused && engine.state.timePos > 19 })
+        #expect(w.loadedPath == e1.path, "outro must stop on this episode, never auto-open the next")
+        #expect(await waitUntil { w.nextVideoPath == e2.path })
+        w.nextVideo(nil)
+        #expect(await waitUntil { w.loadedPath == e2.path })
+        #expect(await waitUntil { engine.state.timePos >= 2.9 }, "manual next still skips its intro")
     }
 }
 
@@ -139,8 +143,9 @@ struct SkipRuleTests {
         #expect(await waitUntil { abs(engine.state.timePos - 16) < 0.3 })
         try await Task.sleep(for: .milliseconds(600))          // several render ticks: long enough to have jumped
         #expect(w.loadedPath == e1.path, "paused: stays on this episode")
-        engine.setPaused(false)                                  // playing on in the credits: now it moves on
-        #expect(await waitUntil(8) { w.loadedPath == e2.path })
+        engine.setPaused(false)                                  // skip the credits, then wait for the viewer
+        #expect(await waitUntil(8) { engine.state.isPaused && engine.state.timePos > 19 })
+        #expect(w.loadedPath == e1.path)
     }
 
     @Test("SK7 skipping the credits counts as finishing the episode: no resume in the credits, marked watched")
@@ -155,7 +160,8 @@ struct SkipRuleTests {
         let engine = try #require(w.engine)
         #expect(await waitUntil { w.loadedPath == e1.path })
         engine.seek(to: 5.5)
-        #expect(await waitUntil(8) { w.loadedPath == e2.path })
+        #expect(await waitUntil(8) { engine.state.isPaused && engine.state.timePos > 19 })
+        #expect(w.loadedPath == e1.path)
         #expect(ResumePositionStore().position(for: e1) == nil, "would reopen in the credits and jump on again")
         #expect(WatchHistoryStore().entry(for: e1.path)?.finished == true)
     }

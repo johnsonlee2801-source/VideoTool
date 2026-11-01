@@ -6,6 +6,7 @@
 "%@ 个在 iCloud 未下载" = "%@ not downloaded from iCloud";
 "%@ 个文件夹暂时无法访问" = "%@ folders can't be accessed right now";
 "%@ 个无法读取" = "%@ unreadable";
+"%@ 个视频库文件夹" = "%@ library folders";
 "%@ 集" = "%@ episodes";
 "**我遇到的问题 / 我的建议**\n\n\n**怎样能重现（如果是问题）**\n1.\n2.\n\n---\nVideoTool %1$@ · %2$@" = "**The problem I ran into / My suggestion**\n\n\n**How to reproduce it (if it's a problem)**\n1.\n2.\n\n---\nVideoTool %1$@ · %2$@";
 "1 分钟以内" = "Under 1 Minute";
@@ -31,7 +32,12 @@
 "「%1$@」已在视频库的「%2$@」里，不用重复添加。" = "“%1$@” is already in “%2$@” in your library, so there's no need to add it again.";
 "「%@」\n改过的信息会记住，文件改名或移动后也有效。" = "“%@”\nYour changes are remembered, even if the file is renamed or moved.";
 "上一个星标   ⌥←" = "Previous Star   ⌥←";
+"上一级文件夹" = "Parent Folder";
+"上一集" = "Previous Video";
+"上一集：%@" = "Previous: %@";
 "下一个星标   ⌥→" = "Next Star   ⌥→";
+"下一集" = "Next Video";
+"下一集：%@" = "Next: %@";
 "不再询问" = "Don't Ask Again";
 "不加" = "Not Now";
 "不是剧集" = "Not a Series";
@@ -54,6 +60,7 @@
 "先用 AI 字幕（⌘T）生成字幕，就能带进片段里" = "Make AI subtitles first (⌘T) to include them in the clip";
 "全屏" = "Full Screen";
 "全选" = "Select All";
+"全部标签" = "All Tags";
 "全部视频" = "All Videos";
 "共 %@ 个视频" = "%@ videos";
 "关于 VideoTool" = "About VideoTool";
@@ -81,6 +88,7 @@
 "可不填" = "Optional";
 "同一部剧的其他集也改用这个剧名" = "Use this title for other episodes of the same series too";
 "后面没有星标了" = "No later stars";
+"含子文件夹，共 %@ 个视频" = "%@ videos including subfolders";
 "在 Finder 中显示" = "Show in Finder";
 "在播放器中打开" = "Open in Player";
 "在这台 Mac 上离线完成，视频和声音不会上传。第一次使用某种语言时，系统会自动下载语音模型。" = "Everything runs offline on this Mac; your video and audio are never uploaded. The first time you use a language, macOS downloads its speech model automatically.";
@@ -101,6 +109,7 @@
 "字幕延迟 %@ 秒" = "Subtitle delay %@ s";
 "字幕提前 0.1 秒   Z" = "Subtitles 0.1 s Earlier   Z";
 "字幕生成中 · 已完成 %@（可以边看边等）" = "Making subtitles · %@ done (keep watching)";
+"定位当前视频所在文件夹" = "Show Current Video’s Folder";
 "室内" = "Indoors";
 "导出 AI 字幕…" = "Export AI Subtitles…";
 "导出…" = "Export…";
@@ -123,6 +132,7 @@
 "已撤销星标" = "Star removed";
 "已有片段正在导出" = "A clip is already being exported";
 "已清除本系列的片头片尾" = "Intro and credits cleared for this series";
+"已看完" = "Watched";
 "已跳过片头" = "Intro skipped";
 "已跳过片尾" = "Credits skipped";
 "带上 AI 字幕" = "Include AI subtitles";
@@ -130,6 +140,7 @@
 "庆祝" = "Celebration";
 "建筑" = "Building";
 "开始" = "Start";
+"当前文件夹没有视频" = "No videos in this folder";
 "循环预览" = "Loop";
 "循环预览片段" = "Looping the clip";
 "德语" = "German";
@@ -167,6 +178,7 @@
 "按清晰度" = "By Resolution";
 "换个关键词试试。" = "Try a different keyword.";
 "插画" = "Illustration";
+"搜索当前文件夹" = "Search this folder";
 "搜索文件名或标签" = "Search file names or tags";
 "撤销" = "Undo";
 "播放" = "Play";
@@ -177,6 +189,8 @@
 "整理方式" = "Organize By";
 "文件" = "File";
 "文件夹" = "Folder";
+"文件夹暂不可用，请检查磁盘后重试。" = "Folder unavailable. Check the drive and try again.";
+"文件已不可用：%@" = "File unavailable: %@";
 "文字" = "Text";
 "新增 %@" = "%@ added";
 "无法写入 %@" = "Can't write %@";
@@ -184,7 +198,9 @@
 "无法打开视频：文件不存在或暂时无法访问" = "Cannot open video: the file is missing or currently unavailable.";
 "无法移出视频库：%@" = "Couldn't remove from the library: %@";
 "无法自动重新打开 VideoTool，请手动退出后再打开。" = "VideoTool couldn't reopen itself. Please quit and open it again.";
+"无法读取同目录视频：%@" = "Cannot read videos in this folder: %@";
 "无法读取字幕文件" = "The subtitle file can't be read";
+"无法读取文件夹：%@" = "Cannot read folder: %@";
 "无法读取这个视频" = "This video can't be read";
 "无法读取这个视频的声音。" = "Can't read the audio in this video.";
 "日出日落" = "Sunrise & Sunset";
@@ -201,10 +217,15 @@
 "暂时无法打开视频库" = "The library can't be opened right now";
 "暂时无法打开视频库数据库，请稍后点「重新扫描」。" = "Can't open the library database right now. Please click “Rescan” in a moment.";
 "暂时无法读取视频库：%@" = "Couldn't read the library right now: %@";
+"更多整理" = "More Views";
 "更新 %@" = "%@ updated";
 "最小化" = "Minimize";
 "最近播放" = "Recent";
+"未观看" = "Unwatched";
 "未识别" = "Unrecognized";
+"本层 %@ 个视频 · %@ 个子文件夹" = "%@ videos here · %@ subfolders";
+"本文件夹已播完" = "End of this folder";
+"本集已结束 · 下一集：%@" = "Finished · Next: %@";
 "标清" = "SD";
 "标记片段终点   C" = "Mark Clip End   C";
 "标记片段起点   C" = "Mark Clip Start   C";
@@ -221,8 +242,11 @@
 "正在翻译字幕…" = "Translating subtitles…";
 "正在识别文件…" = "Identifying files…";
 "正在读取声音…" = "Reading audio…";
+"正在读取文件夹…" = "Reading folder…";
 "此文件无法打星标" = "This file can't be starred";
 "汽车" = "Car";
+"没有上一集" = "No previous video";
+"没有下一集" = "No next video";
 "没有符合条件的视频" = "No Matching Videos";
 "没有识别到说话的声音，可能选错了视频语言。" = "No speech was detected. The video language may be set wrong.";
 "没有重复文件" = "No Duplicates";
@@ -235,6 +259,7 @@
 "添加到视频库" = "Add to Library";
 "添加备注…" = "Add Note…";
 "添加文件夹…" = "Add Folder…";
+"添加视频文件夹，或定位当前视频所在文件夹。\n只建立索引，不会移动文件。" = "Add a video folder, or show the current video’s folder.\nFiles stay where they are.";
 "清晰度未知" = "Unknown Resolution";
 "清除本系列的片头片尾" = "Clear Intro & Credits for This Series";
 "清除片段选择" = "Clear Clip";
@@ -267,6 +292,7 @@
 "第 %@ 季" = "Season %@";
 "第几季：" = "Season:";
 "第几集：" = "Episode:";
+"筛选" = "Filter";
 "简体中文" = "Simplified Chinese";
 "粘贴" = "Paste";
 "粤语" = "Cantonese";
@@ -292,6 +318,7 @@
 "视频" = "Video";
 "视频多的话需要一会儿，可以先去看片。" = "With lots of videos this can take a while, so feel free to start watching.";
 "视频库" = "Video Library";
+"视频库文件夹" = "Library Folders";
 "视频库（⌘L）" = "Library (⌘L)";
 "视频里说的是：" = "Language spoken in the video:";
 "视频（MP4）" = "Video (MP4)";
@@ -303,6 +330,7 @@
 "跟随系统" = "Follow System";
 "跳到这里（提前 2 秒）" = "Jump Here (2 Seconds Before)";
 "运动" = "Sports";
+"返回文件夹浏览" = "Back to Folders";
 "还没有播放记录" = "No playback history yet";
 "还没有星标。\n播放时按 B 把当前时刻标上星。" = "No stars yet.\nPress B while playing to star the current moment.";
 "这个视频没有声音，无法生成字幕。" = "This video has no audio, so subtitles can't be generated.";

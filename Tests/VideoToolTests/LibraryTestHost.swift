@@ -10,6 +10,7 @@ import AppKit
     override init(controller: LibraryController, onOpen: @escaping (URL) -> Void) {
         model = controller
         super.init(controller: controller, onOpen: onOpen)
+        showFolderBrowsing(false) // Explicitly exercise the retained "more organization" surface.
         let host = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1100, height: 720),
                             styleMask: [.titled, .resizable, .closable], backing: .buffered, defer: false)
         host.isReleasedWhenClosed = false

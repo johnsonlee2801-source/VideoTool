@@ -46,6 +46,13 @@ goals, layout, build and test commands. `CLAUDE.md` only imports this file.
 - A key pressed while the gesture is active (button down, before or during the
   hold) only cancels it; Space does not also pause (`KeyRouter.plainKeyCancelsOnly`).
 - The library feature will index and classify, never move user files.
+- Library defaults to compact folder browsing: 80×45 pt previews, 62 pt video
+  rows, manual folder entry, current-folder search and optional tag/watch filters.
+  Keep advanced grouping reachable. Previous/next follow natural filename order
+  in the current video's directory, independent of browse filters, without wrap
+  or crossing directories. EOF and skipped credits wait for the user to click
+  Next; keep intro skipping, finished history and resume cleanup intact. Directory
+  reads stay off main and stale results never replace a newer selection.
 - Starred moments (step 3, decided 2026-10-18): press **B** to star the current
   time without pausing or prompting. B while the speed gesture is active follows
   the general rule: it only cancels the speed-up and does NOT star. Jumping to a

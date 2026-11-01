@@ -24,6 +24,11 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         resumeStore.position(for: URL(fileURLWithPath: path))
     })
     private var isShutDown = false
+    private let folderQueue = FolderPlaybackQueue()
+    var nextVideoPath: String? { folderQueue.next }
+    var previousVideoPath: String? { folderQueue.previous }
+    private let nextVideoButton = NSButton(title: "", target: nil, action: nil)
+    private let previousVideoButton = NSButton(title: "", target: nil, action: nil)
 
     private let controlBar = FullscreenClickView()
     /// "Add this folder to the library?" card (the app delegate decides when to offer).
@@ -109,6 +114,8 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         super.init(window: window)
         window.delegate = self
         buildContent()
+        folderQueue.onChange = { [weak self] in self?.updateVideoNavigation() }
+        updateVideoNavigation()
         wireEngine()
         engine?.setSpeed(speedStore.speed)          // start at the speed chosen last time
         if NightMode.isOn { engine?.setNightMode(true) }
@@ -209,10 +216,21 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         libraryButton.toolTip = L("视频库（⌘L）")
         libraryButton.target = self; libraryButton.action = #selector(showLibrary(_:))
         libraryButton.widthAnchor.constraint(equalToConstant: 24).isActive = true
-        let stack = NSStackView(views: [playButton, timeLabel, slider, durationLabel, speedChip, aiButton, libraryButton, starButton, listButton])
+        for (button, symbol, title, action) in [
+            (previousVideoButton, "backward.end.fill", L("上一集"), #selector(previousVideo(_:))),
+            (nextVideoButton, "forward.end.fill", L("下一集"), #selector(nextVideo(_:)))
+        ] {
+            button.image = NSImage(systemSymbolName: symbol, accessibilityDescription: title)
+            button.isBordered = false; button.contentTintColor = Theme.textPrimary
+            button.symbolConfiguration = .init(pointSize: 11, weight: .bold)
+            button.target = self; button.action = action
+            button.widthAnchor.constraint(equalToConstant: 18).isActive = true
+        }
+        let transport = NSStackView(views: [previousVideoButton, playButton, nextVideoButton]); transport.spacing = 2
+        let stack = NSStackView(views: [transport, timeLabel, slider, durationLabel, speedChip, aiButton, libraryButton, starButton, listButton])
         updateAIButton()
         stack.orientation = .horizontal
-        stack.spacing = 12
+        stack.spacing = 8
         stack.edgeInsets = NSEdgeInsets(top: 0, left: 16, bottom: 0, right: 16)
         stack.translatesAutoresizingMaskIntoConstraints = false
         controlBar.addSubview(stack)
@@ -428,6 +446,7 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         playerView?.showsPlaceholder = state.isIdle
 
         if state.eofReached { playerView?.gesture.cancel() }
+        updateVideoNavigation()
         skipOutroIfReached(state)
         resumeTracker.update(state).forEach(apply)
     }
@@ -491,6 +510,7 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         aiShown = nil
         hover.setSource(url.isFileURL ? url.path : nil)
         currentURL = url
+        folderQueue.load(url.isFileURL ? url.path : nil)
         loadedPath = nil
         clearClip()
         defer { updateAIButton() }
@@ -512,6 +532,7 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         keyMonitor = nil
         playerView?.gesture.cancel()
         sidebar.shutdown()
+        folderQueue.shutdown()
         session?.shutdown()                    // render context first, then mpv
     }
 
@@ -523,6 +544,31 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     // MARK: actions
 
     @objc func togglePause(_ sender: Any?) { engine?.togglePause() }
+    @objc func nextVideo(_ sender: Any?) { openNeighbor(folderQueue.next) }
+    @objc func previousVideo(_ sender: Any?) { openNeighbor(folderQueue.previous) }
+    private func openNeighbor(_ path: String?) {
+        guard let path, !isShutDown else { return }
+        var directory: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: path, isDirectory: &directory), !directory.boolValue else {
+            playerView?.hud.flash(text: L("文件已不可用：%@", (path as NSString).lastPathComponent))
+            folderQueue.load(currentURL?.isFileURL == true ? currentURL?.path : nil)
+            return
+        }
+        open(URL(fileURLWithPath: path))
+    }
+    private func updateVideoNavigation() {
+        previousVideoButton.isEnabled = folderQueue.previous != nil
+        nextVideoButton.isEnabled = folderQueue.next != nil
+        previousVideoButton.toolTip = folderQueue.previous.map { L("上一集：%@", ($0 as NSString).lastPathComponent) } ?? L("没有上一集")
+        nextVideoButton.toolTip = folderQueue.next.map { L("下一集：%@", ($0 as NSString).lastPathComponent) } ?? L("没有下一集")
+        if let error = folderQueue.error {
+            let message = L("无法读取同目录视频：%@", error.localizedDescription)
+            previousVideoButton.toolTip = message; nextVideoButton.toolTip = message
+        }
+        let state = engine?.state
+        let ended = state.map { $0.path == currentTarget && ($0.eofReached || (outroDone && $0.isPaused && $0.duration > 0 && $0.timePos >= $0.duration - 0.3)) } ?? false
+        sidebar.updatePlaybackNavigation(next: folderQueue.next, ended: ended)
+    }
     @objc func seekBack(_ sender: Any?) { engine?.seek(by: -5) }
     @objc func seekForward(_ sender: Any?) { engine?.seek(by: 5) }
     @objc func speedUp(_ sender: Any?) { perform(.speedDelta(0.1)) }
@@ -662,15 +708,10 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         // Done with this episode: forget the position (it is in the credits) and mark it watched.
         resumeTracker.markFinished()
         apply(.clear(path: path))
-        // Listing the folder can stall on a slow network drive: never on the main thread.
-        let duration = state.duration
-        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            let next = SeriesNavigator.nextEpisode(after: path)
-            DispatchQueue.main.async {
-                guard let self, self.currentURL?.path == path, !self.isShutDown else { return }   // moved on meanwhile
-                if let next { self.open(URL(fileURLWithPath: next)) } else { self.engine?.seek(to: max(duration - 0.2, 0)) }
-            }
-        }
+        // The viewer explicitly chooses the next file; skipping credits must
+        // preserve this episode and wait even when a next episode is available.
+        engine?.setPaused(true)
+        engine?.seek(to: max(state.duration - 0.1, 0))
     }
 
     // MARK: clip with C

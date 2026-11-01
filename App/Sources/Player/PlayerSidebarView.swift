@@ -20,6 +20,8 @@ final class PlayerSidebarView: NSView {
     private var historyObserver: NSObjectProtocol?
     private var refreshWork: DispatchWorkItem?
     private var stopped = false
+    private var nextVideoPath: String?
+    private var videoEnded = false
     var onLayoutChange: (() -> Void)?
     var currentPath: String? {
         didSet { libraryBrowser?.currentPath = currentPath; recent.currentPath = currentPath }
@@ -172,6 +174,7 @@ final class PlayerSidebarView: NSView {
         let browser = LibraryBrowserViewController(controller: model) { [weak self] in self?.openMedia($0) }
         libraryBrowser = browser
         browser.currentPath = currentPath
+        browser.folderBrowser?.setPlaybackNavigation(next: nextVideoPath, ended: videoEnded)
         browser.onItemsChange = { [weak self] in
             guard let self, self.state.isExpanded, self.state.tab == .recent else { return }
             self.recent.refresh()
@@ -191,6 +194,11 @@ final class PlayerSidebarView: NSView {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.15, execute: work)
     }
     func refreshMetadata() { scheduleHistoryRefresh() }
+    func updatePlaybackNavigation(next: String?, ended: Bool) {
+        guard next != nextVideoPath || ended != videoEnded else { return }
+        nextVideoPath = next; videoEnded = ended
+        libraryBrowser?.folderBrowser?.setPlaybackNavigation(next: next, ended: ended)
+    }
     func openMedia(_ url: URL) {
         guard !stopped else { return }
         var directory: ObjCBool = false
