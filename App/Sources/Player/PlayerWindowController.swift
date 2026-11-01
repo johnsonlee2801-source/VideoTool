@@ -78,13 +78,14 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     private var isScrubbing = false
     private var keyMonitor: Any?
     private var currentURL: URL?
-    private var networkMedia: ResolvedYouTubeVideo?
+    private var networkMedia: ResolvedNetworkVideo?
     private var networkLoadDeadline: DispatchWorkItem?
     private let networkStatus = NSTextField(wrappingLabelWithString: "")
     private(set) var networkMessage: String? {
         didSet { networkStatus.stringValue = networkMessage ?? ""; networkStatus.isHidden = networkMessage == nil }
     }
     private var networkSheet: NetworkVideoSheet?
+    var networkResolverFactory: () -> NetworkVideoResolving = { NetworkVideoResolver() }
 
     // Step 3: starred moments
     private let bookmarks: BookmarkController?
@@ -555,17 +556,17 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     }
 
     @discardableResult
-    func presentNetworkVideo(_ text: String = "", resolver: YouTubeResolving = YouTubeResolver()) -> NetworkVideoSheet {
+    func presentNetworkVideo(_ text: String = "", resolver: NetworkVideoResolving? = nil) -> NetworkVideoSheet {
         networkSheet?.cancel()
-        let sheet = NetworkVideoSheet(resolver: resolver) { [weak self] in self?.openNetwork($0) }
+        let sheet = NetworkVideoSheet(resolver: resolver ?? networkResolverFactory()) { [weak self] in self?.openNetwork($0) }
         networkSheet = sheet
         if let window, !isShutDown { sheet.present(on: window, text: text) }
         return sheet
     }
 
-    func openNetwork(_ media: ResolvedYouTubeVideo) { open(media.request.url, media: media) }
+    func openNetwork(_ media: ResolvedNetworkVideo) { open(media.request.url, media: media) }
 
-    private func open(_ url: URL, media: ResolvedYouTubeVideo?) {
+    private func open(_ url: URL, media: ResolvedNetworkVideo?) {
         guard let engine, !isShutDown else { return }
         networkSheet?.cancel()
         networkLoadDeadline?.cancel(); networkLoadDeadline = nil
@@ -586,6 +587,12 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         clearClip()
         defer { updateAIButton() }
         sidebar.currentPath = nil
+        sidebar.setNetworkParts(media?.parts ?? [], current: media?.request.page ?? 0) { [weak self] page in
+            guard let self, let request = try? self.networkMedia?.request.selecting(page: page) else { return }
+            let sheet = self.presentNetworkVideo(request.url.absoluteString)
+            sheet.submit(nil)
+        }
+        if let media, media.parts.count > 1 { sidebar.show(.stars) }
         networkMessage = media == nil ? nil : L("正在加载网络视频…")
         if let media {
             engine.loadNetwork(media)

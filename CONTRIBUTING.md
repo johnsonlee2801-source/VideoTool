@@ -79,7 +79,7 @@ the separate 90% application coverage check.
 
 Validate the bundled tool with `cd tools/tdd-guardian && node --test`.
 
-### Optional YouTube acceptance
+### Optional network acceptance
 
 Offline regression tests cover URL validation, resolver isolation/cancellation,
 mpv file options, local/network transitions, stars, resume and the input sheet.
@@ -97,6 +97,20 @@ isolated test preferences and muted real decoding, checks separate audio/video,
 resolver JSON or signed CDN URLs. A live failure is separate from offline gates;
 both must be reported. This does not prove every YouTube video, live content or
 installed-app manual interaction works.
+
+Bilibili has separate opt-in public acceptance (BV+p real audio/video decoding,
+2×, seek, pause, EOF without auto-next, and b23 redirect/catalog):
+
+```zsh
+scripts/xcb.sh test -disableAutomaticPackageResolution -onlyUsePackageVersionsFromResolvedFile \
+  -only-testing:VideoToolTests/BilibiliLiveTests VIDEOTOOL_BILIBILI_LIVE=1
+```
+
+It uses installed yt-dlp without Deno or browser credentials. Offline tests cover
+BV/AV normalization, per-part resume/stars, canonical extraction, cancellation,
+CDN validation and native sidebar selection. Report site failures independently;
+public availability and anonymous quality can change. Network model/resolver types
+are shared by both sites; keep the YouTube acceptance when changing them.
 
 ## Interface languages
 

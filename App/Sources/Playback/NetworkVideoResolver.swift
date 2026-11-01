@@ -1,21 +1,21 @@
 import Foundation
 
-protocol YouTubeResolving: AnyObject {
-    func resolve(_ video: YouTubeVideo, completion: @escaping (Result<ResolvedYouTubeVideo, YouTubeFailure>) -> Void)
+protocol NetworkVideoResolving: AnyObject {
+    func resolve(_ video: NetworkVideo, completion: @escaping (Result<ResolvedNetworkVideo, NetworkVideoFailure>) -> Void)
     func cancel()
 }
 
-protocol YouTubeProcessRunning: AnyObject {
-    func run(executable: URL, arguments: [String], completion: @escaping (Result<Data, YouTubeFailure>) -> Void)
+protocol NetworkVideoProcessRunning: AnyObject {
+    func run(executable: URL, arguments: [String], completion: @escaping (Result<Data, NetworkVideoFailure>) -> Void)
     func cancel()
 }
 
 /// One bounded subprocess, with no shell, stdin, inherited configuration or logs.
 /// Cancellation only terminates the process created by this object.
-final class YouTubeProcess: YouTubeProcessRunning {
+final class NetworkVideoProcess: NetworkVideoProcessRunning {
     private let lock = NSLock()
     private var process: Process?
-    private var failure: YouTubeFailure?
+    private var failure: NetworkVideoFailure?
     private let timeout: Double
     private let maxBytes: Int
     init(timeout: Double = 45, maxBytes: Int = 4 * 1024 * 1024) {
@@ -23,7 +23,7 @@ final class YouTubeProcess: YouTubeProcessRunning {
     }
 
     func cancel() { stop(.cancelled) }
-    private func stop(_ error: YouTubeFailure) {
+    private func stop(_ error: NetworkVideoFailure) {
         lock.lock()
         if failure == nil { failure = error }
         let child = process
@@ -37,7 +37,7 @@ final class YouTubeProcess: YouTubeProcessRunning {
         }
     }
 
-    func run(executable: URL, arguments: [String], completion: @escaping (Result<Data, YouTubeFailure>) -> Void) {
+    func run(executable: URL, arguments: [String], completion: @escaping (Result<Data, NetworkVideoFailure>) -> Void) {
         DispatchQueue.global(qos: .userInitiated).async {
             let child = Process(), pipe = Pipe()
             child.executableURL = executable
@@ -71,7 +71,7 @@ final class YouTubeProcess: YouTubeProcessRunning {
             let failure = self.failure
             self.process = nil
             self.lock.unlock()
-            let result: Result<Data, YouTubeFailure>
+            let result: Result<Data, NetworkVideoFailure>
             if let failure { result = .failure(failure) }
             else if child.terminationStatus != 0 { result = .failure(.failed) }
             else { result = .success(data) }
@@ -82,16 +82,18 @@ final class YouTubeProcess: YouTubeProcessRunning {
 
 /// Main-thread coordinator. Tokens also protect against a cancelled process
 /// delivering its result after another local/network open or window close.
-final class YouTubeResolver: YouTubeResolving {
+final class NetworkVideoResolver: NetworkVideoResolving {
     typealias Tools = (executable: URL, deno: String)
     private let tools: () -> Tools?
-    private let makeProcess: () -> YouTubeProcessRunning
-    private var process: YouTubeProcessRunning?
+    private let makeProcess: () -> NetworkVideoProcessRunning
+    private var process: NetworkVideoProcessRunning?
     private var generation = 0
+    private let catalog: BilibiliCatalogFetching
 
-    init(tools: @escaping () -> Tools? = YouTubeResolver.installedTools,
-         makeProcess: @escaping () -> YouTubeProcessRunning = { YouTubeProcess() }) {
-        self.tools = tools; self.makeProcess = makeProcess
+    init(tools: @escaping () -> Tools? = NetworkVideoResolver.installedTools,
+         makeProcess: @escaping () -> NetworkVideoProcessRunning = { NetworkVideoProcess() },
+         catalog: BilibiliCatalogFetching = BilibiliCatalogFetcher()) {
+        self.tools = tools; self.makeProcess = makeProcess; self.catalog = catalog
     }
 
     static func installedTools() -> Tools? {
@@ -99,36 +101,53 @@ final class YouTubeResolver: YouTubeResolving {
         func executable(_ name: String) -> String? {
             roots.map { $0 + "/" + name }.first { FileManager.default.isExecutableFile(atPath: $0) }
         }
-        guard let yt = executable("yt-dlp"), let deno = executable("deno") else { return nil }
-        return (URL(fileURLWithPath: yt), deno)
+        guard let yt = executable("yt-dlp") else { return nil }
+        return (URL(fileURLWithPath: yt), executable("deno") ?? "")
     }
 
-    static func arguments(for video: YouTubeVideo, deno: String) -> [String] {
-        ["--ignore-config", "--no-cache-dir", "--no-plugin-dirs", "--no-remote-components",
+    static func arguments(for video: NetworkVideo, deno: String) -> [String] {
+        let base = ["--ignore-config", "--no-cache-dir", "--no-plugin-dirs", "--no-remote-components",
          "--no-playlist", "--skip-download", "--dump-single-json", "--no-progress",
          "--socket-timeout", "10", "--retries", "1", "--extractor-retries", "1",
-         "--no-js-runtimes", "--js-runtimes", "deno:" + deno,
+         "--no-js-runtimes",
          "--format", "bestvideo[height<=1080]+bestaudio/best[height<=1080]",
          "--", video.url.absoluteString]
+        return video.site == .youtube ? Array(base.dropLast(2)) + ["--js-runtimes", "deno:" + deno] + Array(base.suffix(2)) : base
     }
 
-    func resolve(_ video: YouTubeVideo, completion: @escaping (Result<ResolvedYouTubeVideo, YouTubeFailure>) -> Void) {
+    func resolve(_ video: NetworkVideo, completion: @escaping (Result<ResolvedNetworkVideo, NetworkVideoFailure>) -> Void) {
         cancel()
-        guard let tools = tools() else { completion(.failure(.missingTools)); return }
-        let token = generation, process = makeProcess()
-        self.process = process
-        process.run(executable: tools.executable, arguments: Self.arguments(for: video, deno: tools.deno)) { [weak self] result in
-            guard let self, self.generation == token else { return }
-            self.process = nil
-            switch result {
-            case .success(let data):
-                do { completion(.success(try ResolvedYouTubeVideo.decode(data: data, request: video))) }
-                catch { completion(.failure(error as? YouTubeFailure ?? .invalidResponse)) }
-            case .failure(let error): completion(.failure(error))
+        guard let tools = tools(), video.site != .youtube || !tools.deno.isEmpty else { completion(.failure(.missingTools)); return }
+        let token = generation
+        func extract(_ request: NetworkVideo, parts: [BilibiliPart]) {
+            guard self.generation == token else { return }
+            let process = self.makeProcess(); self.process = process
+            process.run(executable: tools.executable, arguments: Self.arguments(for: request, deno: tools.deno)) { [weak self] result in
+                guard let self, self.generation == token else { return }
+                self.process = nil
+                switch result {
+                case .success(let data):
+                    do {
+                        var media = try ResolvedNetworkVideo.decode(data: data, request: request)
+                        media.parts = parts
+                        completion(.success(media))
+                    } catch { completion(.failure(error as? NetworkVideoFailure ?? .invalidResponse)) }
+                case .failure(let error): completion(.failure(error))
+                }
+            }
+        }
+        if video.site == .youtube { extract(video, parts: []) }
+        else {
+            catalog.fetch(video) { [weak self] result in
+                guard let self, self.generation == token else { return }
+                switch result {
+                case .success(let value): extract(value.request, parts: value.parts)
+                case .failure(let error): completion(.failure(error))
+                }
             }
         }
     }
 
-    func cancel() { generation += 1; process?.cancel(); process = nil }
-    deinit { process?.cancel() }
+    func cancel() { generation += 1; catalog.cancel(); process?.cancel(); process = nil }
+    deinit { catalog.cancel(); process?.cancel() }
 }

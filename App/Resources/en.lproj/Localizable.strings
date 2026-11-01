@@ -25,7 +25,6 @@
 "B  打星标" = "B  Star";
 "C … C  截片段" = "C … C  cut a clip";
 "GIF" = "GIF";
-"YouTube 视频链接" = "YouTube video link";
 "iCloud 未下载" = "Not Downloaded from iCloud";
 "⌘O 打开文件  ·  ⌘L 打开视频库" = "⌘O Open File  ·  ⌘L Open Video Library";
 "⌘T  AI 字幕" = "⌘T  AI Subtitles";
@@ -91,8 +90,9 @@
 "后面没有星标了" = "No later stars";
 "含子文件夹，共 %@ 个视频" = "%@ videos including subfolders";
 "在 Finder 中显示" = "Show in Finder";
-"在 VideoTool 中播放 YouTube" = "Watch YouTube in VideoTool";
+"在 VideoTool 中播放网络视频" = "Play an online video in VideoTool";
 "在播放器中打开" = "Open in Player";
+"在浏览器打开" = "Open in Browser";
 "在这台 Mac 上离线完成，视频和声音不会上传。第一次使用某种语言时，系统会自动下载语音模型。" = "Everything runs offline on this Mac; your video and audio are never uploaded. The first time you use a language, macOS downloads its speech model automatically.";
 "城市" = "City";
 "声音输出" = "Audio Output";
@@ -190,6 +190,7 @@
 "播放 / 暂停" = "Play / Pause";
 "播放引擎初始化失败（libmpv）" = "The playback engine failed to start (libmpv)";
 "播放速度" = "Playback Speed";
+"支持 YouTube 和哔哩哔哩公开视频；分 P 可在右侧手动选择。" = "Public YouTube and Bilibili videos. Select Bilibili parts in the sidebar.";
 "收起侧栏" = "Collapse Sidebar";
 "整理方式" = "Organize By";
 "文件" = "File";
@@ -305,7 +306,6 @@
 "筛选" = "Filter";
 "简体中文" = "Simplified Chinese";
 "粘贴" = "Paste";
-"粘贴公开视频链接；播放列表仅打开当前视频。" = "Paste a public video link. Playlist links open only the current video.";
 "粤语" = "Cantonese";
 "繁體中文" = "Traditional Chinese";
 "结束" = "End";
@@ -313,6 +313,7 @@
 "继续观看" = "Continue Watching";
 "编辑" = "Edit";
 "网络视频加载失败，请重新打开链接以重试。" = "Network video could not load. Open the link again to retry.";
+"网络视频链接" = "Online video link";
 "美食" = "Food";
 "翻译成：" = "Translate to:";
 "聚会" = "Party";
@@ -339,7 +340,7 @@
 "设为默认视频播放器…" = "Set as Default Video Player…";
 "语言 · Language" = "Language";
 "请填写剧名和集数（集数是数字）。" = "Enter a show name and an episode number.";
-"请输入有效的 YouTube 单个视频链接。" = "Enter a valid link to a single YouTube video.";
+"请输入有效的 YouTube 或哔哩哔哩视频链接。" = "Enter a valid YouTube or Bilibili video link.";
 "超过 %@ 秒，只能导出视频" = "over %@ s: video only";
 "跟随系统" = "Follow System";
 "跳到这里（提前 2 秒）" = "Jump Here (2 Seconds Before)";
@@ -362,7 +363,7 @@
 "隐藏 VideoTool" = "Hide VideoTool";
 "雪" = "Snow";
 "需要 macOS 26 或更新版本" = "Requires macOS 26 or later";
-"需要本机安装的 yt-dlp 和 Deno 才能解析 YouTube。" = "YouTube playback requires yt-dlp and Deno installed on this Mac.";
+"需要本机安装的 yt-dlp；YouTube 还需要 Deno。" = "Install yt-dlp locally; YouTube also requires Deno.";
 "静音" = "Mute";
 "韩语" = "Korean";
 "音乐" = "Music";

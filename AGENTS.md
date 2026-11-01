@@ -46,7 +46,12 @@ goals, layout, build and test commands. `CLAUDE.md` only imports this file.
 - A key pressed while the gesture is active (button down, before or during the
   hold) only cancels it; Space does not also pause (`KeyRouter.plainKeyCancelsOnly`).
 - The library feature will index and classify, never move user files.
-- YouTube links open in the standalone native player (user chose this direction).
+- YouTube and public Bilibili video links open in the standalone native player.
+  Bilibili BV/AV/b23 links normalize to BV+p before playback; each part has its
+  own stars/resume. The compact sidebar selector scrolls within 128 pt and waits
+  for manual selection at EOF. Anonymous metadata requests have bounded size,
+  redirects, cancellation and timeouts; no cookies or shared credentials.
+  `BilibiliLiveTests` requires `VIDEOTOOL_BILIBILI_LIVE=1`.
   Keep canonical video identity separate from signed stream targets; network
   requests must not enter local folder history, hashing, AI or export pipelines.
   Resolve with isolated local yt-dlp/Deno, explicit cancellation and timeout,

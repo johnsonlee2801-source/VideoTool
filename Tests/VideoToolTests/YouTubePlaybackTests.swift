@@ -10,8 +10,8 @@ import Libmpv
         let defaults = try #require(UserDefaults(suiteName: name))
         defer { defaults.removePersistentDomain(forName: name) }
         let store = ResumePositionStore(defaults: defaults)
-        let first = try YouTubeVideo("https://youtu.be/BaW_jenozKc").url
-        let second = try YouTubeVideo("https://youtu.be/M7lc1UVf-VE").url
+        let first = try NetworkVideo("https://youtu.be/BaW_jenozKc").url
+        let second = try NetworkVideo("https://youtu.be/M7lc1UVf-VE").url
         store.save(31, for: first)
         #expect(store.position(for: second) == nil)
         #expect(store.position(for: first) == 31)
@@ -27,14 +27,14 @@ import Libmpv
         let controller = BookmarkController(store: store, engine: engine, thumbnails: thumbs,
             fingerprint: { _ in "osh:late" }, background: { background.submit($0) }, main: { $0() })
         controller.open(path: "/old.mp4")
-        controller.openNetwork(try YouTubeVideo("https://youtu.be/BaW_jenozKc"))
+        controller.openNetwork(try NetworkVideo("https://youtu.be/BaW_jenozKc"))
         background.runAll()
         #expect(controller.fileKey == "youtube:BaW_jenozKc")
         engine.state.timePos = 8
         _ = controller.toggleAtCurrentTime()
         #expect(thumbs.requests.isEmpty)
         controller.fileClosed()
-        controller.openNetwork(try YouTubeVideo("https://www.youtube.com/watch?v=BaW_jenozKc&list=ignored"))
+        controller.openNetwork(try NetworkVideo("https://www.youtube.com/watch?v=BaW_jenozKc&list=ignored"))
         #expect(controller.bookmarks.map(\.time) == [8])
         engine.state.timePos = 0
         controller.jumpToNext()
@@ -44,9 +44,9 @@ import Libmpv
     @Test("YP3 actual mpv accepts scoped title/audio options and restores them for local playback")
     func separatedAudio() async throws {
         let fixture = try #require(Bundle(for: NetworkFixtureMarker.self).url(forResource: "testsrc-20s", withExtension: "mp4"))
-        let request = try YouTubeVideo("https://youtu.be/TESTnet0001?t=6")
+        let request = try NetworkVideo("https://youtu.be/TESTnet0001?t=6")
         let audio = try #require(Bundle(for: NetworkFixtureMarker.self).url(forResource: "speech-en", withExtension: "mkv"))
-        let media = ResolvedYouTubeVideo(request: request, title: "Test, 日本語", videoURL: fixture, audioURL: audio,
+        let media = ResolvedNetworkVideo(request: request, title: "Test, 日本語", videoURL: fixture, audioURL: audio,
                                         headers: ["User-Agent": "Test Agent", "Accept": "video/mp4, video/webm"])
         let name = "videotool-tests-youtube-window-\(UUID().uuidString)"
         let defaults = try #require(UserDefaults(suiteName: name))
@@ -104,7 +104,7 @@ import Libmpv
     func visibleLoadFailure() async throws {
         let window = PlayerWindowController()
         defer { window.shutdown() }
-        let media = ResolvedYouTubeVideo(request: try YouTubeVideo("https://youtu.be/TESTnet0003"), title: "Missing",
+        let media = ResolvedNetworkVideo(request: try NetworkVideo("https://youtu.be/TESTnet0003"), title: "Missing",
             videoURL: TestTemp.directory.appendingPathComponent("missing-network-probe.mp4"), audioURL: nil, headers: [:])
         window.openNetwork(media)
         #expect(await wait { window.networkMessage == L("网络视频加载失败，请重新打开链接以重试。") })
@@ -121,7 +121,7 @@ import Libmpv
             if case .fileLoaded(let path, _) = event { original?(.fileLoaded(path: path, duration: 0)) }
             else { original?(event) }
         }
-        window.openNetwork(ResolvedYouTubeVideo(request: try YouTubeVideo("https://youtu.be/TESTnet0004?t=2"),
+        window.openNetwork(ResolvedNetworkVideo(request: try NetworkVideo("https://youtu.be/TESTnet0004?t=2"),
                                                title: "Early", videoURL: sample, audioURL: nil, headers: [:]))
         #expect(await wait { window.loadedPath != nil })
         engine.setPaused(true)
@@ -137,7 +137,7 @@ import Libmpv
             if case .log(let line) = $0 { logs.append(line) }
             if case .endFile = $0 { ended = true }
         }
-        let media = ResolvedYouTubeVideo(request: try YouTubeVideo("https://youtu.be/TESTnet0002"), title: "Missing",
+        let media = ResolvedNetworkVideo(request: try NetworkVideo("https://youtu.be/TESTnet0002"), title: "Missing",
             videoURL: TestTemp.directory.appendingPathComponent("probe-sensitive-marker-missing.mp4"), audioURL: nil, headers: [:])
         engine.loadNetwork(media)
         #expect(await wait { ended })

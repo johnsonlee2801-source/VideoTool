@@ -71,25 +71,29 @@ Needs macOS 26 or later · 需要 macOS 26 或更新版本。
 
 <sub>From each app's public documentation, October 2026 · 依据 2026 年 10 月公开资料。Spot an error? Open an issue · 有出入欢迎提 issue。</sub>
 
-## YouTube in VideoTool · 网络视频
+## YouTube and Bilibili in VideoTool · 网络视频
 
-Choose **File › Open Network Video…** (`⇧⌘O`) and paste a public YouTube video link.
+Choose **File › Open Network Video…** (`⇧⌘O`) and paste a public YouTube or Bilibili video link.
+Bilibili accepts BV/AV links and b23.tv short links. Multi-part videos have a compact
+scrollable selector in the right sidebar; playback waits at EOF for your selection.
+Each part keeps independent stars and resume. Anonymous quality depends on Bilibili.
 Playback uses the native player, including pause, speed gestures, fullscreen and
 stars. Link timestamps override saved resume positions; stars and resume use the
 video ID rather than expiring stream addresses. Default quality is up to 1080p.
 
-选择 **文件 › 打开网络视频…**（`⇧⌘O`），粘贴公开 YouTube 视频链接即可在本机播放器中观看，
+选择 **文件 › 打开网络视频…**（`⇧⌘O`），粘贴公开 YouTube 或哔哩哔哩普通视频链接即可在本机播放器中观看，
 使用暂停、倍速手势、全屏和星标。链接中的时间戳优先于续播记录；星标与进度按视频身份保存。
 默认最高 1080p。解析期间可以取消，失败后可以重试，不会中断原本的视频。
 
-Requires locally installed [yt-dlp](https://github.com/yt-dlp/yt-dlp) and
+Requires locally installed [yt-dlp](https://github.com/yt-dlp/yt-dlp); YouTube also needs
 [Deno](https://deno.com/), found in `/opt/homebrew/bin` or `/usr/local/bin` (or packaged
 under `Contents/Helpers`). VideoTool does not install/update them automatically or
 read browser sign-in data. Keep the resolver current if YouTube changes.
 
-需本机已有 **yt-dlp 与 Deno**；VideoTool 不自动安装或更新组件，也不读取浏览器登录数据。
+B 站支持完整链接、短链接及右侧手动选集，分 P 进度独立；解析失败可在浏览器打开。
+需本机已有 **yt-dlp**，YouTube 还需要 **Deno**；VideoTool 不自动安装或更新组件，也不读取浏览器登录数据。
 网络访问和网站规则会影响可播放性。第一版支持公开点播；播放列表仅打开当前视频，不自动连播。
-直播、需要登录的视频、网络视频缩略图、AI 字幕及片段导出暂不支持。文件夹与“最近播放”仍用于本地文件。
+直播、会员／需要登录的视频、番剧、弹幕、网络视频缩略图、AI 字幕及片段导出暂不支持。文件夹与“最近播放”仍用于本地文件。
 此功能的安装包发布状态见 [CHANGELOG](CHANGELOG.md)，源码更新不代表旧 DMG 已包含功能。
 
 ## Install · 安装

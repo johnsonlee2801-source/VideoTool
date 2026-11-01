@@ -51,6 +51,19 @@ enum Snapshot {
         sheet.status.stringValue = L("正在解析视频，可随时取消…")
         try Snapshot.write(try #require(sheet.panel.contentView), "P8-network-video")
     }
+    @Test("P9 Bilibili parts stay compact at 280 and 380 points")
+    func biliParts() throws {
+        let w = PlayerWindowController()
+        defer { w.shutdown() }
+        w.window?.setContentSize(NSSize(width: 1100, height: 660))
+        w.sidebar.show(.stars)
+        w.sidebar.setNetworkParts((1...23).map { BilibiliPart(page: $0, title: "第\($0)集 · 播放器演示与使用说明") }, current: 2, onSelect: nil)
+        for width in [280.0, 380.0] {
+            w.sidebar.resize(to: width)
+            w.window?.contentView?.layoutSubtreeIfNeeded()
+            try Snapshot.write(w.sidebar, "P9-bilibili-parts-\(Int(width))")
+        }
+    }
     private func stars() -> [Bookmark] {
         [(62.0, "开场彩蛋"), (305, ""), (611, "这段笑死"), (1180, "名场面"), (1190, "")].map {
             Bookmark(id: UUID(), fileKey: "k", time: $0.0, endTime: nil, note: $0.1, createdAt: Date())

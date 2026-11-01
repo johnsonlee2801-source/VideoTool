@@ -103,6 +103,10 @@
   "en": "GIF",
   "ja": "GIF"
  },
+ "YouTube 视频链接": {
+  "en": "YouTube video link",
+  "ja": "YouTube 動画リンク"
+ },
  "iCloud 未下载": {
   "en": "Not Downloaded from iCloud",
   "ja": "iCloud未ダウンロード"
@@ -363,9 +367,21 @@
   "en": "Show in Finder",
   "ja": "Finderに表示"
  },
+ "在 VideoTool 中播放 YouTube": {
+  "en": "Watch YouTube in VideoTool",
+  "ja": "VideoTool で YouTube を再生"
+ },
+ "在 VideoTool 中播放网络视频": {
+  "en": "Play an online video in VideoTool",
+  "ja": "VideoTool でオンライン動画を再生"
+ },
  "在播放器中打开": {
   "en": "Open in Player",
   "ja": "プレーヤーで開く"
+ },
+ "在浏览器打开": {
+  "en": "Open in Browser",
+  "ja": "ブラウザで開く"
  },
  "在这台 Mac 上离线完成，视频和声音不会上传。第一次使用某种语言时，系统会自动下载语音模型。": {
   "en": "Everything runs offline on this Mac; your video and audio are never uploaded. The first time you use a language, macOS downloads its speech model automatically.",
@@ -499,6 +515,10 @@
   "en": "Subtitle generation canceled",
   "ja": "字幕の作成をキャンセルしました"
  },
+ "已取消解析。": {
+  "en": "Resolution cancelled.",
+  "ja": "解析をキャンセルしました。"
+ },
  "已导出：%@": {
   "en": "Exported: %@",
   "ja": "書き出しました：%@"
@@ -627,6 +647,14 @@
   "en": "Open…",
   "ja": "開く…"
  },
+ "打开网络视频": {
+  "en": "Open Network Video",
+  "ja": "ネットワーク動画を開く"
+ },
+ "打开网络视频…": {
+  "en": "Open Network Video…",
+  "ja": "ネットワーク動画を開く…"
+ },
  "打开视频库": {
   "en": "Open Video Library",
   "ja": "ビデオライブラリを開く"
@@ -743,6 +771,10 @@
   "en": "Playback Speed",
   "ja": "再生速度"
  },
+ "支持 YouTube 和哔哩哔哩公开视频；分 P 可在右侧手动选择。": {
+  "en": "Public YouTube and Bilibili videos. Select Bilibili parts in the sidebar.",
+  "ja": "YouTube と Bilibili の公開動画に対応。パートは右側で選択できます。"
+ },
  "收起侧栏": {
   "en": "Collapse Sidebar",
   "ja": "サイドバーを閉じる"
@@ -794,6 +826,10 @@
  "无法自动重新打开 VideoTool，请手动退出后再打开。": {
   "en": "VideoTool couldn't reopen itself. Please quit and open it again.",
   "ja": "VideoTool を自動で開き直せませんでした。いったん終了してから開いてください。"
+ },
+ "无法解析视频，请检查网络、视频可访问性及解析组件版本。": {
+  "en": "Could not resolve this video. Check your connection, video availability and resolver version.",
+  "ja": "動画を解析できません。接続、動画へのアクセス、解析ツールのバージョンを確認してください。"
  },
  "无法读取同目录视频：%@": {
   "en": "Cannot read videos in this folder: %@",
@@ -855,6 +891,10 @@
   "en": "Star List (⇧⌘B)",
   "ja": "スター一覧（⇧⌘B）"
  },
+ "暂不支持直播、未发布或需要登录的视频。": {
+  "en": "Live, upcoming and sign-in-only videos are not supported yet.",
+  "ja": "ライブ、公開前、ログインが必要な動画にはまだ対応していません。"
+ },
  "暂停": {
   "en": "Pause",
   "ja": "一時停止"
@@ -886,6 +926,10 @@
  "最近播放": {
   "en": "Recent",
   "ja": "最近の再生"
+ },
+ "未获得可用的视频流，请检查解析组件是否需要更新。": {
+  "en": "No usable stream was found. The resolver may need an update.",
+  "ja": "再生可能なストリームがありません。解析ツールの更新を確認してください。"
  },
  "未观看": {
   "en": "Unwatched",
@@ -939,6 +983,10 @@
   "en": "Plant",
   "ja": "植物"
  },
+ "正在加载网络视频…": {
+  "en": "Loading network video…",
+  "ja": "ネットワーク動画を読み込み中…"
+ },
  "正在导出片段…": {
   "en": "Exporting clip…",
   "ja": "クリップを書き出しています…"
@@ -962,6 +1010,10 @@
  "正在翻译字幕…": {
   "en": "Translating subtitles…",
   "ja": "字幕を翻訳中…"
+ },
+ "正在解析视频，可随时取消…": {
+  "en": "Resolving video. You can cancel at any time…",
+  "ja": "動画を解析中です。いつでもキャンセルできます…"
  },
  "正在识别文件…": {
   "en": "Identifying files…",
@@ -1183,6 +1235,10 @@
   "en": "Paste",
   "ja": "ペースト"
  },
+ "粘贴公开视频链接；播放列表仅打开当前视频。": {
+  "en": "Paste a public video link. Playlist links open only the current video.",
+  "ja": "公開動画のリンクを貼り付けてください。再生リストは現在の動画のみ開きます。"
+ },
  "粤语": {
   "en": "Cantonese",
   "ja": "広東語"
@@ -1206,6 +1262,14 @@
  "编辑": {
   "en": "Edit",
   "ja": "編集"
+ },
+ "网络视频加载失败，请重新打开链接以重试。": {
+  "en": "Network video could not load. Open the link again to retry.",
+  "ja": "動画を読み込めませんでした。リンクをもう一度開いて再試行してください。"
+ },
+ "网络视频链接": {
+  "en": "Online video link",
+  "ja": "オンライン動画リンク"
  },
  "美食": {
   "en": "Food",
@@ -1295,6 +1359,10 @@
   "en": "Video (MP4)",
   "ja": "ビデオ（MP4）"
  },
+ "解析超时，请检查网络后重试。": {
+  "en": "Resolution timed out. Check your connection and try again.",
+  "ja": "解析がタイムアウトしました。接続を確認して再試行してください。"
+ },
  "设为默认播放器": {
   "en": "Set as Default Player",
   "ja": "デフォルトのプレーヤーに設定"
@@ -1310,6 +1378,14 @@
  "请填写剧名和集数（集数是数字）。": {
   "en": "Enter a show name and an episode number.",
   "ja": "番組名と話数（数字）を入力してください。"
+ },
+ "请输入有效的 YouTube 单个视频链接。": {
+  "en": "Enter a valid link to a single YouTube video.",
+  "ja": "有効な YouTube の単一動画リンクを入力してください。"
+ },
+ "请输入有效的 YouTube 或哔哩哔哩视频链接。": {
+  "en": "Enter a valid YouTube or Bilibili video link.",
+  "ja": "有効な YouTube または Bilibili の動画リンクを入力してください。"
  },
  "超过 %@ 秒，只能导出视频": {
   "en": "over %@ s: video only",
@@ -1399,6 +1475,14 @@
   "en": "Requires macOS 26 or later",
   "ja": "macOS 26以降が必要です"
  },
+ "需要本机安装的 yt-dlp 和 Deno 才能解析 YouTube。": {
+  "en": "YouTube playback requires yt-dlp and Deno installed on this Mac.",
+  "ja": "YouTube の再生には、この Mac に yt-dlp と Deno が必要です。"
+ },
+ "需要本机安装的 yt-dlp；YouTube 还需要 Deno。": {
+  "en": "Install yt-dlp locally; YouTube also requires Deno.",
+  "ja": "ローカルの yt-dlp が必要です。YouTube には Deno も必要です。"
+ },
  "静音": {
   "en": "Mute",
   "ja": "消音"
@@ -1442,65 +1526,5 @@
  "（根目录）": {
   "en": "(Root Folder)",
   "ja": "（ルートフォルダ）"
- },
- "YouTube 视频链接": {
-  "en": "YouTube video link",
-  "ja": "YouTube 動画リンク"
- },
- "在 VideoTool 中播放 YouTube": {
-  "en": "Watch YouTube in VideoTool",
-  "ja": "VideoTool で YouTube を再生"
- },
- "已取消解析。": {
-  "en": "Resolution cancelled.",
-  "ja": "解析をキャンセルしました。"
- },
- "打开网络视频": {
-  "en": "Open Network Video",
-  "ja": "ネットワーク動画を開く"
- },
- "打开网络视频…": {
-  "en": "Open Network Video…",
-  "ja": "ネットワーク動画を開く…"
- },
- "无法解析视频，请检查网络、视频可访问性及解析组件版本。": {
-  "en": "Could not resolve this video. Check your connection, video availability and resolver version.",
-  "ja": "動画を解析できません。接続、動画へのアクセス、解析ツールのバージョンを確認してください。"
- },
- "暂不支持直播、未发布或需要登录的视频。": {
-  "en": "Live, upcoming and sign-in-only videos are not supported yet.",
-  "ja": "ライブ、公開前、ログインが必要な動画にはまだ対応していません。"
- },
- "未获得可用的视频流，请检查解析组件是否需要更新。": {
-  "en": "No usable stream was found. The resolver may need an update.",
-  "ja": "再生可能なストリームがありません。解析ツールの更新を確認してください。"
- },
- "正在加载网络视频…": {
-  "en": "Loading network video…",
-  "ja": "ネットワーク動画を読み込み中…"
- },
- "正在解析视频，可随时取消…": {
-  "en": "Resolving video. You can cancel at any time…",
-  "ja": "動画を解析中です。いつでもキャンセルできます…"
- },
- "粘贴公开视频链接；播放列表仅打开当前视频。": {
-  "en": "Paste a public video link. Playlist links open only the current video.",
-  "ja": "公開動画のリンクを貼り付けてください。再生リストは現在の動画のみ開きます。"
- },
- "网络视频加载失败，请重新打开链接以重试。": {
-  "en": "Network video could not load. Open the link again to retry.",
-  "ja": "動画を読み込めませんでした。リンクをもう一度開いて再試行してください。"
- },
- "解析超时，请检查网络后重试。": {
-  "en": "Resolution timed out. Check your connection and try again.",
-  "ja": "解析がタイムアウトしました。接続を確認して再試行してください。"
- },
- "请输入有效的 YouTube 单个视频链接。": {
-  "en": "Enter a valid link to a single YouTube video.",
-  "ja": "有効な YouTube の単一動画リンクを入力してください。"
- },
- "需要本机安装的 yt-dlp 和 Deno 才能解析 YouTube。": {
-  "en": "YouTube playback requires yt-dlp and Deno installed on this Mac.",
-  "ja": "YouTube の再生には、この Mac に yt-dlp と Deno が必要です。"
  }
 }

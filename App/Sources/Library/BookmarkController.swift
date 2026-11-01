@@ -80,7 +80,7 @@ final class BookmarkController {
     }
 
     /// Stable page identity; never hash the CDN address or generate local thumbnails.
-    func openNetwork(_ video: YouTubeVideo) {
+    func openNetwork(_ video: NetworkVideo) {
         fileClosed()
         fileOpened(key: video.key, path: video.url.absoluteString)
         filePath = nil

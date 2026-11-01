@@ -8,14 +8,15 @@ final class NetworkVideoSheet: NSObject {
     let status = NSTextField(wrappingLabelWithString: "")
     let openButton = NSButton(title: L("播放"), target: nil, action: nil)
     private let cancelButton = NSButton(title: L("取消"), target: nil, action: nil)
+    let browserButton = NSButton(title: L("在浏览器打开"), target: nil, action: nil)
     private let spinner = NSProgressIndicator()
-    private let resolver: YouTubeResolving
-    private let onOpen: (ResolvedYouTubeVideo) -> Void
+    private let resolver: NetworkVideoResolving
+    private let onOpen: (ResolvedNetworkVideo) -> Void
     private var generation = 0
     private var dismissed = false
     private(set) var isResolving = false
 
-    init(resolver: YouTubeResolving = YouTubeResolver(), onOpen: @escaping (ResolvedYouTubeVideo) -> Void) {
+    init(resolver: NetworkVideoResolving = NetworkVideoResolver(), onOpen: @escaping (ResolvedNetworkVideo) -> Void) {
         self.resolver = resolver; self.onOpen = onOpen
         panel = NSPanel(contentRect: NSRect(x: 0, y: 0, width: 500, height: 240),
                         styleMask: [.titled], backing: .buffered, defer: false)
@@ -27,15 +28,18 @@ final class NetworkVideoSheet: NSObject {
         content.wantsLayer = true
         content.layer?.backgroundColor = Theme.bg1.cgColor
         panel.contentView = content
-        let title = NSTextField(labelWithString: L("在 VideoTool 中播放 YouTube"))
+        let title = NSTextField(labelWithString: L("在 VideoTool 中播放网络视频"))
         title.font = Theme.display(18, .bold); title.textColor = Theme.textPrimary
-        let hint = NSTextField(wrappingLabelWithString: L("粘贴公开视频链接；播放列表仅打开当前视频。"))
+        let hint = NSTextField(wrappingLabelWithString: L("支持 YouTube 和哔哩哔哩公开视频；分 P 可在右侧手动选择。"))
         hint.font = Theme.display(12, .regular); hint.textColor = Theme.textSecondary
         urlField.placeholderString = "https://www.youtube.com/watch?v=…"
         urlField.font = Theme.display(13, .regular)
-        urlField.setAccessibilityLabel(L("YouTube 视频链接"))
+        urlField.setAccessibilityLabel(L("网络视频链接"))
         urlField.target = self; urlField.action = #selector(submit(_:))
         status.font = Theme.display(12, .regular); status.textColor = Theme.textSecondary
+        browserButton.target = self; browserButton.action = #selector(openInBrowser(_:))
+        browserButton.isBordered = false; browserButton.font = Theme.display(12, .medium)
+        browserButton.contentTintColor = Theme.accent; browserButton.isHidden = true
         status.maximumNumberOfLines = 3
         status.setAccessibilityElement(true)
         spinner.style = .spinning; spinner.controlSize = .small; spinner.isDisplayedWhenStopped = false
@@ -53,7 +57,7 @@ final class NetworkVideoSheet: NSObject {
             button.heightAnchor.constraint(equalToConstant: 30).isActive = true
             button.widthAnchor.constraint(greaterThanOrEqualToConstant: 76).isActive = true
         }
-        for view in [title, hint, urlField, status, spinner, openButton, cancelButton] {
+        for view in [title, hint, urlField, status, spinner, browserButton, openButton, cancelButton] {
             view.translatesAutoresizingMaskIntoConstraints = false; content.addSubview(view)
         }
         NSLayoutConstraint.activate([
@@ -72,6 +76,8 @@ final class NetworkVideoSheet: NSObject {
             status.leadingAnchor.constraint(equalTo: spinner.trailingAnchor, constant: 8),
             status.trailingAnchor.constraint(equalTo: hint.trailingAnchor),
             status.topAnchor.constraint(equalTo: spinner.topAnchor),
+            browserButton.leadingAnchor.constraint(equalTo: title.leadingAnchor),
+            browserButton.centerYAnchor.constraint(equalTo: openButton.centerYAnchor),
             openButton.trailingAnchor.constraint(equalTo: hint.trailingAnchor),
             openButton.bottomAnchor.constraint(equalTo: content.bottomAnchor, constant: -20),
             openButton.widthAnchor.constraint(greaterThanOrEqualToConstant: 76),
@@ -88,9 +94,10 @@ final class NetworkVideoSheet: NSObject {
 
     @objc func submit(_ sender: Any?) {
         guard !dismissed, !isResolving else { return }
-        let request: YouTubeVideo
-        do { request = try YouTubeVideo(urlField.stringValue) }
-        catch { status.stringValue = YouTubeFailure.invalidLink.localizedDescription; return }
+        browserButton.isHidden = true
+        let request: NetworkVideo
+        do { request = try NetworkVideo(urlField.stringValue) }
+        catch { status.stringValue = NetworkVideoFailure.invalidLink.localizedDescription; return }
         generation += 1
         let token = generation
         setResolving(true)
@@ -102,11 +109,17 @@ final class NetworkVideoSheet: NSObject {
             case .success(let media):
                 self.cancel()
                 self.onOpen(media)
-            case .failure(let error): self.status.stringValue = error.localizedDescription
+            case .failure(let error):
+                self.status.stringValue = error.localizedDescription
+                self.browserButton.isHidden = false
             }
         }
     }
 
+    var browserURL: URL? { (try? NetworkVideo(urlField.stringValue))?.url }
+    @objc private func openInBrowser(_ sender: Any?) {
+        if let url = browserURL { NSWorkspace.shared.open(url) }
+    }
     private func setResolving(_ value: Bool) {
         isResolving = value
         openButton.isEnabled = !value

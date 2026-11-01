@@ -94,7 +94,7 @@ final class MPVEngine: PlayerEngine {
     // MARK: PlayerEngine
 
     func load(_ url: URL) { loadTarget(url.isFileURL ? url.path : url.absoluteString) }
-    func loadNetwork(_ media: ResolvedYouTubeVideo) {
+    func loadNetwork(_ media: ResolvedNetworkVideo) {
         lock.lock(); redactMediaLogs = true; lock.unlock()
         command(media.loadCommand)
     }

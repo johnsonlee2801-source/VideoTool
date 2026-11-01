@@ -13,6 +13,12 @@ final class PlayerSidebarView: NSView {
     private var libraryModel: LibraryController?
     private let inner = NSView(frame: NSRect(x: 0, y: 0, width: 380, height: 640))
     private let body = NSView()
+    private let partScroll = NSScrollView()
+    private let partRows = NSStackView()
+    private var partHeight: NSLayoutConstraint?
+    private var selectedPart = 0
+    private var selectPart: ((Int) -> Void)?
+    private(set) var networkPartButtons: [NSButton] = []
     private let tabs = NSStackView()
     private var tabButtons: [NSButton] = []
     private let message = NSTextField(wrappingLabelWithString: "")
@@ -83,7 +89,13 @@ final class PlayerSidebarView: NSView {
         let notice = NSStackView(views: [message, retry])
         notice.orientation = .vertical
         notice.spacing = 6
-        for child in [header, notice, body] as [NSView] {
+        partScroll.drawsBackground = false; partScroll.hasVerticalScroller = true
+        partRows.orientation = .vertical; partRows.alignment = .leading; partRows.spacing = 2
+        partRows.translatesAutoresizingMaskIntoConstraints = false
+        partScroll.documentView = partRows
+        partHeight = partScroll.heightAnchor.constraint(equalToConstant: 0)
+        partHeight?.isActive = true
+        for child in [header, partScroll, notice, body] as [NSView] {
             child.translatesAutoresizingMaskIntoConstraints = false; inner.addSubview(child)
         }
         NSLayoutConstraint.activate([
@@ -91,7 +103,13 @@ final class PlayerSidebarView: NSView {
             header.leadingAnchor.constraint(equalTo: inner.leadingAnchor, constant: 14),
             header.trailingAnchor.constraint(equalTo: inner.trailingAnchor, constant: -12),
             tabs.widthAnchor.constraint(equalTo: header.widthAnchor, constant: -32),
-            notice.topAnchor.constraint(equalTo: header.bottomAnchor, constant: 8),
+            partScroll.topAnchor.constraint(equalTo: header.bottomAnchor, constant: 6),
+            partScroll.leadingAnchor.constraint(equalTo: inner.leadingAnchor, constant: 14),
+            partScroll.trailingAnchor.constraint(equalTo: inner.trailingAnchor, constant: -14),
+            partRows.leadingAnchor.constraint(equalTo: partScroll.contentView.leadingAnchor),
+            partRows.topAnchor.constraint(equalTo: partScroll.contentView.topAnchor),
+            partRows.widthAnchor.constraint(equalTo: partScroll.contentView.widthAnchor),
+            notice.topAnchor.constraint(equalTo: partScroll.bottomAnchor, constant: 8),
             notice.leadingAnchor.constraint(equalTo: inner.leadingAnchor, constant: 14),
             notice.trailingAnchor.constraint(equalTo: inner.trailingAnchor, constant: -14),
             body.topAnchor.constraint(equalTo: notice.bottomAnchor, constant: 4),
@@ -112,6 +130,35 @@ final class PlayerSidebarView: NSView {
             divider.bottomAnchor.constraint(equalTo: bottomAnchor),
             divider.widthAnchor.constraint(equalToConstant: 5),
         ])
+    }
+    /// A compact, scrollable section above the existing tabs' contents.
+    /// Selection is explicit; EOF never invokes this callback.
+    func setNetworkParts(_ parts: [BilibiliPart], current: Int, onSelect: ((Int) -> Void)?) {
+        selectedPart = current; selectPart = onSelect
+        for row in partRows.arrangedSubviews { partRows.removeArrangedSubview(row); row.removeFromSuperview() }
+        networkPartButtons = []
+        for part in parts.count > 1 ? parts : [] {
+            let button = NSButton(title: "P\(part.page) · " + part.title, target: self, action: #selector(partPressed(_:)))
+            button.tag = part.page; button.setButtonType(.toggle); button.isBordered = false
+            button.alignment = .left; button.lineBreakMode = .byTruncatingTail
+            button.font = Theme.display(12, .medium); button.contentTintColor = part.page == current ? Theme.accent : Theme.textPrimary
+            button.state = part.page == current ? .on : .off
+            button.toolTip = button.title
+            partRows.addArrangedSubview(button)
+            button.widthAnchor.constraint(equalTo: partRows.widthAnchor).isActive = true
+            button.heightAnchor.constraint(equalToConstant: 30).isActive = true
+            networkPartButtons.append(button)
+        }
+        partHeight?.constant = min(128, CGFloat(networkPartButtons.count) * 32)
+        partScroll.isHidden = networkPartButtons.isEmpty
+        needsLayout = true
+    }
+    @objc private func partPressed(_ sender: NSButton) {
+        // NSButton toggles itself before sending its action; restore the actual
+        // playing selection until resolution/loading succeeds.
+        for button in networkPartButtons { button.state = button.tag == selectedPart ? .on : .off }
+        guard sender.tag != selectedPart else { return }
+        selectPart?(sender.tag)
     }
     private func addContent(_ child: NSView) {
         child.translatesAutoresizingMaskIntoConstraints = false

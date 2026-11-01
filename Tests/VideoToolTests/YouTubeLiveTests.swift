@@ -7,9 +7,9 @@ import Testing
     @Test("YL1 public YouTube resolves, decodes separate audio/video, seeks and pauses",
           .enabled(if: ProcessInfo.processInfo.environment["VIDEOTOOL_YOUTUBE_LIVE"] == "1"))
     func publicVideo() async throws {
-        let resolver = YouTubeResolver()
-        var result: Result<ResolvedYouTubeVideo, YouTubeFailure>?
-        resolver.resolve(try YouTubeVideo("https://www.youtube.com/watch?v=M7lc1UVf-VE")) { result = $0 }
+        let resolver = NetworkVideoResolver()
+        var result: Result<ResolvedNetworkVideo, NetworkVideoFailure>?
+        resolver.resolve(try NetworkVideo("https://www.youtube.com/watch?v=M7lc1UVf-VE")) { result = $0 }
         let deadline = Date().addingTimeInterval(55)
         while result == nil && Date() < deadline { try await Task.sleep(for: .milliseconds(50)) }
         defer { resolver.cancel() }
