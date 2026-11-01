@@ -95,12 +95,16 @@ read browser sign-in data. Keep the resolver current if YouTube changes.
 B 站支持完整链接、短链接及右侧手动选集，分 P 进度独立；解析失败可在浏览器打开。
 需本机已有 **yt-dlp**，YouTube 还需要 **Deno**；VideoTool 不自动安装或更新组件，也不读取浏览器登录数据。
 网络访问和网站规则会影响可播放性。第一版支持公开点播；播放列表仅打开当前视频，不自动连播。
-直播、会员／需要登录的视频、番剧、弹幕、网络视频缩略图、AI 字幕及片段导出暂不支持。文件夹与“最近播放”仍用于本地文件。
+直播、会员／需要登录的视频、番剧、弹幕、网络视频缩略图、AI 字幕及片段导出暂不支持。文件夹索引仍只用于本地文件；网络最近播放使用独立记录。
 此功能的安装包发布状态见 [CHANGELOG](CHANGELOG.md)，源码更新不代表旧 DMG 已包含功能。
 
 You can also drop a supported link onto the picture or press `⌘V` outside a text field. Buffering and actual decoded quality are displayed; failures offer a fresh resolution and retry from the interruption point. Text fields keep normal paste.
 
 **Continue watching:** Recent has separate Local and Online sources, independent searches, and a compact Resume / Play from Start row. Network history keeps canonical page identities and per-part progress, with individual removal; it does not add links to local folders.
+
+**Subtitle search and phrase replay:** Press `⇧⌘T`, or choose it from the picture’s right-click menu, to open a temporary transcript in the right sidebar. Search the original or translation, click to play, or replay the previous phrase at the current speed. Existing local SRT/AI subtitles and embedded text tracks are supported; embedded/ASS extraction needs local FFmpeg and ffprobe. Public website captions are read anonymously, with original captions preferred; translated or login-restricted tracks may be unavailable. Bitmap subtitles are not searchable. Network playback still does not enter AI generation or export.
+
+**字幕搜索与逐句回看：**按 `⇧⌘T` 或从右键菜单打开右侧字幕区，可搜索原文／译文、点击跳转和按当前倍速重听上一句。支持已有 SRT／本机 AI 结果及内嵌文字字幕；内嵌／ASS 抽取需要本机 FFmpeg、ffprobe。网站字幕匿名读取，优先原始字幕，受限或自动翻译来源可能无法读取；图片字幕暂不支持搜索。返回后仍是原来的侧栏标签。
 
 ## Install · 安装
 
@@ -126,6 +130,7 @@ Build it yourself · 自己编译: [CONTRIBUTING.md](CONTRIBUTING.md)
 |---|---|---|---|
 | Hold the picture · 按住画面 | Speed up · 加速 | Space · 空格 | Play / pause · 播放 / 暂停 |
 | ⌘T | AI subtitles · AI 字幕 | Z / X | Subtitles earlier / later · 字幕提前 / 延后 |
+| ⇧⌘T | Search subtitles / replay · 字幕搜索／回看 | | |
 | C, then C · C 再 C | Cut a clip · 截片段 | ⌘C | Copy the picture · 拷贝画面 |
 | B | Star · 打星标 | ⌥← / ⌥→ | Previous / next star · 上 / 下一个星标 |
 | ⌘E | Export dialog · 导出对话框 | ← / → | ∓5 s · 后退 / 前进 5 秒 |

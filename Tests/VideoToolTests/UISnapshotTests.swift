@@ -105,6 +105,21 @@ enum Snapshot {
         let view = ClipAdjustmentView(range: try #require(selection.range), duration: 180, fps: 24) { selection.adjust($0, to: $1, duration: 180) }
         try Snapshot.write(view, "P12-clip-adjustment")
     }
+    @Test("P13 subtitle transcript fits the compact sidebar at both widths")
+    func transcript() throws {
+        let w = PlayerWindowController(); defer { w.shutdown() }
+        w.window?.setContentSize(NSSize(width: 1100, height: 660))
+        w.sidebar.showTranscript()
+        let view = w.sidebar.transcript
+        view.setSources([SubtitleSourceOption(id: "test", title: L("本机 AI 字幕"), input: .file(URL(fileURLWithPath: "/preview.srt"), bilingual: true))])
+        view.setDocument(SubtitleTranscript(cues: [SubtitleCue(start: 12.5, end: 16, text: "A small detail makes watching easier.", translation: "一个小细节，让观看更便捷。"), SubtitleCue(start: 25, end: 29, text: "Find the sentence and listen again.", translation: "找到这句话，再听一遍。")]), status: L("共 %@ 句，点击字幕即可跳转", "2"))
+        view.updatePosition(30)
+        for width in [280.0, 380.0] {
+            w.sidebar.resize(to: width); w.window?.contentView?.layoutSubtreeIfNeeded()
+            #expect(view.bounds.width >= 260 && view.table.numberOfRows == 2)
+            try Snapshot.write(w.sidebar, "P13-transcript-\(Int(width))")
+        }
+    }
     private func stars() -> [Bookmark] {
         [(62.0, "开场彩蛋"), (305, ""), (611, "这段笑死"), (1180, "名场面"), (1190, "")].map {
             Bookmark(id: UUID(), fileKey: "k", time: $0.0, endTime: nil, note: $0.1, createdAt: Date())

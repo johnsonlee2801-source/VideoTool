@@ -150,6 +150,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
         list.keyEquivalentModifierMask = [.command, .shift]
         playMenu.addItem(.separator())
         playMenu.addItem(withTitle: L("切换字幕轨   S"), action: #selector(PlayerWindowController.cycleSubtitle(_:)), keyEquivalent: "")
+        let transcriptItem = playMenu.addItem(withTitle: L("字幕搜索与逐句回看…"), action: #selector(PlayerWindowController.showSubtitleTranscript(_:)), keyEquivalent: "t")
+        transcriptItem.keyEquivalentModifierMask = [.command, .shift]
         playMenu.addItem(withTitle: L("AI 字幕…"), action: #selector(PlayerWindowController.generateAISubtitles(_:)), keyEquivalent: "t")
         playMenu.addItem(withTitle: L("AI 字幕背景条"), action: #selector(PlayerWindowController.toggleSubtitleBand(_:)), keyEquivalent: "")
         let sizeItem = playMenu.addItem(withTitle: L("AI 字幕大小"), action: nil, keyEquivalent: "")

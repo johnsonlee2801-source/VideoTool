@@ -18,6 +18,9 @@ final class PlayerSidebarView: NSView {
     private var libraryModel: LibraryController?
     private let inner = NSView(frame: NSRect(x: 0, y: 0, width: 380, height: 640))
     private let body = NSView()
+    let transcript = SubtitleTranscriptView(frame: .zero)
+    private(set) var isTranscriptOpen = false
+    var onTranscriptHidden: (() -> Void)?
     private let partScroll = NSScrollView()
     private let partRows = NSStackView()
     private var partHeight: NSLayoutConstraint?
@@ -142,6 +145,8 @@ final class PlayerSidebarView: NSView {
             body.trailingAnchor.constraint(equalTo: inner.trailingAnchor),
             body.bottomAnchor.constraint(equalTo: inner.bottomAnchor),
         ])
+        addContent(transcript)
+        transcript.onBack = { [weak self] in self?.hideTranscript() }
         addContent(bookmarks)
         addContent(recent.view)
         let divider = SidebarDragDivider()
@@ -195,7 +200,7 @@ final class PlayerSidebarView: NSView {
     }
     override func layout() {
         super.layout()
-        if !networkPartButtons.isEmpty {
+        if !networkPartButtons.isEmpty && !isTranscriptOpen {
             partHeight?.constant = min(128, CGFloat(networkPartButtons.count) * 32, max(32, bounds.height - 180 - (continueHeight?.constant ?? 0)))
         }
         // Keep the hidden inner layout valid at zero outer width, without forcing
@@ -204,14 +209,23 @@ final class PlayerSidebarView: NSView {
     }
     func show(_ tab: PlayerSidebarTab) {
         guard !stopped else { return }
+        if isTranscriptOpen { isTranscriptOpen = false; onTranscriptHidden?() }
         window?.makeFirstResponder(nil)
         message.stringValue = ""
         state.show(tab)
         if tab == .library { libraryBrowser?.refreshFromStore() }
         changed()
     }
-    func close() { window?.makeFirstResponder(nil); state.close(); changed() }
-    func toggleStars() { window?.makeFirstResponder(nil); state.toggleStars(); changed() }
+    func close() { window?.makeFirstResponder(nil); onTranscriptHidden?(); state.close(); changed() }
+    func toggleStars() { if isTranscriptOpen { isTranscriptOpen = false; onTranscriptHidden?() }; window?.makeFirstResponder(nil); state.toggleStars(); changed() }
+    func showTranscript() {
+        guard !stopped else { return }
+        window?.makeFirstResponder(nil); isTranscriptOpen = true; state.show(state.tab); changed()
+    }
+    func hideTranscript() {
+        guard isTranscriptOpen else { return }
+        window?.makeFirstResponder(nil); isTranscriptOpen = false; onTranscriptHidden?(); changed()
+    }
     func resize(to width: CGFloat) {
         state.preferredWidth = width
         state.preferredWidth = state.boundedWidth
@@ -224,19 +238,22 @@ final class PlayerSidebarView: NSView {
         isHidden = !state.isExpanded
         refreshContinue()
         for button in tabButtons {
-            let selected = button.tag == state.tab.rawValue
+            let selected = !isTranscriptOpen && button.tag == state.tab.rawValue
             button.state = selected ? .on : .off
             button.layer?.backgroundColor = (selected ? Theme.accent.withAlphaComponent(0.18) : NSColor.clear).cgColor
             button.attributedTitle = NSAttributedString(string: button.title, attributes: [
                 .font: NSFont.systemFont(ofSize: 12, weight: .semibold),
                 .foregroundColor: selected ? Theme.accent : Theme.textSecondary])
         }
-        if state.isExpanded && state.tab != .stars { ensureLibrary(showError: state.tab == .library) }
-        bookmarks.isHidden = !state.isExpanded || state.tab != .stars
-        libraryBrowser?.view.isHidden = state.tab != .library
-        recent.view.isHidden = state.tab != .recent
-        retry.isHidden = state.tab != .library || libraryBrowser != nil || !state.isExpanded
-        message.isHidden = message.stringValue.isEmpty
+        if !isTranscriptOpen && state.isExpanded && state.tab != .stars { ensureLibrary(showError: state.tab == .library) }
+        transcript.isHidden = !isTranscriptOpen
+        partScroll.isHidden = isTranscriptOpen || networkPartButtons.isEmpty
+        if isTranscriptOpen { partHeight?.constant = 0 }
+        bookmarks.isHidden = isTranscriptOpen || !state.isExpanded || state.tab != .stars
+        libraryBrowser?.view.isHidden = isTranscriptOpen || state.tab != .library
+        recent.view.isHidden = isTranscriptOpen || state.tab != .recent
+        retry.isHidden = isTranscriptOpen || state.tab != .library || libraryBrowser != nil || !state.isExpanded
+        message.isHidden = isTranscriptOpen || message.stringValue.isEmpty
         if state.isExpanded && state.tab == .recent { recent.refresh() }
         needsLayout = true
     }
@@ -259,7 +276,7 @@ final class PlayerSidebarView: NSView {
         message.stringValue = ""
     }
     private func refreshContinue() {
-        let item = state.tab == .recent ? ContinueWatchingItem.latest(local: history.all, network: networkHistory.entries) : nil
+        let item = !isTranscriptOpen && state.tab == .recent ? ContinueWatchingItem.latest(local: history.all, network: networkHistory.entries) : nil
         continueBar.update(item); continueHeight?.constant = item == nil ? 0 : 44
     }
     private func scheduleHistoryRefresh() {

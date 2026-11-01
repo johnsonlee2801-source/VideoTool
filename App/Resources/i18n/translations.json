@@ -107,6 +107,10 @@
   "en": "YouTube video link",
   "ja": "YouTube 動画リンク"
  },
+ "YouTube 解析需要本机 Deno，请检查组件安装。": {
+  "en": "YouTube requires local Deno. Check the component installation.",
+  "ja": "YouTube の解析には Deno が必要です。インストールを確認してください。"
+ },
  "iCloud 未下载": {
   "en": "Not Downloaded from iCloud",
   "ja": "iCloud未ダウンロード"
@@ -211,6 +215,14 @@
   "en": "Today %@",
   "ja": "今日 %@"
  },
+ "从中断处重试": {
+  "en": "Retry from here",
+  "ja": "中断位置から再試行"
+ },
+ "从头播放": {
+  "en": "Play from Start",
+  "ja": "最初から再生"
+ },
  "从视频库移除（不删除文件）": {
   "en": "Remove from Library (Keep File)",
   "ja": "ビデオライブラリから削除（ファイルは削除しない）"
@@ -259,6 +271,10 @@
   "en": "%@ videos",
   "ja": "%@本のビデオ"
  },
+ "共 %@ 句，点击字幕即可跳转": {
+  "en": "%@ cues · click to play",
+  "ja": "全%@文・クリックして再生"
+ },
  "关于 VideoTool": {
   "en": "About VideoTool",
   "ja": "VideoToolについて"
@@ -270,6 +286,10 @@
  "其他视频": {
   "en": "Other Videos",
   "ja": "その他のビデオ"
+ },
+ "内嵌字幕 %@": {
+  "en": "Embedded subtitle %@",
+  "ja": "埋め込み字幕 %@"
  },
  "减速 0.1×": {
   "en": "Slow Down 0.1×",
@@ -326,6 +346,14 @@
  "动画": {
   "en": "Animation",
   "ja": "アニメ"
+ },
+ "匹配 %@ 句": {
+  "en": "%@ matching cues",
+  "ja": "%@文が一致"
+ },
+ "单击微调起止时间": {
+  "en": "Click to fine-tune start and end",
+  "ja": "クリックして開始・終了時刻を微調整"
  },
  "厨房": {
   "en": "Kitchen",
@@ -439,6 +467,10 @@
   "en": "Subtitles ready: %@ lines (press S to switch subtitles)",
   "ja": "字幕を作成しました：%@行（Sキーで字幕を切り替え）"
  },
+ "字幕已读取，但无法添加到播放画面。": {
+  "en": "Subtitles loaded, but could not be displayed.",
+  "ja": "字幕を読み込みましたが、画面に表示できません。"
+ },
  "字幕延后 0.1 秒   X": {
   "en": "Subtitles 0.1 s Later   X",
   "ja": "字幕を0.1秒遅らせる   X"
@@ -451,13 +483,41 @@
   "en": "Subtitles 0.1 s Earlier   Z",
   "ja": "字幕を0.1秒早める   Z"
  },
+ "字幕搜索": {
+  "en": "Subtitle Search",
+  "ja": "字幕検索"
+ },
+ "字幕搜索与逐句回看…": {
+  "en": "Search Subtitles & Replay…",
+  "ja": "字幕検索と文ごとの再生…"
+ },
+ "字幕来源": {
+  "en": "Subtitle source",
+  "ja": "字幕ソース"
+ },
+ "字幕格式或编码无法识别，请使用 UTF-8／UTF-16 文字字幕。": {
+  "en": "Unknown subtitle format or encoding. Use UTF-8 or UTF-16 text subtitles.",
+  "ja": "字幕の形式や文字コードを認識できません。UTF-8／UTF-16の文字字幕をご利用ください。"
+ },
  "字幕生成中 · 已完成 %@（可以边看边等）": {
   "en": "Making subtitles · %@ done (keep watching)",
   "ja": "字幕を作成中 · %@ 完了（見ながら待てます）"
  },
+ "字幕读取超时，可重试或切换字幕来源。": {
+  "en": "Subtitle loading timed out. Retry or choose another source.",
+  "ja": "字幕の読み込みがタイムアウトしました。再試行するか、別のソースを選んでください。"
+ },
+ "字幕超过读取上限，请选择较小的文字字幕。": {
+  "en": "Subtitles exceed the size limit. Choose a smaller text subtitle.",
+  "ja": "字幕がサイズ上限を超えています。より小さい文字字幕を選んでください。"
+ },
  "定位当前视频所在文件夹": {
   "en": "Show Current Video’s Folder",
   "ja": "再生中の動画のフォルダを表示"
+ },
+ "实际画质：%@p": {
+  "en": "Actual quality: %@p",
+  "ja": "実際の画質：%@p"
  },
  "室内": {
   "en": "Indoors",
@@ -506,6 +566,10 @@
  "已取消。": {
   "en": "Canceled.",
   "ja": "キャンセルしました。"
+ },
+ "已取消字幕读取。": {
+  "en": "Subtitle loading cancelled.",
+  "ja": "字幕の読み込みをキャンセルしました。"
  },
  "已取消导出": {
   "en": "Export cancelled",
@@ -594,6 +658,14 @@
  "循环预览片段": {
   "en": "Looping the clip",
   "ja": "クリップをループ再生中"
+ },
+ "微调%@": {
+  "en": "Adjust %@",
+  "ja": "%@を微調整"
+ },
+ "微调片段": {
+  "en": "Fine-tune Clip",
+  "ja": "クリップを微調整"
  },
  "德语": {
   "en": "German",
@@ -743,6 +815,10 @@
   "en": "Illustration",
   "ja": "イラスト"
  },
+ "搜索原文或译文": {
+  "en": "Search original or translation",
+  "ja": "原文または翻訳を検索"
+ },
  "搜索当前文件夹": {
   "en": "Search this folder",
   "ja": "このフォルダを検索"
@@ -750,6 +826,10 @@
  "搜索文件名或标签": {
   "en": "Search file names or tags",
   "ja": "ファイル名やタグを検索"
+ },
+ "搜索网络视频标题": {
+  "en": "Search online video titles",
+  "ja": "オンライン動画のタイトルを検索"
  },
  "撤销": {
   "en": "Undo",
@@ -851,6 +931,10 @@
   "en": "Can't read the audio in this video.",
   "ja": "このビデオの音声を読み込めません。"
  },
+ "无法连接视频网站，请检查网络后重试。": {
+  "en": "Cannot connect to the video site. Check your connection and retry.",
+  "ja": "動画サイトに接続できません。ネットワークを確認して再試行してください。"
+ },
  "日出日落": {
   "en": "Sunrise & Sunset",
   "ja": "日の出・日の入り"
@@ -890,6 +974,10 @@
  "星标列表（⇧⌘B）": {
   "en": "Star List (⇧⌘B)",
   "ja": "スター一覧（⇧⌘B）"
+ },
+ "显示前 1000 条结果，请缩小搜索范围": {
+  "en": "Showing the first 1,000 results. Refine your search.",
+  "ja": "先頭1,000件を表示中。検索条件を絞ってください。"
  },
  "暂不支持直播、未发布或需要登录的视频。": {
   "en": "Live, upcoming and sign-in-only videos are not supported yet.",
@@ -939,6 +1027,10 @@
   "en": "Unrecognized",
   "ja": "未識別"
  },
+ "本地": {
+  "en": "Local",
+  "ja": "ローカル"
+ },
  "本层 %@ 个视频 · %@ 个子文件夹": {
   "en": "%@ videos here · %@ subfolders",
   "ja": "この階層：動画 %@本 · フォルダ %@件"
@@ -946,6 +1038,10 @@
  "本文件夹已播完": {
   "en": "End of this folder",
   "ja": "このフォルダの再生は終了しました"
+ },
+ "本机 AI 字幕": {
+  "en": "On-device AI subtitles",
+  "ja": "デバイス上のAI字幕"
  },
  "本集已结束 · 下一集：%@": {
   "en": "Finished · Next: %@",
@@ -1007,6 +1103,10 @@
   "en": "Your place in the video is saved.",
   "ja": "再生中の位置は保存されます。"
  },
+ "正在缓冲…": {
+  "en": "Buffering…",
+  "ja": "バッファリング中…"
+ },
  "正在翻译字幕…": {
   "en": "Translating subtitles…",
   "ja": "字幕を翻訳中…"
@@ -1023,6 +1123,14 @@
   "en": "Reading audio…",
   "ja": "音声を読み込み中…"
  },
+ "正在读取字幕内容…": {
+  "en": "Loading subtitle text…",
+  "ja": "字幕テキストを読み込み中…"
+ },
+ "正在读取字幕来源…": {
+  "en": "Finding subtitle sources…",
+  "ja": "字幕ソースを検索中…"
+ },
  "正在读取文件夹…": {
   "en": "Reading folder…",
   "ja": "フォルダを読み込み中…"
@@ -1030,6 +1138,14 @@
  "此文件无法打星标": {
   "en": "This file can't be starred",
   "ja": "このファイルにはスターを付けられません"
+ },
+ "此视频没有公开可读取的字幕。": {
+  "en": "This video has no publicly readable captions.",
+  "ja": "この動画には公開で読み取り可能な字幕がありません。"
+ },
+ "步长：%@ 秒（按标称帧率；未知时为 0.01 秒）": {
+  "en": "Step: %@ s (nominal frame rate; 0.01 s if unknown)",
+  "ja": "刻み：%@ 秒（公称フレームレート。不明時は 0.01 秒）"
  },
  "汽车": {
   "en": "Car",
@@ -1042,6 +1158,14 @@
  "没有下一集": {
   "en": "No next video",
   "ja": "次の動画はありません"
+ },
+ "没有可搜索的字幕，可选择其他字幕或生成本机 AI 字幕。": {
+  "en": "No searchable subtitles. Choose another source or generate on-device AI subtitles.",
+  "ja": "検索可能な字幕がありません。別の字幕を選ぶか、デバイス上でAI字幕を生成してください。"
+ },
+ "没有可读取的文字字幕；图片字幕暂不支持搜索。": {
+  "en": "No readable text subtitles. Image subtitles cannot be searched yet.",
+  "ja": "読み取り可能な文字字幕がありません。画像字幕の検索には未対応です。"
  },
  "没有符合条件的视频": {
   "en": "No Matching Videos",
@@ -1163,6 +1287,10 @@
   "en": "Too short — press C somewhere else",
   "ja": "短すぎます。別の位置で C を押してください"
  },
+ "片段局部放大": {
+  "en": "Clip detail zoom",
+  "ja": "クリップの部分拡大"
+ },
  "片段已存好，剪贴板里的新内容没有被覆盖": {
   "en": "Clip saved — what you copied meanwhile was kept on the clipboard",
   "ja": "クリップを保存しました。その間にコピーした内容はそのままです"
@@ -1202,6 +1330,10 @@
  "移除 %@": {
   "en": "%@ removed",
   "ja": "削除 %@"
+ },
+ "移除记录": {
+  "en": "Remove Record",
+  "ja": "履歴を削除"
  },
  "稍后": {
   "en": "Later",
@@ -1247,6 +1379,10 @@
   "en": "Traditional Chinese",
   "ja": "繁体字中国語"
  },
+ "终点": {
+  "en": "End",
+  "ja": "終了"
+ },
  "结束": {
   "en": "End",
   "ja": "終了"
@@ -1255,13 +1391,41 @@
   "en": "The end must be after the start",
   "ja": "終了は開始より後にしてください"
  },
+ "继续": {
+  "en": "Resume",
+  "ja": "再開"
+ },
  "继续观看": {
   "en": "Continue Watching",
   "ja": "続きから見る"
  },
+ "继续观看：%1$@ · %2$@": {
+  "en": "Continue: %1$@ · %2$@",
+  "ja": "続きから：%1$@ · %2$@"
+ },
  "编辑": {
   "en": "Edit",
   "ja": "編集"
+ },
+ "网站字幕暂时无法读取，可能有访问限制；请在浏览器中检查。": {
+  "en": "Website captions are unavailable, possibly due to access restrictions. Check in your browser.",
+  "ja": "サイトの字幕を読み込めません。アクセス制限の可能性があります。ブラウザでご確認ください。"
+ },
+ "网站字幕：%@": {
+  "en": "Website captions: %@",
+  "ja": "サイトの字幕：%@"
+ },
+ "网络": {
+  "en": "Online",
+  "ja": "オンライン"
+ },
+ "网络视频": {
+  "en": "Online video",
+  "ja": "オンライン動画"
+ },
+ "网络视频加载失败，可从中断处重试。": {
+  "en": "Online playback failed. Retry from the interruption point.",
+  "ja": "ネットワーク動画を読み込めませんでした。中断位置から再試行できます。"
  },
  "网络视频加载失败，请重新打开链接以重试。": {
   "en": "Network video could not load. Open the link again to retry.",
@@ -1351,6 +1515,10 @@
   "en": "Library (⌘L)",
   "ja": "ライブラリ（⌘L）"
  },
+ "视频访问受限或已失效，可在浏览器中检查是否需要登录。": {
+  "en": "This video is restricted or unavailable. Open it in a browser to check access.",
+  "ja": "動画にアクセスできません。ブラウザで公開状態やログインの必要性を確認してください。"
+ },
  "视频里说的是：": {
   "en": "Language spoken in the video:",
   "ja": "ビデオで話されている言語："
@@ -1358,6 +1526,10 @@
  "视频（MP4）": {
   "en": "Video (MP4)",
   "ja": "ビデオ（MP4）"
+ },
+ "解析组件可能需要更新，请检查 yt-dlp 和 Deno 版本。": {
+  "en": "The resolver may need updating. Check your yt-dlp and Deno versions.",
+  "ja": "解析コンポーネントの更新が必要かもしれません。yt-dlp と Deno のバージョンを確認してください。"
  },
  "解析超时，请检查网络后重试。": {
   "en": "Resolution timed out. Check your connection and try again.",
@@ -1379,6 +1551,10 @@
   "en": "Enter a show name and an episode number.",
   "ja": "番組名と話数（数字）を入力してください。"
  },
+ "请输入有效时间，例如 1:05.250": {
+  "en": "Enter a valid time, such as 1:05.250",
+  "ja": "有効な時刻を入力してください（例：1:05.250）"
+ },
  "请输入有效的 YouTube 单个视频链接。": {
   "en": "Enter a valid link to a single YouTube video.",
   "ja": "有効な YouTube の単一動画リンクを入力してください。"
@@ -1386,6 +1562,14 @@
  "请输入有效的 YouTube 或哔哩哔哩视频链接。": {
   "en": "Enter a valid YouTube or Bilibili video link.",
   "ja": "有効な YouTube または Bilibili の動画リンクを入力してください。"
+ },
+ "读取内嵌字幕需要本机 FFmpeg／ffprobe，也可以先选择已有 SRT 或本机 AI 字幕。": {
+  "en": "Embedded subtitles need local FFmpeg and ffprobe. You can also use existing SRT or on-device AI subtitles.",
+  "ja": "埋め込み字幕にはローカルのFFmpeg／ffprobeが必要です。既存のSRTやデバイス上のAI字幕も選択できます。"
+ },
+ "起点": {
+  "en": "Start",
+  "ja": "開始"
  },
  "超过 %@ 秒，只能导出视频": {
   "en": "over %@ s: video only",
@@ -1399,9 +1583,17 @@
   "en": "Jump Here (2 Seconds Before)",
   "ja": "ここへジャンプ（2秒前から）"
  },
+ "输入时间或拖动局部放大条；两个端点不会交叉。": {
+  "en": "Enter a time or drag the detail slider. Endpoints cannot cross.",
+  "ja": "時刻を入力するか拡大バーをドラッグ。両端は交差しません。"
+ },
  "运动": {
   "en": "Sports",
   "ja": "スポーツ"
+ },
+ "返回": {
+  "en": "Back",
+  "ja": "戻る"
  },
  "返回文件夹浏览": {
   "en": "Back to Folders",
@@ -1414,6 +1606,10 @@
  "还没有星标。\n播放时按 B 把当前时刻标上星。": {
   "en": "No stars yet.\nPress B while playing to star the current moment.",
   "ja": "スターはまだありません。\n再生中にBキーを押すと、その場面にスターを付けられます。"
+ },
+ "还没有网络播放记录": {
+  "en": "No online playback history yet",
+  "ja": "オンライン再生履歴はまだありません"
  },
  "这个视频没有声音，无法生成字幕。": {
   "en": "This video has no audio, so subtitles can't be generated.",
@@ -1447,6 +1643,10 @@
   "en": "Redo",
   "ja": "やり直す"
  },
+ "重听上一句": {
+  "en": "Replay Previous Phrase",
+  "ja": "前の文をもう一度"
+ },
  "重复文件": {
   "en": "Duplicates",
   "ja": "重複ファイル"
@@ -1458,6 +1658,10 @@
  "重新扫描": {
   "en": "Rescan",
   "ja": "再スキャン"
+ },
+ "重新读取": {
+  "en": "Reload",
+  "ja": "再読み込み"
  },
  "重试": {
   "en": "Retry",
@@ -1526,109 +1730,5 @@
  "（根目录）": {
   "en": "(Root Folder)",
   "ja": "（ルートフォルダ）"
- },
- "从中断处重试": {
-  "en": "Retry from here",
-  "ja": "中断位置から再試行"
- },
- "实际画质：%@p": {
-  "en": "Actual quality: %@p",
-  "ja": "実際の画質：%@p"
- },
- "正在缓冲…": {
-  "en": "Buffering…",
-  "ja": "バッファリング中…"
- },
- "网络视频": {
-  "en": "Online video",
-  "ja": "オンライン動画"
- },
- "YouTube 解析需要本机 Deno，请检查组件安装。": {
-  "en": "YouTube requires local Deno. Check the component installation.",
-  "ja": "YouTube の解析には Deno が必要です。インストールを確認してください。"
- },
- "视频访问受限或已失效，可在浏览器中检查是否需要登录。": {
-  "en": "This video is restricted or unavailable. Open it in a browser to check access.",
-  "ja": "動画にアクセスできません。ブラウザで公開状態やログインの必要性を確認してください。"
- },
- "无法连接视频网站，请检查网络后重试。": {
-  "en": "Cannot connect to the video site. Check your connection and retry.",
-  "ja": "動画サイトに接続できません。ネットワークを確認して再試行してください。"
- },
- "解析组件可能需要更新，请检查 yt-dlp 和 Deno 版本。": {
-  "en": "The resolver may need updating. Check your yt-dlp and Deno versions.",
-  "ja": "解析コンポーネントの更新が必要かもしれません。yt-dlp と Deno のバージョンを確認してください。"
- },
- "网络视频加载失败，可从中断处重试。": {
-  "en": "Online playback failed. Retry from the interruption point.",
-  "ja": "ネットワーク動画を読み込めませんでした。中断位置から再試行できます。"
- },
- "本地": {
-  "en": "Local",
-  "ja": "ローカル"
- },
- "网络": {
-  "en": "Online",
-  "ja": "オンライン"
- },
- "继续": {
-  "en": "Resume",
-  "ja": "再開"
- },
- "从头播放": {
-  "en": "Play from Start",
-  "ja": "最初から再生"
- },
- "继续观看：%1$@ · %2$@": {
-  "en": "Continue: %1$@ · %2$@",
-  "ja": "続きから：%1$@ · %2$@"
- },
- "移除记录": {
-  "en": "Remove Record",
-  "ja": "履歴を削除"
- },
- "还没有网络播放记录": {
-  "en": "No online playback history yet",
-  "ja": "オンライン再生履歴はまだありません"
- },
- "搜索网络视频标题": {
-  "en": "Search online video titles",
-  "ja": "オンライン動画のタイトルを検索"
- },
- "起点": {
-  "en": "Start",
-  "ja": "開始"
- },
- "终点": {
-  "en": "End",
-  "ja": "終了"
- },
- "微调片段": {
-  "en": "Fine-tune Clip",
-  "ja": "クリップを微調整"
- },
- "输入时间或拖动局部放大条；两个端点不会交叉。": {
-  "en": "Enter a time or drag the detail slider. Endpoints cannot cross.",
-  "ja": "時刻を入力するか拡大バーをドラッグ。両端は交差しません。"
- },
- "微调%@": {
-  "en": "Adjust %@",
-  "ja": "%@を微調整"
- },
- "步长：%@ 秒（按标称帧率；未知时为 0.01 秒）": {
-  "en": "Step: %@ s (nominal frame rate; 0.01 s if unknown)",
-  "ja": "刻み：%@ 秒（公称フレームレート。不明時は 0.01 秒）"
- },
- "请输入有效时间，例如 1:05.250": {
-  "en": "Enter a valid time, such as 1:05.250",
-  "ja": "有効な時刻を入力してください（例：1:05.250）"
- },
- "片段局部放大": {
-  "en": "Clip detail zoom",
-  "ja": "クリップの部分拡大"
- },
- "单击微调起止时间": {
-  "en": "Click to fine-tune start and end",
-  "ja": "クリックして開始・終了時刻を微調整"
  }
 }

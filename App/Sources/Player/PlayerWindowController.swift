@@ -13,6 +13,7 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     lazy var sidebar = PlayerSidebarView(bookmarks: listPanel, preferences: sidebarPreferences, history: history,
         networkHistory: networkHistory, onContinue: { [weak self] in self?.openContinue($0, fromBeginning: $1) },
         libraryProvider: libraryProvider, onOpen: { [weak self] in self?.open($0) })
+    lazy var transcriptCoordinator = SubtitleTranscriptCoordinator(view: sidebar.transcript)
     private let memory = PlaybackMemory()
     /// The file whose load has been fully handled (settings restored, subtitles attached).
     private(set) var loadedPath: String?
@@ -152,6 +153,7 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
             if device != AudioOutput.followSystem { engine.setAudioDevice(device) }
         }
         wireBookmarks()
+        wireTranscript()
         installKeyMonitor()
     }
 
@@ -493,6 +495,7 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         slider.isEnabled = state.duration > 0
         if markers.duration != state.duration { markers.duration = state.duration }
         showSpeed(state.speed)
+        if transcriptCoordinator.documentTarget == currentTarget { sidebar.transcript.updatePosition(state.timePos - subtitleDelay) }
         if networkMedia != nil, state.path == currentTarget {
             if state.timePos.isFinite, state.timePos > 0 { lastNetworkPosition = state.timePos }
             if loadedPath != nil, !networkFailed {
@@ -549,6 +552,7 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
                 loadedPath = path
                 sidebar.currentPath = nil
                 engine.setPaused(false)
+                if sidebar.isTranscriptOpen && sidebar.state.isExpanded { refreshSubtitleTranscript() }
                 return
             }
             // Read before the tracker acts: with the duration not known yet, its resume
@@ -564,6 +568,7 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
             loadCachedAISubtitles(for: path)
             loadedPath = path
             sidebar.currentPath = path
+            if sidebar.isTranscriptOpen && sidebar.state.isExpanded { refreshSubtitleTranscript() }
             if currentURL?.isFileURL == true { history.recordOpened(path: path, duration: duration) }
         case .endFile:
             // With keep-open, natural EOF does not end the file; eofReached in
@@ -636,6 +641,7 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         playerView?.gesture.cancel()
         flushPendingTrackMemory()
         saveResumeNow()
+        transcriptCoordinator.reset()
         networkMedia = media
         playbackStartOverride = resumeAt
         lastNetworkPosition = 0
@@ -682,6 +688,7 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     func shutdown() {
         guard !isShutDown else { return }
         isShutDown = true
+        transcriptCoordinator.reset()
         dismissClipAdjustment()
         networkSheet?.cancel()
         networkLoadDeadline?.cancel(); networkLoadDeadline = nil
@@ -779,6 +786,8 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         speedItem.submenu = speeds
         speedItem.isEnabled = hasMedia
 
+        add(L("字幕搜索与逐句回看…"), #selector(showSubtitleTranscript(_:)), to: menu)
+        menu.items.last?.keyEquivalent = "t"; menu.items.last?.keyEquivalentModifierMask = [.command, .shift]
         add(L("AI 字幕…"), #selector(generateAISubtitles(_:)), to: menu, key: "t")
 
         let clips = NSMenu(title: L("截取片段"))
@@ -1145,6 +1154,70 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         playerView?.hud.flash(text: NightMode.isOn ? L("夜间模式：人声更清楚，轰鸣声更小") : L("夜间模式已关闭"))
     }
 
+    // MARK: on-demand subtitle transcript
+
+    private func wireTranscript() {
+        sidebar.onTranscriptHidden = { [weak self] in self?.transcriptCoordinator.cancelRead() }
+        sidebar.transcript.onRefresh = { [weak self] in self?.refreshSubtitleTranscript() }
+        sidebar.transcript.onJump = { [weak self] in self?.jumpToSubtitle($0) }
+        sidebar.transcript.onReplay = { [weak self] in
+            guard let self, let document = self.sidebar.transcript.document,
+                  let time = self.engine?.state.timePos,
+                  let index = document.replayIndex(at: time - self.subtitleDelay) else { return }
+            self.jumpToSubtitle(document.cues[index])
+        }
+        transcriptCoordinator.onDisplayFile = { [weak self] file, title in self?.engine?.addSubtitle(path: file.path, title: title) }
+        transcriptCoordinator.onRemoveFile = { [weak self] file in self?.engine?.removeSubtitle(path: file.path) }
+        transcriptCoordinator.onSelectTrack = { [weak self] id in
+            self?.engine?.command(["set", "sid", id]); self?.rememberTracks()
+        }
+    }
+    @objc func showSubtitleTranscript(_ sender: Any?) {
+        guard loadedPath != nil, !isShutDown else { return }
+        sidebar.showTranscript()
+        if let context = transcriptContext() { transcriptCoordinator.open(context) }
+    }
+    private func refreshSubtitleTranscript() {
+        if let context = transcriptContext() { transcriptCoordinator.open(context, refresh: true) }
+    }
+    private func transcriptContext() -> SubtitleTranscriptContext? {
+        guard let target = currentTarget, loadedPath == target, let engine else { return nil }
+        if let media = networkMedia {
+            return SubtitleTranscriptContext(target: target, local: nil, network: media.request, external: [], preferredSource: nil)
+        }
+        guard let url = currentURL, url.isFileURL else { return nil }
+        var external: [SubtitleSourceOption] = []
+        var preferred: String?
+        let selected = engine.property("sid")
+        let count = min(256, max(0, Int(engine.property("track-list/count") ?? "") ?? 0))
+        for i in 0..<count where engine.property("track-list/\(i)/type") == "sub" {
+            let id = engine.property("track-list/\(i)/id")
+            if let path = engine.property("track-list/\(i)/external-filename"), path.hasPrefix("/") {
+                let file = URL(fileURLWithPath: path)
+                let isAI = aiShown?.display.path == path
+                let source = isAI ? aiShown!.srt : file
+                guard SubtitleContentLoader.localURL(source, video: false) != nil else { continue }
+                let key = isAI ? "ai" : "external:" + path
+                let option = SubtitleSourceOption(id: key, title: isAI ? L("本机 AI 字幕") : file.lastPathComponent,
+                    input: .file(source, bilingual: isAI && aiShown!.bilingual), playerTrackID: id)
+                if !external.contains(where: { $0.id == key }) { external.append(option) }
+                if selected == id { preferred = key }
+            } else if selected == id, let index = engine.property("track-list/\(i)/ff-index") { preferred = "embedded:" + index }
+        }
+        if let shown = aiShown, !external.contains(where: { $0.id == "ai" }) {
+            external.insert(SubtitleSourceOption(id: "ai", title: L("本机 AI 字幕"), input: .file(shown.srt, bilingual: shown.bilingual)), at: 0)
+        }
+        return SubtitleTranscriptContext(target: target, local: url, network: nil, external: external, preferredSource: preferred)
+    }
+    private func jumpToSubtitle(_ cue: SubtitleCue) {
+        guard !isShutDown, loadedPath == currentTarget, transcriptCoordinator.documentTarget == currentTarget,
+              let engine else { return }
+        playerView?.gesture.cancel()
+        let position = max(0, cue.start + subtitleDelay - 0.15)
+        engine.seek(to: engine.state.duration > 0 ? min(position, max(0, engine.state.duration - 0.1)) : position)
+        engine.setPaused(false)
+    }
+
     // MARK: per-video memory
 
     /// Puts this video back the way it was left; videos never touched get the defaults.
@@ -1276,6 +1349,8 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         case #selector(chooseSubtitleSize(_:)):
             item.state = (item.representedObject as? Double) == aiPrefs.scale ? .on : .off
             return true
+        case #selector(showSubtitleTranscript(_:)):
+            return loadedPath != nil && !isShutDown
         case #selector(exportAISubtitles(_:)):
             return aiShown != nil
         case #selector(cancelClipExport(_:)):
@@ -1466,6 +1541,7 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
                                                                scale: aiPrefs.scale) else { return }
         engine.addSubtitle(path: display.path, title: title, select: select)
         aiShown = (srt, display, bilingual)
+        if loadedPath != nil && sidebar.isTranscriptOpen && sidebar.state.isExpanded { refreshSubtitleTranscript() }
     }
 
     /// Play › AI 字幕背景条: on by default; redraws the subtitles on screen right away.

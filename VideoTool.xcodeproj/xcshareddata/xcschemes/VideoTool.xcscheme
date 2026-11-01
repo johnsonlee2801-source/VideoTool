@@ -82,6 +82,11 @@
             isEnabled = "YES">
          </EnvironmentVariable>
          <EnvironmentVariable
+            key = "VIDEOTOOL_SUBTITLE_LIVE"
+            value = "$(VIDEOTOOL_SUBTITLE_LIVE)"
+            isEnabled = "YES">
+         </EnvironmentVariable>
+         <EnvironmentVariable
             key = "VIDEOTOOL_YOUTUBE_LIVE"
             value = "$(VIDEOTOOL_YOUTUBE_LIVE)"
             isEnabled = "YES">

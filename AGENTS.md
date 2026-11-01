@@ -152,3 +152,10 @@ goals, layout, build and test commands. `CLAUDE.md` only imports this file.
   `LocalizationTests` fail on any untranslated string. Content tags are stored in
   Chinese and translated at display time. Tests run with `-AppleLanguages (zh-Hans)`.
 - README screenshots: `tools/make_docs_screens.sh` (all three languages, generated footage).
+
+## Subtitle transcript (2026-11-01)
+
+- ⇧⌘T and the picture context menu open an on-demand transcript overlay in the existing right sidebar; Back restores the previous Library/Recent/Stars tab and width. Controls retain keyboard focus. Search original/translation; click seeks with subtitle delay and keeps speed. Replay uses the phrase just heard (within 0.4 seconds of a cue start, use the previous cue).
+- Existing local SRT/AI results and FFmpeg/ffprobe text extraction are supported; never start AI implicitly. Parsing/search-key preparation is off main, cancelled or old-file results cannot publish. Bitmap subtitles remain unsupported.
+- Public website captions use isolated simulated yt-dlp metadata and anonymous bounded transfers, original tracks before translated variants. No cookies/credentials, at most 512 metadata variants, 4 MiB content, 30,000 cues, 1,000 displayed search results; redirects remain on allowed caption endpoints. Temporary display files live under AppData and only owned files are removed. Network AI/export/local-index boundaries remain intact.
+- `SubtitleTranscriptLiveTests` needs `VIDEOTOOL_SUBTITLE_LIVE=1`; ordinary gates stay offline. Translated website captions can be rate-limited independently of the original track. Do not promise all languages/sites from one successful public-video test.
