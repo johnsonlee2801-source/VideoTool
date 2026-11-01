@@ -1,4 +1,5 @@
 import AppKit
+import ImageIO
 import Testing
 @testable import VideoTool
 
@@ -121,6 +122,28 @@ struct ClipSelectionTests {
         engine.seek(to: t)
         #expect(await waitUntil { abs(engine.state.timePos - t) < 0.05 }, "seek to \(t): at \(engine.state.timePos)")
         w.perform(.markClip)
+    }
+
+    @Test("CA5 adjusted endpoints update looping and the actual exported GIF; export freezes selection")
+    func adjustedExport() async throws {
+        let (w, engine, _, _) = try await player()
+        defer { w.shutdown() }
+        await markClip(w, engine, at: 2); await markClip(w, engine, at: 4)
+        _ = w.adjustClip(.start, to: 3.25)
+        _ = w.adjustClip(.end, to: 6.125)
+        #expect(w.markersForTesting.clipRange == ClipRange(start: 3.25, end: 6.125))
+        w.clipBar.press(.loop)
+        #expect(await waitUntil { Double(engine.property("ab-loop-a") ?? "") == 3.25 && Double(engine.property("ab-loop-b") ?? "") == 6.125 })
+        var files: [URL] = []
+        w.revealExported = { files = $0 }
+        w.clipBar.press(.gif)
+        #expect(w.adjustClip(.end, to: 9) == nil)
+        #expect(await waitUntil(20) { !files.isEmpty })
+        let url = try #require(files.first)
+        let gif = try #require(CGImageSourceCreateWithURL(url as CFURL, nil))
+        #expect((28...30).contains(CGImageSourceGetCount(gif)), "export must use the edited duration, not the original 2-second clip")
+        w.clearClip()
+        #expect(w.adjustClip(.start, to: 0) == nil)
     }
 
     @Test("CP1 C at 2 s and C at 4 s: the bar appears; GIF saves a file there and shows it in Finder")

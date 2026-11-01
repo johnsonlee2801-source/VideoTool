@@ -1,7 +1,7 @@
 import AppKit
 
 /// Draws yellow stars just above the progress slider, reports hovering, and takes
-/// clicks that land on a star. Every other click falls through to the slider
+/// clicks that land on a star or clip handle. Other clicks fall through to the slider
 /// (which also snaps to nearby stars).
 final class BookmarkMarkersView: NSView {
     static let hoverRadius: CGFloat = 7
@@ -10,7 +10,9 @@ final class BookmarkMarkersView: NSView {
     var duration: Double = 0 { didSet { needsDisplay = true } }
     /// The clip being marked with C: its first end, then the whole stretch (drawn in cyan).
     var clipStart: Double? { didSet { needsDisplay = true } }
-    var clipRange: ClipRange? { didSet { needsDisplay = true } }
+    var onClipAdjust: ((ClipSelection.Endpoint, Double) -> Void)?
+    private var draggedEndpoint: ClipSelection.Endpoint?
+    var clipRange: ClipRange? { didSet { if clipRange == nil { draggedEndpoint = nil }; needsDisplay = true; window?.invalidateCursorRects(for: self) } }
     var bookmarks: [Bookmark] = [] {
         didSet {
             needsDisplay = true
@@ -37,18 +39,41 @@ final class BookmarkMarkersView: NSView {
     static let starLift: CGFloat = 10
     var starCenterY: CGFloat { bounds.midY - Self.starLift }
 
-    /// Only a star takes the click; `point` is in the superview's coordinates.
+    /// Stars and completed clip handles take clicks; `point` is in the superview's coordinates.
     override func hitTest(_ point: NSPoint) -> NSView? {
         guard !isHidden, let superview else { return nil }
         let p = convert(point, from: superview)
-        return abs(p.y - starCenterY) <= Self.starLift - 1 && star(atX: p.x) != nil ? self : nil
+        if abs(p.y - starCenterY) <= Self.starLift - 1 && star(atX: p.x) != nil { return self }
+        return clipEndpoint(at: p) != nil ? self : nil
     }
 
     override func mouseDown(with event: NSEvent) {
         let p = convert(event.locationInWindow, from: nil)
-        if let b = star(atX: p.x)?.bookmark { onClick?(b) }
+        if abs(p.y - starCenterY) <= Self.starLift - 1, let b = star(atX: p.x)?.bookmark { onClick?(b); return }
+        draggedEndpoint = clipEndpoint(at: p)
+        if draggedEndpoint != nil { onHover?(nil, 0); onHoverTime?(nil, 0) }
     }
 
+    private func clipEndpoint(at point: NSPoint) -> ClipSelection.Endpoint? {
+        guard onClipAdjust != nil, abs(point.y - bounds.midY) <= 8, let range = clipRange,
+              let a = x(at: range.start), let b = x(at: range.end), min(abs(point.x - a), abs(point.x - b)) <= 7 else { return nil }
+        return abs(point.x - a) <= abs(point.x - b) ? .start : .end
+    }
+    override func mouseDragged(with event: NSEvent) {
+        guard let endpoint = draggedEndpoint, clipRange != nil, duration > 0 else { return }
+        let x = Double(convert(event.locationInWindow, from: nil).x), track = track()
+        let time = duration * max(0, min(1, (x - track.minX) / max(1, track.width)))
+        let current = endpoint == .start ? clipRange?.start : clipRange?.end
+        if let current, abs(current - time) < 0.000000001 { return }
+        onClipAdjust?(endpoint, time)
+    }
+    override func mouseUp(with event: NSEvent) { if draggedEndpoint != nil { mouseDragged(with: event) }; draggedEndpoint = nil }
+    override func resetCursorRects() {
+        guard onClipAdjust != nil, let range = clipRange else { return }
+        for time in [range.start, range.end] {
+            if let x = x(at: time) { addCursorRect(NSRect(x: x - 7, y: bounds.midY, width: 14, height: 8), cursor: .resizeLeftRight) }
+        }
+    }
     /// The star (cluster) nearest to `x`, within the hover radius.
     private func star(atX x: CGFloat) -> (bookmark: Bookmark, x: CGFloat)? {
         visibleClusters()
@@ -95,7 +120,10 @@ final class BookmarkMarkersView: NSView {
         }
         Theme.accent2.setFill()
         for t in [clipRange?.start ?? clipStart, clipRange?.end].compactMap({ $0 }) {
-            if let px = x(at: t) { NSRect(x: px - 1, y: y - 8, width: 2, height: 16).fill() }
+            if let px = x(at: t) {
+                let width: CGFloat = clipRange == nil ? 2 : 6
+                NSBezierPath(roundedRect: NSRect(x: px - width / 2, y: y - 8, width: width, height: 16), xRadius: 2, yRadius: 2).fill()
+            }
         }
     }
 

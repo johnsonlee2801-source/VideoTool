@@ -71,6 +71,8 @@ Needs macOS 26 or later · 需要 macOS 26 或更新版本。
 
 <sub>From each app's public documentation, October 2026 · 依据 2026 年 10 月公开资料。Spot an error? Open an issue · 有出入欢迎提 issue。</sub>
 
+**Fine-tune clips:** Drag either cyan endpoint on the timeline, or click the clip-time button for millisecond input, nominal-frame-duration steps and a six-second detail zoom. Endpoints stay within the video and at least 0.5 s apart; loop preview and export use the edited range. Variable-frame-rate video is not promised exact frame indexing.
+
 ## YouTube and Bilibili in VideoTool · 网络视频
 
 Choose **File › Open Network Video…** (`⇧⌘O`) and paste a public YouTube or Bilibili video link.

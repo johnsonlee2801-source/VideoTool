@@ -1594,5 +1594,41 @@
  "搜索网络视频标题": {
   "en": "Search online video titles",
   "ja": "オンライン動画のタイトルを検索"
+ },
+ "起点": {
+  "en": "Start",
+  "ja": "開始"
+ },
+ "终点": {
+  "en": "End",
+  "ja": "終了"
+ },
+ "微调片段": {
+  "en": "Fine-tune Clip",
+  "ja": "クリップを微調整"
+ },
+ "输入时间或拖动局部放大条；两个端点不会交叉。": {
+  "en": "Enter a time or drag the detail slider. Endpoints cannot cross.",
+  "ja": "時刻を入力するか拡大バーをドラッグ。両端は交差しません。"
+ },
+ "微调%@": {
+  "en": "Adjust %@",
+  "ja": "%@を微調整"
+ },
+ "步长：%@ 秒（按标称帧率；未知时为 0.01 秒）": {
+  "en": "Step: %@ s (nominal frame rate; 0.01 s if unknown)",
+  "ja": "刻み：%@ 秒（公称フレームレート。不明時は 0.01 秒）"
+ },
+ "请输入有效时间，例如 1:05.250": {
+  "en": "Enter a valid time, such as 1:05.250",
+  "ja": "有効な時刻を入力してください（例：1:05.250）"
+ },
+ "片段局部放大": {
+  "en": "Clip detail zoom",
+  "ja": "クリップの部分拡大"
+ },
+ "单击微调起止时间": {
+  "en": "Click to fine-tune start and end",
+  "ja": "クリックして開始・終了時刻を微調整"
  }
 }

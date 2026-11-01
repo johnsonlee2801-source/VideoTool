@@ -99,6 +99,12 @@ enum Snapshot {
             try Snapshot.write(w.sidebar, "P11-continue-\(Int(width))")
         }
     }
+    @Test("P12 precise clip adjustment fits a compact popover")
+    func clipAdjustment() throws {
+        var selection = ClipSelection(); _ = selection.mark(65.25); _ = selection.mark(72.5)
+        let view = ClipAdjustmentView(range: try #require(selection.range), duration: 180, fps: 24) { selection.adjust($0, to: $1, duration: 180) }
+        try Snapshot.write(view, "P12-clip-adjustment")
+    }
     private func stars() -> [Bookmark] {
         [(62.0, "开场彩蛋"), (305, ""), (611, "这段笑死"), (1180, "名场面"), (1190, "")].map {
             Bookmark(id: UUID(), fileKey: "k", time: $0.0, endTime: nil, note: $0.1, createdAt: Date())

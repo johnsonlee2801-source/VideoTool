@@ -9,6 +9,18 @@ struct ClipSelection: Equatable {
         case tooShort                 // the second C at the same moment: not a clip
     }
 
+    enum Endpoint: Int { case start, end }
+    @discardableResult
+    mutating func adjust(_ endpoint: Endpoint, to time: Double, duration: Double) -> ClipRange? {
+        guard let range, range.start.isFinite, range.end.isFinite,
+              time.isFinite, duration.isFinite, duration >= Self.minLength else { return nil }
+        var a = max(0, min(range.start, duration - Self.minLength))
+        var b = max(a + Self.minLength, min(range.end, duration))
+        if endpoint == .start { a = max(0, min(time, b - Self.minLength)) }
+        else { b = max(a + Self.minLength, min(time, duration)) }
+        start = a; end = b
+        return self.range
+    }
     /// Shorter than this is a double press, not a clip.
     static let minLength = 0.5
 

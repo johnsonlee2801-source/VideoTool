@@ -74,6 +74,12 @@ goals, layout, build and test commands. `CLAUDE.md` only imports this file.
   or crossing directories. EOF and skipped credits wait for the user to click
   Next; keep intro skipping, finished history and resume cleanup intact. Directory
   reads stay off main and stale results never replace a newer selection.
+- Local C-marked clips support draggable endpoints and an on-demand adjustment
+  popover from the time button: millisecond input, nominal-frame-duration steps
+  (0.01 s if unknown), fixed six-second detail zoom. Maintain >=0.5 s and video
+  bounds, preserve star/slider interactions, update loop/export range together,
+  freeze selection during export, cancel old drags/popovers on clear/file change.
+  Nominal steps do not promise exact VFR frame indexing.
 - Starred moments (step 3, decided 2026-10-18): press **B** to star the current
   time without pausing or prompting. B while the speed gesture is active follows
   the general rule: it only cancels the speed-up and does NOT star. Jumping to a

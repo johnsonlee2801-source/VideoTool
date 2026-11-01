@@ -5,9 +5,10 @@ import AppKit
 final class ClipBar: NSView {
     enum Action: Int { case gif, video, copy, loop, close }
 
+    var onAdjust: (() -> Void)?
     var onAction: ((Action) -> Void)?
 
-    private let label = NSTextField(labelWithString: "")
+    let adjustButton = NSButton(title: "", target: nil, action: nil)
     private let stack = NSStackView()
     private var buttons: [Action: NSButton] = [:]
     private var titles: [Action: String] = [:]
@@ -21,8 +22,15 @@ final class ClipBar: NSView {
         layer?.borderColor = Theme.accent2.withAlphaComponent(0.6).cgColor
         isHidden = true
 
-        label.textColor = Theme.textPrimary
-        label.font = Theme.digits(13, .bold)
+        adjustButton.contentTintColor = Theme.textPrimary
+        adjustButton.isBordered = false; adjustButton.alignment = .left
+        adjustButton.image = NSImage(systemSymbolName: "slider.horizontal.3", accessibilityDescription: L("微调片段"))
+        adjustButton.imagePosition = .imageTrailing
+        adjustButton.target = self; adjustButton.action = #selector(adjustPressed(_:))
+        adjustButton.toolTip = L("单击微调起止时间")
+        adjustButton.lineBreakMode = .byTruncatingMiddle
+        adjustButton.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        adjustButton.font = Theme.digits(13, .bold)
 
         let specs: [(Action, String, Bool, String)] = [
             (.gif, L("GIF"), true, "photo.on.rectangle"),
@@ -31,7 +39,7 @@ final class ClipBar: NSView {
             (.loop, L("循环预览"), false, "repeat"),
             (.close, "", false, "xmark"),
         ]
-        var views: [NSView] = [label]
+        var views: [NSView] = [adjustButton]
         for (action, title, primary, symbol) in specs {
             let b = NSButton(title: title, target: self, action: #selector(pressed(_:)))
             LibraryOfferBar.style(b, primary: primary, symbol: symbol)
@@ -57,7 +65,7 @@ final class ClipBar: NSView {
 
     required init?(coder: NSCoder) { fatalError("not supported") }
 
-    var textForTesting: String { label.stringValue }
+    var textForTesting: String { adjustButton.title }
     func isEnabled(_ action: Action) -> Bool { buttons[action]?.isEnabled ?? false }
     func title(of action: Action) -> String { titles[action] ?? "" }
 
@@ -75,7 +83,8 @@ final class ClipBar: NSView {
         let gifOK = range.length <= ClipExporter.maxGIFLength
         let limit = String(Int(ClipExporter.maxGIFLength))
         // Say what Copy will give, and why there is no GIF (asked 2026-10-20: "拷贝后没有 GIF").
-        label.stringValue = L("片段 %1$@ – %2$@ · %3$@ 秒", a, b, String(Int(range.length.rounded())))
+        adjustButton.toolTip = L("单击微调起止时间") + " · " + ClipAdjustment.text(range.start) + " – " + ClipAdjustment.text(range.end)
+        adjustButton.title = L("片段 %1$@ – %2$@ · %3$@ 秒", a, b, String(Int(range.length.rounded())))
             + (gifOK ? "" : " · " + L("超过 %@ 秒，只能导出视频", limit))
         setTitle(gifOK ? L("拷贝 GIF") : L("拷贝视频"), of: .copy)
         buttons[.gif]?.isEnabled = gifOK
@@ -89,5 +98,6 @@ final class ClipBar: NSView {
     /// Same as clicking the button (tests use this).
     func press(_ action: Action) { onAction?(action) }
 
+    @objc private func adjustPressed(_ sender: Any?) { onAdjust?() }
     @objc private func pressed(_ sender: NSButton) { Action(rawValue: sender.tag).map(press) }
 }

@@ -83,6 +83,7 @@
 "动图（GIF）" = "Animated GIF";
 "动物" = "Animal";
 "动画" = "Animation";
+"单击微调起止时间" = "Click to fine-tune start and end";
 "厨房" = "Kitchen";
 "发送反馈…" = "Send Feedback…";
 "取消" = "Cancel";
@@ -150,6 +151,8 @@
 "当前文件夹没有视频" = "No videos in this folder";
 "循环预览" = "Loop";
 "循环预览片段" = "Looping the clip";
+"微调%@" = "Adjust %@";
+"微调片段" = "Fine-tune Clip";
 "德语" = "German";
 "必填" = "Required";
 "快进 5 秒" = "Forward 5 Seconds";
@@ -263,6 +266,7 @@
 "正在读取声音…" = "Reading audio…";
 "正在读取文件夹…" = "Reading folder…";
 "此文件无法打星标" = "This file can't be starred";
+"步长：%@ 秒（按标称帧率；未知时为 0.01 秒）" = "Step: %@ s (nominal frame rate; 0.01 s if unknown)";
 "汽车" = "Car";
 "没有上一集" = "No previous video";
 "没有下一集" = "No next video";
@@ -296,6 +300,7 @@
 "片段 %1$@ – %2$@ · %3$@ 秒" = "Clip %1$@ – %2$@ · %3$@ s";
 "片段从 %@ 开始，再按 C 标记结尾" = "Clip starts at %@ — press C again at the end";
 "片段太短，换个位置再按 C" = "Too short — press C somewhere else";
+"片段局部放大" = "Clip detail zoom";
 "片段已存好，剪贴板里的新内容没有被覆盖" = "Clip saved — what you copied meanwhile was kept on the clipboard";
 "狗" = "Dog";
 "猫" = "Cat";
@@ -317,6 +322,7 @@
 "粘贴" = "Paste";
 "粤语" = "Cantonese";
 "繁體中文" = "Traditional Chinese";
+"终点" = "End";
 "结束" = "End";
 "结束时间要晚于开始时间" = "The end must be after the start";
 "继续" = "Resume";
@@ -355,10 +361,13 @@
 "设为默认视频播放器…" = "Set as Default Video Player…";
 "语言 · Language" = "Language";
 "请填写剧名和集数（集数是数字）。" = "Enter a show name and an episode number.";
+"请输入有效时间，例如 1:05.250" = "Enter a valid time, such as 1:05.250";
 "请输入有效的 YouTube 或哔哩哔哩视频链接。" = "Enter a valid YouTube or Bilibili video link.";
+"起点" = "Start";
 "超过 %@ 秒，只能导出视频" = "over %@ s: video only";
 "跟随系统" = "Follow System";
 "跳到这里（提前 2 秒）" = "Jump Here (2 Seconds Before)";
+"输入时间或拖动局部放大条；两个端点不会交叉。" = "Enter a time or drag the detail slider. Endpoints cannot cross.";
 "运动" = "Sports";
 "返回文件夹浏览" = "Back to Folders";
 "还没有播放记录" = "No playback history yet";

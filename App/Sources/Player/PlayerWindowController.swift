@@ -47,6 +47,8 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     let clipBar = ClipBar()
     private var clipSelection = ClipSelection()
     private var clipLooping = false
+    private var clipAdjustPopover: NSPopover?
+    private var clipAdjustGeneration = 0
     /// Where quick exports from the clip bar go (tests point it elsewhere).
     var clipOutputDirectory = ClipNaming.defaultDirectory
     /// Where Copy and ⌘C put things (tests use a private pasteboard).
@@ -358,6 +360,8 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
             libraryOffer.widthAnchor.constraint(lessThanOrEqualTo: content.widthAnchor, constant: -40),
         ]
         clipBar.translatesAutoresizingMaskIntoConstraints = false
+        clipBar.onAdjust = { [weak self] in self?.showClipAdjustment() }
+        markers.onClipAdjust = { [weak self] endpoint, time in _ = self?.adjustClip(endpoint, to: time) }
         clipBar.onAction = { [weak self] in self?.clipAction($0) }
         content.addSubview(clipBar)
         constraints += [
@@ -678,6 +682,7 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     func shutdown() {
         guard !isShutDown else { return }
         isShutDown = true
+        dismissClipAdjustment()
         networkSheet?.cancel()
         networkLoadDeadline?.cancel(); networkLoadDeadline = nil
         exportTask?.cancel()                   // no export may outlive its window (audit 2026-10-20)
@@ -878,6 +883,7 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         let t = engine.state.timePos
         switch clipSelection.mark(t) {
         case .started(let start):
+            dismissClipAdjustment()
             setLooping(false)
             clipBar.hide()
             markers.clipRange = nil
@@ -895,6 +901,7 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
 
     /// Play › 清除片段选择, or × on the clip bar.
     @objc func clearClip(_ sender: Any? = nil) {
+        dismissClipAdjustment()
         setLooping(false)
         clipSelection.clear()
         markers.clipStart = nil
@@ -902,6 +909,31 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         clipBar.hide()
     }
 
+    @discardableResult
+    func adjustClip(_ endpoint: ClipSelection.Endpoint, to time: Double) -> ClipRange? {
+        guard !isShutDown, !isExportingClip, currentURL?.isFileURL == true, loadedPath != nil,
+              let duration = engine?.state.duration, let range = clipSelection.adjust(endpoint, to: time, duration: duration) else { return nil }
+        markers.clipRange = range; clipBar.show(range)
+        if clipLooping { engine?.setLoop(range) }
+        return range
+    }
+    private func dismissClipAdjustment() { clipAdjustGeneration += 1; clipAdjustPopover?.close(); clipAdjustPopover = nil }
+    func showClipAdjustment() {
+        guard !isShutDown, !isExportingClip, currentURL?.isFileURL == true, loadedPath != nil,
+              let range = clipSelection.range, let engine, engine.state.duration > 0 else { return }
+        dismissClipAdjustment()
+        let token = clipAdjustGeneration
+        let detail = ClipAdjustmentView(range: range, duration: engine.state.duration,
+                                        fps: engine.property("container-fps").flatMap(Double.init)) { [weak self] endpoint, time in
+            guard let self, self.clipAdjustGeneration == token else { return nil }
+            return self.adjustClip(endpoint, to: time)
+        }
+        let controller = NSViewController(); controller.view = detail
+        controller.preferredContentSize = detail.frame.size
+        let popover = NSPopover(); popover.behavior = .transient; popover.contentViewController = controller
+        clipAdjustPopover = popover
+        popover.show(relativeTo: clipBar.bounds, of: clipBar, preferredEdge: .maxY)
+    }
     private func clipAction(_ action: ClipBar.Action) {
         guard let range = clipSelection.range, let source = currentURL, source.isFileURL else { return }
         switch action {
