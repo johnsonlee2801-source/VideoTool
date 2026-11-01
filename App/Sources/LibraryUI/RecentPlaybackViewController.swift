@@ -4,7 +4,13 @@ final class RecentPlaybackViewController: NSViewController, NSTableViewDataSourc
     private let history: WatchHistoryStore
     private let index: () -> [LibraryItem]
     private let thumbnail: (LibraryItem) -> URL?
+    private var selectedSource = 0
+    private var sourceQueries = ["", ""]
     private let onOpen: (URL) -> Void
+    private let networkHistory: NetworkWatchHistoryStore?
+    private let onOpenNetwork: ((NetworkWatchEntry, Bool) -> Void)?
+    let sourceSelector = NSSegmentedControl(labels: [L("本地"), L("网络")], trackingMode: .selectOne, target: nil, action: nil)
+    private(set) var networkView: NetworkHistoryView?
     private(set) var rows: [RecentPlaybackItem] = []
     let searchField = NSSearchField()
     let table = NSTableView()
@@ -13,7 +19,9 @@ final class RecentPlaybackViewController: NSViewController, NSTableViewDataSourc
     var currentPath: String? { didSet { if currentPath != oldValue { refresh() } } }
 
     init(history: WatchHistoryStore, index: @escaping () -> [LibraryItem],
-         thumbnail: @escaping (LibraryItem) -> URL?, onOpen: @escaping (URL) -> Void) {
+         thumbnail: @escaping (LibraryItem) -> URL?, onOpen: @escaping (URL) -> Void,
+         networkHistory: NetworkWatchHistoryStore? = nil, onOpenNetwork: ((NetworkWatchEntry, Bool) -> Void)? = nil) {
+        self.networkHistory = networkHistory; self.onOpenNetwork = onOpenNetwork
         self.history = history; self.index = index; self.thumbnail = thumbnail; self.onOpen = onOpen
         super.init(nibName: nil, bundle: nil)
         view = NSView()
@@ -37,13 +45,28 @@ final class RecentPlaybackViewController: NSViewController, NSTableViewDataSourc
         scroll.drawsBackground = false
         empty.font = .systemFont(ofSize: 13, weight: .medium)
         empty.textColor = Theme.textSecondary; empty.alignment = .center
-        for child in [searchField, scroll, empty] as [NSView] {
+        sourceSelector.selectedSegment = 0; sourceSelector.target = self; sourceSelector.action = #selector(sourceChanged(_:))
+        sourceSelector.isHidden = networkHistory == nil
+        if let networkHistory {
+            let network = NetworkHistoryView(store: networkHistory) { [weak self] in self?.onOpenNetwork?($0, $1) }
+            networkView = network
+            network.translatesAutoresizingMaskIntoConstraints = false; view.addSubview(network)
+            view.addSubview(searchField)
+            NSLayoutConstraint.activate([
+                network.leadingAnchor.constraint(equalTo: view.leadingAnchor), network.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+                network.topAnchor.constraint(equalTo: searchField.bottomAnchor, constant: 12), network.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            ])
+        }
+        for child in [sourceSelector, searchField, scroll, empty] as [NSView] {
             child.translatesAutoresizingMaskIntoConstraints = false; view.addSubview(child)
         }
         NSLayoutConstraint.activate([
             searchField.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 14),
             searchField.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -14),
-            searchField.topAnchor.constraint(equalTo: view.topAnchor, constant: 12),
+            sourceSelector.topAnchor.constraint(equalTo: view.topAnchor, constant: 8),
+            sourceSelector.leadingAnchor.constraint(equalTo: searchField.leadingAnchor),
+            sourceSelector.heightAnchor.constraint(equalToConstant: networkHistory == nil ? 0 : 24),
+            searchField.topAnchor.constraint(equalTo: sourceSelector.bottomAnchor, constant: 8),
             scroll.topAnchor.constraint(equalTo: searchField.bottomAnchor, constant: 12),
             scroll.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 10),
             scroll.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -10),
@@ -53,7 +76,17 @@ final class RecentPlaybackViewController: NSViewController, NSTableViewDataSourc
             empty.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -24),
         ])
     }
+    @objc private func sourceChanged(_ sender: Any?) {
+        sourceQueries[selectedSource] = searchField.stringValue
+        selectedSource = max(0, min(1, sourceSelector.selectedSegment))
+        searchField.stringValue = sourceQueries[selectedSource]
+        refresh()
+    }
     func refresh() {
+        let network = sourceSelector.selectedSegment == 1 && networkView != nil
+        networkView?.isHidden = !network; scroll.isHidden = network
+        searchField.placeholderString = network ? L("搜索网络视频标题") : L("搜索文件名或标签")
+        if network { networkView?.refresh(search: searchField.stringValue); empty.isHidden = true; return }
         let selectedPath = rows.indices.contains(table.selectedRow) ? rows[table.selectedRow].path : nil
         let origin = scroll.contentView.bounds.origin
         rows = RecentPlayback.items(history: history.all, indexed: index(), search: searchField.stringValue)

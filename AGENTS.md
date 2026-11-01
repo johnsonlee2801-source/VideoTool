@@ -52,6 +52,10 @@ goals, layout, build and test commands. `CLAUDE.md` only imports this file.
   for manual selection at EOF. Anonymous metadata requests have bounded size,
   redirects, cancellation and timeouts; no cookies or shared credentials.
   `BilibiliLiveTests` requires `VIDEOTOOL_BILIBILI_LIVE=1`.
+  Recent has separate Local/Online sources with independent session searches.
+  A compact Continue/Play from Start row chooses the newest unfinished resumable
+  item. Network watch records contain canonical identities/title/progress only,
+  are capped at 100 and removable; never merge them into local indexing/history.
   Keep canonical video identity separate from signed stream targets; network
   requests must not enter local folder history, hashing, AI or export pipelines.
   Resolve with isolated local yt-dlp/Deno, explicit cancellation and timeout,

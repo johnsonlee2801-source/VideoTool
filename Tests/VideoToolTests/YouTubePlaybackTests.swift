@@ -27,6 +27,39 @@ import Libmpv
         #expect(await wait { window.loadedPath != nil && engine.state.timePos >= 8.5 })
         #expect(window.networkRetryButton.isHidden)
     }
+    @Test("CW4 continuing and restarting a network record control the real playback position")
+    func continueNetwork() async throws {
+        let fixture = try #require(Bundle(for: NetworkFixtureMarker.self).url(forResource: "testsrc-20s", withExtension: "mp4"))
+        let request = try NetworkVideo("https://youtu.be/M7lc1UVf-VE")
+        let resolver = RecoveryResolver(), window = PlayerWindowController()
+        defer { window.shutdown() }
+        window.networkResolverFactory = { resolver }
+        let item = ContinueWatchingItem(url: request.url, title: "Lecture", position: 8, watchedAt: Date())
+        window.openContinue(item, fromBeginning: false)
+        resolver.completion?(.success(ResolvedNetworkVideo(request: request, title: "Lecture", videoURL: fixture, audioURL: nil, headers: [:])))
+        let engine = try #require(window.engine)
+        #expect(await wait { window.loadedPath != nil && engine.state.timePos >= 7.5 })
+        window.openContinue(item, fromBeginning: true)
+        resolver.completion?(.success(ResolvedNetworkVideo(request: request, title: "Lecture restart", videoURL: fixture, audioURL: nil, headers: [:])))
+        #expect(await wait { window.loadedPath != nil && engine.state.timePos < 2 })
+    }
+    @Test("CW6 local continue and from-start use the selected position without affecting network history")
+    func continueLocal() async throws {
+        let fixture = try #require(Bundle(for: NetworkFixtureMarker.self).url(forResource: "testsrc-20s", withExtension: "mp4"))
+        let name = "videotool-tests-continue-local-" + UUID().uuidString
+        let defaults = try #require(UserDefaults(suiteName: name))
+        defer { defaults.removePersistentDomain(forName: name) }
+        let network = NetworkWatchHistoryStore(defaults: defaults)
+        let window = PlayerWindowController(history: WatchHistoryStore(defaults: defaults), resumeStore: ResumePositionStore(defaults: defaults), networkHistory: network)
+        defer { window.shutdown() }
+        let item = ContinueWatchingItem(url: fixture, title: "Local", position: 8, watchedAt: Date())
+        window.openContinue(item, fromBeginning: false)
+        let engine = try #require(window.engine)
+        #expect(await wait { window.loadedPath != nil && engine.state.timePos >= 7.5 })
+        window.openContinue(item, fromBeginning: true)
+        #expect(await wait { window.loadedPath != nil && engine.state.timePos < 2 })
+        #expect(network.entries.isEmpty)
+    }
     @Test("YP1 resume keys distinguish YouTube IDs and keep local paths unchanged")
     func resumeIdentity() throws {
         let name = "videotool-tests-youtube-resume-\(UUID().uuidString)"

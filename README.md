@@ -98,6 +98,8 @@ B 站支持完整链接、短链接及右侧手动选集，分 P 进度独立；
 
 You can also drop a supported link onto the picture or press `⌘V` outside a text field. Buffering and actual decoded quality are displayed; failures offer a fresh resolution and retry from the interruption point. Text fields keep normal paste.
 
+**Continue watching:** Recent has separate Local and Online sources, independent searches, and a compact Resume / Play from Start row. Network history keeps canonical page identities and per-part progress, with individual removal; it does not add links to local folders.
+
 ## Install · 安装
 
 1. Download **VideoTool-x.y.z.dmg** from [Releases](https://github.com/johnsonlee2801-source/VideoTool/releases/latest) (Apple silicon and Intel, macOS 14+) and drag VideoTool to Applications.<br>

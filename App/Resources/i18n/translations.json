@@ -1562,5 +1562,37 @@
  "网络视频加载失败，可从中断处重试。": {
   "en": "Online playback failed. Retry from the interruption point.",
   "ja": "ネットワーク動画を読み込めませんでした。中断位置から再試行できます。"
+ },
+ "本地": {
+  "en": "Local",
+  "ja": "ローカル"
+ },
+ "网络": {
+  "en": "Online",
+  "ja": "オンライン"
+ },
+ "继续": {
+  "en": "Resume",
+  "ja": "再開"
+ },
+ "从头播放": {
+  "en": "Play from Start",
+  "ja": "最初から再生"
+ },
+ "继续观看：%1$@ · %2$@": {
+  "en": "Continue: %1$@ · %2$@",
+  "ja": "続きから：%1$@ · %2$@"
+ },
+ "移除记录": {
+  "en": "Remove Record",
+  "ja": "履歴を削除"
+ },
+ "还没有网络播放记录": {
+  "en": "No online playback history yet",
+  "ja": "オンライン再生履歴はまだありません"
+ },
+ "搜索网络视频标题": {
+  "en": "Search online video titles",
+  "ja": "オンライン動画のタイトルを検索"
  }
 }

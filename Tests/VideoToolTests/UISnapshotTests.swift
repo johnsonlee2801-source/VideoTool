@@ -75,6 +75,30 @@ enum Snapshot {
         w.window?.setContentSize(NSSize(width: 800, height: 500))
         try Snapshot.write(try #require(w.window?.contentView), "P10-network-retry")
     }
+    @Test("P11 compact continue row and separate online history at 280 and 380 points")
+    func continueWatching() throws {
+        let name = "videotool-tests-continue-snapshot-" + UUID().uuidString
+        let defaults = try #require(UserDefaults(suiteName: name))
+        defer { defaults.removePersistentDomain(forName: name) }
+        let network = NetworkWatchHistoryStore(defaults: defaults)
+        network.record(try NetworkVideo("https://bilibili.com/video/BV1bK411W797?p=3"), title: "课程第三集 · 实践与复习", position: 758, duration: 1800)
+        let w = PlayerWindowController(history: WatchHistoryStore(defaults: defaults), networkHistory: network)
+        defer { w.shutdown() }
+        w.window?.setContentSize(NSSize(width: 1100, height: 660))
+        w.sidebar.show(.recent)
+        let recent = w.sidebar.recent
+        recent.sourceSelector.selectedSegment = 1
+        NSApp.sendAction(recent.sourceSelector.action!, to: recent.sourceSelector.target, from: recent.sourceSelector)
+        for width in [280.0, 380.0] {
+            w.sidebar.resize(to: width)
+            w.window?.contentView?.layoutSubtreeIfNeeded()
+            let list = try #require(recent.networkView)
+            let first = try #require(list.playButtons.first)
+            let row = first.convert(first.bounds, to: list)
+            #expect(row.intersects(list.bounds) && row.maxY > list.bounds.maxY - 60, "online history must start at the top and remain visible")
+            try Snapshot.write(w.sidebar, "P11-continue-\(Int(width))")
+        }
+    }
     private func stars() -> [Bookmark] {
         [(62.0, "开场彩蛋"), (305, ""), (611, "这段笑死"), (1180, "名场面"), (1190, "")].map {
             Bookmark(id: UUID(), fileKey: "k", time: $0.0, endTime: nil, note: $0.1, createdAt: Date())

@@ -7,6 +7,11 @@ final class PlayerSidebarView: NSView {
     private let preferences: PlayerSidebarPreferences?
     private let libraryProvider: () -> LibraryController?
     private let history: WatchHistoryStore
+    private let networkHistory: NetworkWatchHistoryStore
+    private let onContinue: ((ContinueWatchingItem, Bool) -> Void)?
+    let continueBar = ContinueWatchingBar(frame: .zero)
+    private var continueHeight: NSLayoutConstraint?
+    private var networkObserver: NSObjectProtocol?
     private let bookmarks: BookmarkListView
     private let onOpen: (URL) -> Void
     private(set) var libraryBrowser: LibraryBrowserViewController?
@@ -37,12 +42,17 @@ final class PlayerSidebarView: NSView {
     private(set) lazy var recent = RecentPlaybackViewController(history: history,
         index: { [weak self] in self?.libraryModel?.items ?? [] },
         thumbnail: { [weak self] in self?.libraryModel?.thumbnailURL(for: $0) },
-        onOpen: { [weak self] in self?.openMedia($0) })
+        onOpen: { [weak self] in self?.openMedia($0) }, networkHistory: networkHistory,
+        onOpenNetwork: { [weak self] entry, restart in
+            self?.onContinue?(ContinueWatchingItem(url: entry.video.url, title: entry.title, position: entry.finished ? 0 : entry.position, watchedAt: entry.watchedAt), restart)
+        })
 
     init(bookmarks: BookmarkListView, preferences: PlayerSidebarPreferences?, history: WatchHistoryStore,
+         networkHistory: NetworkWatchHistoryStore = NetworkWatchHistoryStore(), onContinue: ((ContinueWatchingItem, Bool) -> Void)? = nil,
          libraryProvider: @escaping () -> LibraryController?, onOpen: @escaping (URL) -> Void) {
         self.bookmarks = bookmarks
         self.preferences = preferences ?? (AppData.isTestRun ? nil : PlayerSidebarPreferences())
+        self.networkHistory = networkHistory; self.onContinue = onContinue
         self.history = history; self.libraryProvider = libraryProvider; self.onOpen = onOpen
         state = self.preferences?.load() ?? PlayerSidebarState()
         super.init(frame: .zero)
@@ -52,12 +62,23 @@ final class PlayerSidebarView: NSView {
         build()
         historyObserver = NotificationCenter.default.addObserver(forName: WatchHistoryStore.didChange,
             object: history.notificationObject, queue: .main) { [weak self] _ in self?.scheduleHistoryRefresh() }
+        networkObserver = NotificationCenter.default.addObserver(forName: NetworkWatchHistoryStore.didChange,
+            object: networkHistory.defaults, queue: .main) { [weak self] _ in self?.scheduleHistoryRefresh() }
+        continueBar.onOpen = { [weak self] item, restart in
+            guard let self else { return }
+            var isDirectory: ObjCBool = false
+            if item.url.isFileURL && (!FileManager.default.fileExists(atPath: item.url.path, isDirectory: &isDirectory) || isDirectory.boolValue) {
+                self.message.stringValue = L("无法打开视频：文件不存在或暂时无法访问"); self.message.isHidden = false; return
+            }
+            self.onContinue?(item, restart)
+        }
         present()
     }
     required init?(coder: NSCoder) { fatalError("not supported") }
     deinit {
         refreshWork?.cancel()
         if let historyObserver { NotificationCenter.default.removeObserver(historyObserver) }
+        if let networkObserver { NotificationCenter.default.removeObserver(networkObserver) }
     }
     private func build() {
         addSubview(inner)
@@ -95,7 +116,8 @@ final class PlayerSidebarView: NSView {
         partScroll.documentView = partRows
         partHeight = partScroll.heightAnchor.constraint(equalToConstant: 0)
         partHeight?.isActive = true
-        for child in [header, partScroll, notice, body] as [NSView] {
+        continueHeight = continueBar.heightAnchor.constraint(equalToConstant: 0); continueHeight?.isActive = true
+        for child in [header, continueBar, partScroll, notice, body] as [NSView] {
             child.translatesAutoresizingMaskIntoConstraints = false; inner.addSubview(child)
         }
         NSLayoutConstraint.activate([
@@ -103,7 +125,10 @@ final class PlayerSidebarView: NSView {
             header.leadingAnchor.constraint(equalTo: inner.leadingAnchor, constant: 14),
             header.trailingAnchor.constraint(equalTo: inner.trailingAnchor, constant: -12),
             tabs.widthAnchor.constraint(equalTo: header.widthAnchor, constant: -32),
-            partScroll.topAnchor.constraint(equalTo: header.bottomAnchor, constant: 6),
+            continueBar.topAnchor.constraint(equalTo: header.bottomAnchor, constant: 6),
+            continueBar.leadingAnchor.constraint(equalTo: inner.leadingAnchor, constant: 14),
+            continueBar.trailingAnchor.constraint(equalTo: inner.trailingAnchor, constant: -14),
+            partScroll.topAnchor.constraint(equalTo: continueBar.bottomAnchor, constant: 2),
             partScroll.leadingAnchor.constraint(equalTo: inner.leadingAnchor, constant: 14),
             partScroll.trailingAnchor.constraint(equalTo: inner.trailingAnchor, constant: -14),
             partRows.leadingAnchor.constraint(equalTo: partScroll.contentView.leadingAnchor),
@@ -170,6 +195,9 @@ final class PlayerSidebarView: NSView {
     }
     override func layout() {
         super.layout()
+        if !networkPartButtons.isEmpty {
+            partHeight?.constant = min(128, CGFloat(networkPartButtons.count) * 32, max(32, bounds.height - 180 - (continueHeight?.constant ?? 0)))
+        }
         // Keep the hidden inner layout valid at zero outer width, without forcing
         // a minimum width constraint onto the collapsed player sidebar.
         inner.frame = NSRect(x: 0, y: 0, width: max(280, bounds.width), height: bounds.height > 0 ? bounds.height : 640)
@@ -194,6 +222,7 @@ final class PlayerSidebarView: NSView {
     private func changed() { preferences?.save(state); present(); onLayoutChange?() }
     private func present() {
         isHidden = !state.isExpanded
+        refreshContinue()
         for button in tabButtons {
             let selected = button.tag == state.tab.rawValue
             button.state = selected ? .on : .off
@@ -229,11 +258,16 @@ final class PlayerSidebarView: NSView {
         addContent(browser.view)
         message.stringValue = ""
     }
+    private func refreshContinue() {
+        let item = state.tab == .recent ? ContinueWatchingItem.latest(local: history.all, network: networkHistory.entries) : nil
+        continueBar.update(item); continueHeight?.constant = item == nil ? 0 : 44
+    }
     private func scheduleHistoryRefresh() {
         guard !stopped, state.isExpanded, state.tab != .stars else { return }
         refreshWork?.cancel()
         let work = DispatchWorkItem { [weak self] in
             guard let self, !self.stopped else { return }
+            self.refreshContinue()
             self.libraryBrowser?.refreshFromStore()
             if self.state.tab == .recent { self.recent.refresh() }
         }
@@ -266,7 +300,8 @@ final class PlayerSidebarView: NSView {
         stopped = true
         refreshWork?.cancel(); refreshWork = nil
         if let historyObserver { NotificationCenter.default.removeObserver(historyObserver) }
-        historyObserver = nil
+        if let networkObserver { NotificationCenter.default.removeObserver(networkObserver) }
+        historyObserver = nil; networkObserver = nil
         libraryBrowser?.shutdown()
         libraryModel?.cancelScan()
     }

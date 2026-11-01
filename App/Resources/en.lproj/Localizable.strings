@@ -53,6 +53,7 @@
 "人群" = "Crowd";
 "今天 %@" = "Today %@";
 "从中断处重试" = "Retry from here";
+"从头播放" = "Play from Start";
 "从视频库移除（不删除文件）" = "Remove from Library (Keep File)";
 "体育场" = "Stadium";
 "保存" = "Save";
@@ -188,6 +189,7 @@
 "插画" = "Illustration";
 "搜索当前文件夹" = "Search this folder";
 "搜索文件名或标签" = "Search file names or tags";
+"搜索网络视频标题" = "Search online video titles";
 "撤销" = "Undo";
 "播放" = "Play";
 "播放 / 暂停" = "Play / Pause";
@@ -236,6 +238,7 @@
 "未获得可用的视频流，请检查解析组件是否需要更新。" = "No usable stream was found. The resolver may need an update.";
 "未观看" = "Unwatched";
 "未识别" = "Unrecognized";
+"本地" = "Local";
 "本层 %@ 个视频 · %@ 个子文件夹" = "%@ videos here · %@ subfolders";
 "本文件夹已播完" = "End of this folder";
 "本集已结束 · 下一集：%@" = "Finished · Next: %@";
@@ -303,6 +306,7 @@
 "生成字幕失败：%@" = "Couldn't generate subtitles: %@";
 "由 %@ 制作" = "Made by %@";
 "移除 %@" = "%@ removed";
+"移除记录" = "Remove Record";
 "稍后" = "Later";
 "窗口" = "Window";
 "第 %@ 季" = "Season %@";
@@ -315,8 +319,11 @@
 "繁體中文" = "Traditional Chinese";
 "结束" = "End";
 "结束时间要晚于开始时间" = "The end must be after the start";
+"继续" = "Resume";
 "继续观看" = "Continue Watching";
+"继续观看：%1$@ · %2$@" = "Continue: %1$@ · %2$@";
 "编辑" = "Edit";
+"网络" = "Online";
 "网络视频" = "Online video";
 "网络视频加载失败，可从中断处重试。" = "Online playback failed. Retry from the interruption point.";
 "网络视频链接" = "Online video link";
@@ -356,6 +363,7 @@
 "返回文件夹浏览" = "Back to Folders";
 "还没有播放记录" = "No playback history yet";
 "还没有星标。\n播放时按 B 把当前时刻标上星。" = "No stars yet.\nPress B while playing to star the current moment.";
+"还没有网络播放记录" = "No online playback history yet";
 "这个视频没有声音，无法生成字幕。" = "This video has no audio, so subtitles can't be generated.";
 "这台 Mac 暂不支持识别这种语言。" = "This Mac can't recognize this language yet.";
 "这台 Mac 暂不支持这组语言的翻译，已生成原文字幕。" = "This Mac can't translate between these languages yet, so subtitles were created in the original language.";

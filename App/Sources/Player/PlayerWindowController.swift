@@ -7,9 +7,11 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     let playerView: PlayerView?          // internal for the event-glue tests
     private let resumeStore: ResumePositionStore
     private let history: WatchHistoryStore
+    private let networkHistory: NetworkWatchHistoryStore
     private let libraryProvider: () -> LibraryController?
     private let sidebarPreferences: PlayerSidebarPreferences?
     lazy var sidebar = PlayerSidebarView(bookmarks: listPanel, preferences: sidebarPreferences, history: history,
+        networkHistory: networkHistory, onContinue: { [weak self] in self?.openContinue($0, fromBeginning: $1) },
         libraryProvider: libraryProvider, onOpen: { [weak self] in self?.open($0) })
     private let memory = PlaybackMemory()
     /// The file whose load has been fully handled (settings restored, subtitles attached).
@@ -24,7 +26,7 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     private func makeResumeTracker() -> ResumeTracker {
         ResumeTracker(storedPosition: { [weak self] path in
             guard let self else { return nil }
-            if let start = self.networkResumeAt ?? self.networkMedia?.request.start { return start }
+            if let start = self.playbackStartOverride ?? self.networkMedia?.request.start { return start }
             return self.resumeStore.position(for: self.resumeURL(for: path))
         })
     }
@@ -81,7 +83,7 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     private var networkMedia: ResolvedNetworkVideo?
     private var networkLoadDeadline: DispatchWorkItem?
     let networkRetryButton = NSButton(title: L("从中断处重试"), target: nil, action: nil)
-    private var networkResumeAt: Double?
+    private var playbackStartOverride: Double?
     private var lastNetworkPosition = 0.0
     private var networkFailed = false
     private let networkStatus = NSTextField(wrappingLabelWithString: "")
@@ -111,9 +113,10 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
 
     init(libraryProvider: @escaping () -> LibraryController? = { nil },
          sidebarPreferences: PlayerSidebarPreferences? = nil, history: WatchHistoryStore = WatchHistoryStore(),
-         resumeStore: ResumePositionStore = ResumePositionStore()) {
+         resumeStore: ResumePositionStore = ResumePositionStore(), networkHistory: NetworkWatchHistoryStore = NetworkWatchHistoryStore()) {
         self.libraryProvider = libraryProvider
         self.sidebarPreferences = sidebarPreferences
+        self.networkHistory = networkHistory
         self.history = history
         self.resumeStore = resumeStore
         let session = try? PlaybackSession()
@@ -510,10 +513,12 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         switch action {
         case .save(let path, let position):
             resumeStore.save(position, for: resumeURL(for: path))
-            if networkMedia == nil { history.recordProgress(path: path, position: position, duration: engine?.state.duration ?? 0) }
+            if let media = networkMedia { networkHistory.record(media.request, title: media.title, position: position, duration: engine?.state.duration ?? 0) }
+            else { history.recordProgress(path: path, position: position, duration: engine?.state.duration ?? 0) }
         case .clear(let path):
             resumeStore.clear(for: resumeURL(for: path))
-            if networkMedia == nil { history.markFinished(path: path, duration: engine?.state.duration ?? 0) }
+            if let media = networkMedia { networkHistory.record(media.request, title: media.title, position: engine?.state.duration ?? 0, duration: engine?.state.duration ?? 0, finished: true) }
+            else { history.markFinished(path: path, duration: engine?.state.duration ?? 0) }
         case .seek(let target): engine?.seek(to: target)
         }
     }
@@ -529,9 +534,11 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
             networkMessage = nil
             if let media = networkMedia {
                 resumeTracker.fileLoaded(path: path, duration: duration).forEach(apply)
-                if let start = networkResumeAt ?? media.request.start {
+                if let start = playbackStartOverride ?? media.request.start {
                     engine.seek(to: duration > 0 ? min(start, max(0, duration - 0.1)) : start)
                 }
+                let resume = playbackStartOverride ?? media.request.start ?? resumeStore.position(for: media.request.url) ?? 0
+                networkHistory.record(media.request, title: media.title, position: resume, duration: duration)
                 bookmarks?.openNetwork(media.request)
                 subtitleDelay = 0
                 engine.applyTrackChoice(audio: "auto", subtitle: "auto", subtitleDelay: 0)
@@ -546,7 +553,7 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
                                                             duration: duration)
             resumeTracker.fileLoaded(path: path, duration: duration).forEach(apply)
             outroDone = false
-            skipIntro(path: path, duration: duration, resumingAt: resumeAt)
+            if playbackStartOverride != 0 { skipIntro(path: path, duration: duration, resumingAt: resumeAt) }
             bookmarks?.open(path: path)         // identifies the file off the main thread
             engine.setPaused(false)
             restoreMemory(for: path)
@@ -598,6 +605,15 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         guard !(window?.firstResponder is NSText), let url = PlayerView.networkURL(on: pasteboard) else { return }
         openNetworkLink(url.absoluteString)
     }
+    func openContinue(_ item: ContinueWatchingItem, fromBeginning: Bool) {
+        let position = fromBeginning ? 0 : item.position
+        if item.url.isFileURL { open(item.url, media: nil, resumeAt: position); return }
+        guard (try? NetworkVideo(item.url.absoluteString)) != nil else { return }
+        networkSheet?.cancel()
+        let sheet = NetworkVideoSheet(resolver: networkResolverFactory()) { [weak self] in self?.open($0.request.url, media: $0, resumeAt: position) }
+        networkSheet = sheet
+        if let window { sheet.present(on: window, text: item.url.absoluteString); sheet.submit(nil) }
+    }
     @objc func retryNetworkVideo(_ sender: Any?) {
         guard let media = networkMedia, !isShutDown else { return }
         let position = lastNetworkPosition
@@ -617,7 +633,7 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         flushPendingTrackMemory()
         saveResumeNow()
         networkMedia = media
-        networkResumeAt = resumeAt
+        playbackStartOverride = resumeAt
         lastNetworkPosition = 0
         networkFailed = false; networkRetryButton.isHidden = true
         resumeTracker = makeResumeTracker()
