@@ -272,6 +272,7 @@
 "正在导出片段… %@" = "Exporting clip… %@";
 "正在扫描 %1$@… %2$@/%3$@" = "Scanning %1$@… %2$@/%3$@";
 "正在扫描…" = "Scanning…";
+"正在搜索字幕…" = "Searching subtitles…";
 "正在播放的位置会保存。" = "Your place in the video is saved.";
 "正在缓冲…" = "Buffering…";
 "正在翻译字幕…" = "Translating subtitles…";

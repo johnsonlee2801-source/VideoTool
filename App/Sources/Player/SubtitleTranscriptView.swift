@@ -13,6 +13,11 @@ final class SubtitleTranscriptView: NSView, NSTableViewDataSource, NSTableViewDe
     private let scroll = NSScrollView()
     private var position = 0.0
     private var baseStatus = ""
+    private var searchGeneration = 0
+    private(set) var isSearching = false
+    var searcher: SubtitleSearching = SubtitleSearch() {
+        didSet { oldValue.cancel(); searchGeneration += 1 }
+    }
     private(set) var document: SubtitleTranscript?
     private(set) var rows: [Int] = []
     var onJump: ((SubtitleCue) -> Void)?
@@ -77,12 +82,24 @@ final class SubtitleTranscriptView: NSView, NSTableViewDataSource, NSTableViewDe
         replayButton.isEnabled = document?.replayIndex(at: self.position) != nil
     }
     func refreshQuery() {
-        rows = document?.matches(searchField.stringValue) ?? []
-        table.reloadData()
-        if !searchField.stringValue.isEmpty, document != nil {
-            status.stringValue = rows.count == 1000 ? L("显示前 1000 条结果，请缩小搜索范围") : L("匹配 %@ 句", String(rows.count))
-        } else { status.stringValue = baseStatus }
+        searchGeneration += 1; searcher.cancel()
+        let token = searchGeneration, query = searchField.stringValue
+        table.deselectAll(nil)
+        guard let document else {
+            isSearching = false; rows = []; table.reloadData(); status.stringValue = baseStatus; return
+        }
+        if query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            isSearching = false; rows = Array(document.cues.indices.prefix(1000))
+            table.reloadData(); status.stringValue = baseStatus; return
+        }
+        isSearching = true; rows = []; table.reloadData(); status.stringValue = L("正在搜索字幕…")
+        searcher.search(document, query: query) { [weak self] matches in
+            guard let self, self.searchGeneration == token else { return }
+            self.isSearching = false; self.rows = matches; self.table.reloadData()
+            self.status.stringValue = matches.count == 1000 ? L("显示前 1000 条结果，请缩小搜索范围") : L("匹配 %@ 句", String(matches.count))
+        }
     }
+    deinit { searcher.cancel() }
     func controlTextDidChange(_ obj: Notification) { refreshQuery() }
     func numberOfRows(in tableView: NSTableView) -> Int { rows.count }
     func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {

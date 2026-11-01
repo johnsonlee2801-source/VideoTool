@@ -1099,6 +1099,10 @@
   "en": "Scanning…",
   "ja": "スキャン中…"
  },
+ "正在搜索字幕…": {
+  "en": "Searching subtitles…",
+  "ja": "字幕を検索中…"
+ },
  "正在播放的位置会保存。": {
   "en": "Your place in the video is saved.",
   "ja": "再生中の位置は保存されます。"

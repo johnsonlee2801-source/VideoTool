@@ -43,14 +43,17 @@ struct SubtitleTranscript: Equatable {
         textKeys = unique.map { Self.folded($0.text + " " + ($0.translation ?? "")) }
         compactKeys = textKeys.map { $0.replacingOccurrences(of: " ", with: "") }
     }
-    func matches(_ query: String) -> [Int] {
+    func matches(_ query: String, cancelled: () -> Bool = { false }) -> [Int] {
         let query = Self.folded(query)
         guard !query.isEmpty else { return Array(cues.indices.prefix(1000)) }
         let compact = query.replacingOccurrences(of: " ", with: "")
         var matches: [Int] = []
-        for index in cues.indices where textKeys[index].contains(query) || compactKeys[index].contains(compact) {
-            matches.append(index)
-            if matches.count == 1000 { break }
+        for index in cues.indices {
+            if index % 64 == 0 && cancelled() { return [] }
+            if textKeys[index].contains(query) || compactKeys[index].contains(compact) {
+                matches.append(index)
+                if matches.count == 1000 { break }
+            }
         }
         return matches
     }

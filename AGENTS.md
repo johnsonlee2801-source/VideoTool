@@ -159,3 +159,10 @@ goals, layout, build and test commands. `CLAUDE.md` only imports this file.
 - Existing local SRT/AI results and FFmpeg/ffprobe text extraction are supported; never start AI implicitly. Parsing/search-key preparation is off main, cancelled or old-file results cannot publish. Bitmap subtitles remain unsupported.
 - Public website captions use isolated simulated yt-dlp metadata and anonymous bounded transfers, original tracks before translated variants. No cookies/credentials, at most 512 metadata variants, 4 MiB content, 30,000 cues, 1,000 displayed search results; redirects remain on allowed caption endpoints. Temporary display files live under AppData and only owned files are removed. Network AI/export/local-index boundaries remain intact.
 - `SubtitleTranscriptLiveTests` needs `VIDEOTOOL_SUBTITLE_LIVE=1`; ordinary gates stay offline. Translated website captions can be rate-limited independently of the original track. Do not promise all languages/sites from one successful public-video test.
+
+## Responsiveness repairs (2026-11-02)
+
+- Current-schema database opens check the version without a writer transaction. Real upgrades still acquire a transaction and recheck the version after locking; preserve concurrent migration tests.
+- Watch-history notifications refresh watch state separately from indexed metadata. Hidden/collapsed/transcript UI defers work; pending work rechecks visibility. Returning preserves progress/finished filters, tags, stars, search and scroll; indexing continues normally.
+- Nonempty transcript searches use a single cancellable background worker. Old query/document completions never publish; pending rows cannot activate an older result. Keep original/translation matching, replay, subtitle delay and source identity unchanged.
+- `PlaybackPerformanceTests` is opt-in with `VIDEOTOOL_PERFORMANCE=1` and should be measured in Release without other build/test workloads. Ordinary gates stay offline and run responsiveness/compatibility regressions. Input latency and heartbeat are different from total background search duration.

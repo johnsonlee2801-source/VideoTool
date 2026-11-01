@@ -17,12 +17,14 @@ import Testing
         #expect(label.visibleRect.height + 1 >= height)
     }
     @Test("SV1 native search, row activation and replay controls use timed cues")
-    func controls() {
+    func controls() async throws {
         let view = SubtitleTranscriptView(frame: NSRect(x: 0, y: 0, width: 380, height: 600))
         let first = SubtitleCue(start: 1, end: 3, text: "Hello", translation: "你好")
         let second = SubtitleCue(start: 5, end: 8, text: "Second")
         view.setDocument(SubtitleTranscript(cues: [first, second]), status: "")
         view.searchField.stringValue = "SECOND"; view.refreshQuery()
+        let deadline = Date().addingTimeInterval(5)
+        while view.isSearching && Date() < deadline { try await Task.sleep(for: .milliseconds(10)) }
         #expect(view.rows == [1])
         var selected: SubtitleCue?
         view.onJump = { selected = $0 }

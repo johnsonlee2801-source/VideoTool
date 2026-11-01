@@ -80,6 +80,7 @@ schemes:
         VIDEOTOOL_YOUTUBE_LIVE: "$(VIDEOTOOL_YOUTUBE_LIVE)"
         VIDEOTOOL_BILIBILI_LIVE: "$(VIDEOTOOL_BILIBILI_LIVE)"
         VIDEOTOOL_SUBTITLE_LIVE: "$(VIDEOTOOL_SUBTITLE_LIVE)"
+        VIDEOTOOL_PERFORMANCE: "$(VIDEOTOOL_PERFORMANCE)"
       # Tests read the Chinese (source) interface text whatever the Mac's language is.
       commandLineArguments:
         "-AppleLanguages (zh-Hans)": true

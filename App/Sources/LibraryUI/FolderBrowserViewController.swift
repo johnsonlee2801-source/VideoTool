@@ -225,6 +225,29 @@ final class FolderBrowserViewController: NSViewController, NSTableViewDataSource
         empty.isHidden = !rows.isEmpty
         restorePendingPosition()
     }
+    /// Watch filters may change membership; otherwise keep row order, search,
+    /// selection and scroll and repaint only visible rows.
+    func refreshWatchHistory(_ watched: [String: WatchEntry]) {
+        guard !stopped else { return }
+        if watch != .all { refresh(); return }
+        for index in visibleVideos.indices {
+            let path = visibleVideos[index].path
+            visibleVideos[index].item?.watch = watched[path]
+        }
+        for index in rows.indices {
+            if case .video(var video) = rows[index] {
+                video.item?.watch = watched[video.path]
+                rows[index] = .video(video)
+            }
+        }
+        let visible = table.rows(in: table.visibleRect)
+        if visible.location != NSNotFound, visible.length > 0 {
+            let end = min(rows.count, visible.location + visible.length)
+            if visible.location < end {
+                table.reloadData(forRowIndexes: IndexSet(integersIn: visible.location..<end), columnIndexes: [0])
+            }
+        }
+    }
     func refreshStatus() {
         if let operationMessage { status.stringValue = operationMessage }
         else if let readError { status.stringValue = L("无法读取文件夹：%@", readError) }

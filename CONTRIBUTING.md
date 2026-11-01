@@ -45,6 +45,21 @@ Opt-in measurement suites (they generate large clips outside the repo):
   screen on and unlocked; with the display asleep, frame and seek checks are
   reported as skipped.
 
+Controlled responsiveness measurements (offline; 30,000 subtitle cues and a
+10,000-video/2,000-history synthetic library):
+
+```zsh
+VIDEOTOOL_CONFIGURATION=Release VIDEOTOOL_PERFORMANCE=1 scripts/xcb.sh test \
+  -disableAutomaticPackageResolution -onlyUsePackageVersionsFromResolvedFile \
+  ENABLE_TESTABILITY=YES -only-testing:VideoToolTests/PlaybackPerformanceTests
+```
+
+This opt-in suite measures input dispatch and main-loop heartbeat, not total
+background search time. Ordinary gates skip it; `PlaybackResponsivenessTests`
+and `PerformanceCompatibilityTests` run normally. Search results arrive
+asynchronously: UI tests should await `isSearching == false` before activating
+rows. Initial subtitle display and an empty query remain immediate.
+
 Tests never touch your data: under the test runner, `AppData` points the
 database, thumbnails, subtitles and preferences at a per-run temp folder, the
 player makes no sound, and old runs' leftovers are removed.

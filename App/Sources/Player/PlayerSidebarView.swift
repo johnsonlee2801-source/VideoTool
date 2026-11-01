@@ -33,6 +33,9 @@ final class PlayerSidebarView: NSView {
     private let retry = NSButton(title: L("重试"), target: nil, action: nil)
     private var historyObserver: NSObjectProtocol?
     private var refreshWork: DispatchWorkItem?
+    private var watchHistoryDirty = false
+    private var metadataDirty = false
+    private var isRefreshingHistory = false
     private var stopped = false
     private var nextVideoPath: String?
     private var videoEnded = false
@@ -64,7 +67,9 @@ final class PlayerSidebarView: NSView {
         layer?.masksToBounds = true
         build()
         historyObserver = NotificationCenter.default.addObserver(forName: WatchHistoryStore.didChange,
-            object: history.notificationObject, queue: .main) { [weak self] _ in self?.scheduleHistoryRefresh() }
+            object: history.notificationObject, queue: .main) { [weak self] _ in
+                self?.watchHistoryDirty = true; self?.scheduleHistoryRefresh()
+            }
         networkObserver = NotificationCenter.default.addObserver(forName: NetworkWatchHistoryStore.didChange,
             object: networkHistory.defaults, queue: .main) { [weak self] _ in self?.scheduleHistoryRefresh() }
         continueBar.onOpen = { [weak self] item, restart in
@@ -213,7 +218,9 @@ final class PlayerSidebarView: NSView {
         window?.makeFirstResponder(nil)
         message.stringValue = ""
         state.show(tab)
-        if tab == .library { libraryBrowser?.refreshFromStore() }
+        if tab == .library, let libraryBrowser {
+            libraryBrowser.refreshFromStore(); metadataDirty = false; watchHistoryDirty = false
+        }
         changed()
     }
     func close() { window?.makeFirstResponder(nil); onTranscriptHidden?(); state.close(); changed() }
@@ -254,7 +261,7 @@ final class PlayerSidebarView: NSView {
         recent.view.isHidden = isTranscriptOpen || state.tab != .recent
         retry.isHidden = isTranscriptOpen || state.tab != .library || libraryBrowser != nil || !state.isExpanded
         message.isHidden = isTranscriptOpen || message.stringValue.isEmpty
-        if state.isExpanded && state.tab == .recent { recent.refresh() }
+        refreshVisibleHistory()
         needsLayout = true
     }
     private func ensureLibrary(showError: Bool) {
@@ -269,29 +276,36 @@ final class PlayerSidebarView: NSView {
         browser.currentPath = currentPath
         browser.folderBrowser?.setPlaybackNavigation(next: nextVideoPath, ended: videoEnded)
         browser.onItemsChange = { [weak self] in
-            guard let self, self.state.isExpanded, self.state.tab == .recent else { return }
+            guard let self, self.state.isExpanded, !self.isTranscriptOpen, !self.isRefreshingHistory, self.state.tab == .recent else { return }
             self.recent.refresh()
         }
         addContent(browser.view)
         message.stringValue = ""
     }
     private func refreshContinue() {
-        let item = !isTranscriptOpen && state.tab == .recent ? ContinueWatchingItem.latest(local: history.all, network: networkHistory.entries) : nil
+        let item = state.isExpanded && !isTranscriptOpen && state.tab == .recent ? ContinueWatchingItem.latest(local: history.all, network: networkHistory.entries) : nil
         continueBar.update(item); continueHeight?.constant = item == nil ? 0 : 44
     }
     private func scheduleHistoryRefresh() {
-        guard !stopped, state.isExpanded, state.tab != .stars else { return }
+        guard !stopped, state.isExpanded, !isTranscriptOpen, state.tab != .stars else { return }
         refreshWork?.cancel()
-        let work = DispatchWorkItem { [weak self] in
-            guard let self, !self.stopped else { return }
-            self.refreshContinue()
-            self.libraryBrowser?.refreshFromStore()
-            if self.state.tab == .recent { self.recent.refresh() }
-        }
+        let work = DispatchWorkItem { [weak self] in self?.refreshVisibleHistory() }
         refreshWork = work
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.15, execute: work)
     }
-    func refreshMetadata() { scheduleHistoryRefresh() }
+    private func refreshVisibleHistory() {
+        guard !stopped, state.isExpanded, !isTranscriptOpen, state.tab != .stars else { return }
+        isRefreshingHistory = true; defer { isRefreshingHistory = false }
+        if metadataDirty, libraryBrowser != nil {
+            metadataDirty = false; watchHistoryDirty = false
+            libraryBrowser?.refreshFromStore()
+        } else if watchHistoryDirty, state.tab == .library, libraryBrowser != nil {
+            watchHistoryDirty = false
+            libraryBrowser?.refreshWatchHistory()
+        }
+        if state.tab == .recent { refreshContinue(); recent.refresh() }
+    }
+    func refreshMetadata() { metadataDirty = true; scheduleHistoryRefresh() }
     func updatePlaybackNavigation(next: String?, ended: Bool) {
         guard next != nextVideoPath || ended != videoEnded else { return }
         nextVideoPath = next; videoEnded = ended

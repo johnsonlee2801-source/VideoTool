@@ -139,6 +139,9 @@ final class SQLiteDatabase {
         """
 
     private func migrate() throws {
+        // Current databases only need a read. Taking a writer lock here used to
+        // stall first-window creation behind an unrelated progress/index write.
+        guard try schemaVersion() < Self.currentSchemaVersion else { return }
         try exec("BEGIN IMMEDIATE")
         do {
             let v = try schemaVersion()

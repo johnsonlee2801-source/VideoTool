@@ -279,6 +279,17 @@ class LibraryBrowserViewController: NSViewController,
         menu.popUp(positioning: nil, at: NSPoint(x: 0, y: sender.bounds.height), in: sender)
     }
     func refreshFromStore() { controller.reload() }
+    func refreshWatchHistory() {
+        let watched = controller.refreshWatchHistory()
+        for section in sections.indices {
+            for row in sections[section].items.indices {
+                let path = sections[section].items[row].record.path
+                sections[section].items[row].watch = watched[path]
+            }
+        }
+        if foldersVisible { folderBrowser?.refreshWatchHistory(watched) }
+        else { grid.reloadItems(at: grid.indexPathsForVisibleItems()) }
+    }
     func shutdown() { folderBrowser?.shutdown(); controller.onChange = nil; controller.onProgress = nil }
 
     static func style(_ button: NSButton, primary: Bool, symbol: String) {

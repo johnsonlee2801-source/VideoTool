@@ -27,6 +27,7 @@ import Testing
         #expect(await wait(8) { engine.property("sid") != "no" && (Int(engine.property("track-list/count") ?? "") ?? 0) > 2 })
         let cue = try #require(document.cues.first(where: { $0.start > 8 && $0.start < 40 }))
         view.searchField.stringValue = String(cue.text.prefix(5)); view.refreshQuery()
+        #expect(await wait(5) { !view.isSearching })
         #expect(!view.rows.isEmpty)
         engine.setSpeed(1.5); view.onJump?(cue)
         #expect(await wait(12) { abs(engine.state.timePos - cue.start) < 2 && abs(engine.state.speed - 1.5) < 0.01 })

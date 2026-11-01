@@ -161,6 +161,18 @@ final class LibraryController {
         onChange?()
     }
 
+    /// Progress changes do not alter indexed metadata or grouping. Update the
+    /// cached watch state without SQL or a full onChange/grid rebuild.
+    @discardableResult
+    func refreshWatchHistory() -> [String: WatchEntry] {
+        let watched = history.all
+        for index in items.indices {
+            let path = items[index].record.path
+            items[index].watch = watched[path]
+        }
+        return watched
+    }
+
     var statusText: String {
         if isIndexing {
             guard let p = progress, p.total > 0 else { return L("正在扫描…") }

@@ -379,7 +379,7 @@ private final class Rig {
     @Test("X24 a database another program keeps locked fails within the wait limit instead of freezing for minutes")
     func boundedWait() throws {
         let path = TestTemp.directory.appendingPathComponent("locked-\(UUID().uuidString).sqlite").path
-        _ = try LibraryStore(path: path)                         // create and migrate
+        try SQLiteDatabase.createVersion1ForTesting(at: path)    // a genuine upgrade needs the writer lock
         var other: OpaquePointer?
         #expect(sqlite3_open(path, &other) == SQLITE_OK)
         defer { sqlite3_close(other) }
@@ -391,5 +391,20 @@ private final class Rig {
         #expect(throws: (any Error).self) { _ = try LibraryStore(path: path) }
         #expect(Date().timeIntervalSince(t0) < 4, "gave up after \(Date().timeIntervalSince(t0)) s")
         sqlite3_exec(other, "ROLLBACK;", nil, nil, nil)
+    }
+}
+
+@Suite(.serialized) struct SQLiteReadOnlyOpenTests {
+    @Test("X25 an up-to-date WAL database opens read-only while another writer is active")
+    func currentSchemaUnderWriter() throws {
+        let path = TestTemp.directory.appendingPathComponent("read-open-\(UUID().uuidString).sqlite").path
+        _ = try LibraryStore(path: path)
+        var other: OpaquePointer?
+        #expect(sqlite3_open(path, &other) == SQLITE_OK)
+        defer { sqlite3_exec(other, "ROLLBACK;", nil, nil, nil); sqlite3_close(other) }
+        #expect(sqlite3_exec(other, "BEGIN IMMEDIATE;", nil, nil, nil) == SQLITE_OK)
+        let reopened = try LibraryStore(path: path)
+        #expect(try reopened.schemaVersion() == SQLiteDatabase.currentSchemaVersion)
+        #expect(try reopened.roots().isEmpty)
     }
 }
