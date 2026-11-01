@@ -82,6 +82,8 @@ Bilibili の BV/AV リンクと b23.tv 短縮リンクに対応。複数パー�
 フォルダと最近の再生はローカルファイル用のままです。サイトや通信環境の変化で再生できない場合があります。
 ソース更新と DMG 公開の状況は [更新履歴](CHANGELOG.md) をご覧ください。
 
+対応リンクを映像にドロップ、またはテキスト編集中以外に `⌘V` で開けます。バッファリングと実際の画質を表示し、失敗時はリンクを再解析して中断位置から再試行できます。
+
 ## インストール
 
 1. [Releases](https://github.com/johnsonlee2801-source/VideoTool/releases/latest) から **VideoTool-x.y.z.dmg** をダウンロードし（Apple シリコンと Intel に対応、macOS 14 以降）、開いて VideoTool を「アプリケーション」にドラッグします。

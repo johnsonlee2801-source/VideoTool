@@ -3,7 +3,7 @@ import Libmpv
 /// The mpv properties the player observes. The raw value is the reply id mpv
 /// hands back with each change (0 is reserved: it means "no id").
 enum MPVProperty: UInt64, CaseIterable {
-    case timePos = 1, duration, pause, speed, volume, mute, mediaTitle, eofReached, idleActive, path
+    case timePos = 1, duration, pause, speed, volume, mute, mediaTitle, eofReached, idleActive, path, pausedForCache, videoHeight
 
     var name: String {
         switch self {
@@ -17,13 +17,15 @@ enum MPVProperty: UInt64, CaseIterable {
         case .eofReached: return "eof-reached"
         case .idleActive: return "idle-active"
         case .path: return "path"
+        case .pausedForCache: return "paused-for-cache"
+        case .videoHeight: return "video-params/h"
         }
     }
 
     var format: mpv_format {
         switch self {
-        case .timePos, .duration, .speed, .volume: return MPV_FORMAT_DOUBLE
-        case .pause, .mute, .eofReached, .idleActive: return MPV_FORMAT_FLAG
+        case .timePos, .duration, .speed, .volume, .videoHeight: return MPV_FORMAT_DOUBLE
+        case .pause, .mute, .eofReached, .idleActive, .pausedForCache: return MPV_FORMAT_FLAG
         case .mediaTitle, .path: return MPV_FORMAT_STRING
         }
     }
@@ -61,6 +63,10 @@ extension PlayerState {
     /// Applies one property change; false if it does not affect the state.
     mutating func apply(_ prop: MPVProperty, _ value: MPVValue) -> Bool {
         switch (prop, value) {
+        case (.pausedForCache, .flag(let v)): isBuffering = v
+        case (.videoHeight, .double(let v)): videoHeight = v.isFinite ? max(0, min(16384, v)) : 0
+        case (.pausedForCache, .unavailable): isBuffering = false
+        case (.videoHeight, .unavailable): videoHeight = 0
         case (.timePos, .double(let v)): timePos = v
         case (.duration, .double(let v)): duration = v
         case (.speed, .double(let v)): speed = v

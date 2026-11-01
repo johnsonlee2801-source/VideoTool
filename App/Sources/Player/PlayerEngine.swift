@@ -11,6 +11,8 @@ struct PlayerState: Equatable {
     var path: String?
     var isIdle = true
     var eofReached = false
+    var isBuffering = false
+    var videoHeight = 0.0
 }
 
 enum PlayerEvent: Equatable {

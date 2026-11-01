@@ -1,11 +1,23 @@
 import Foundation
 
 enum NetworkVideoFailure: Error, Equatable, LocalizedError {
-    case invalidLink, missingTools, unsupported, invalidResponse, failed, timeout, cancelled
+    case invalidLink, missingTools, missingDeno, unsupported, invalidResponse, failed, timeout, cancelled, restricted, network, componentUpdate
+    /// Only fixed categories leave the subprocess; never expose its raw text.
+    static func classify(_ text: String) -> Self {
+        let s = text.lowercased()
+        if ["sign in", "login", "premium", "private video", "video unavailable", "http error 403", "http error 401", "http error 404", "permission denied"].contains(where: s.contains) { return .restricted }
+        if ["timed out", "timeout", "unable to connect", "connection refused", "name resolution", "network is unreachable"].contains(where: s.contains) { return .network }
+        if ["challenge", "javascript runtime", "unsupported url", "requested format is not available", "extractorerror"].contains(where: s.contains) { return .componentUpdate }
+        return .failed
+    }
     var errorDescription: String? {
         switch self {
         case .invalidLink: return L("请输入有效的 YouTube 或哔哩哔哩视频链接。")
         case .missingTools: return L("需要本机安装的 yt-dlp；YouTube 还需要 Deno。")
+        case .missingDeno: return L("YouTube 解析需要本机 Deno，请检查组件安装。")
+        case .restricted: return L("视频访问受限或已失效，可在浏览器中检查是否需要登录。")
+        case .network: return L("无法连接视频网站，请检查网络后重试。")
+        case .componentUpdate: return L("解析组件可能需要更新，请检查 yt-dlp 和 Deno 版本。")
         case .unsupported: return L("暂不支持直播、未发布或需要登录的视频。")
         case .invalidResponse: return L("未获得可用的视频流，请检查解析组件是否需要更新。")
         case .failed: return L("无法解析视频，请检查网络、视频可访问性及解析组件版本。")

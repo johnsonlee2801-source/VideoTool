@@ -57,7 +57,7 @@ final class PlayerView: FullscreenClickView {
             hud.centerXAnchor.constraint(equalTo: centerXAnchor),
             hud.topAnchor.constraint(equalTo: topAnchor, constant: 24),
         ])
-        registerForDraggedTypes([.fileURL])
+        registerForDraggedTypes([.fileURL, .URL, .string])
     }
 
     required init?(coder: NSCoder) { fatalError("not supported") }
@@ -120,9 +120,18 @@ final class PlayerView: FullscreenClickView {
     }
 
     private func droppedMediaURLs(_ sender: NSDraggingInfo) -> [URL] {
-        Self.mediaURLs(on: sender.draggingPasteboard)
+        Self.mediaURLs(on: sender.draggingPasteboard).isEmpty
+            ? Self.networkURL(on: sender.draggingPasteboard).map { [$0] } ?? []
+            : Self.mediaURLs(on: sender.draggingPasteboard)
     }
 
+    static func networkURL(on pasteboard: NSPasteboard) -> URL? {
+        guard let text = pasteboard.string(forType: .URL) ?? pasteboard.string(forType: .string),
+              let video = try? NetworkVideo(text) else { return nil }
+        // Preserve an explicit start time until resolution, while removing all
+        // unrelated share parameters through the validated input model.
+        return URL(string: text.trimmingCharacters(in: .whitespacesAndNewlines)).flatMap { $0.scheme == "https" || $0.scheme == "http" ? $0 : video.url }
+    }
     /// The playable files on a drag pasteboard (web links and other files are ignored).
     static func mediaURLs(on pasteboard: NSPasteboard) -> [URL] {
         let objects = pasteboard.readObjects(forClasses: [NSURL.self],

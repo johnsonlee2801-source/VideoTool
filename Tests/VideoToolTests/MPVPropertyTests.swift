@@ -11,7 +11,8 @@ struct MPVPropertyTests {
         #expect(table == ["time-pos": MPV_FORMAT_DOUBLE, "duration": MPV_FORMAT_DOUBLE, "speed": MPV_FORMAT_DOUBLE,
                           "volume": MPV_FORMAT_DOUBLE, "pause": MPV_FORMAT_FLAG, "mute": MPV_FORMAT_FLAG,
                           "eof-reached": MPV_FORMAT_FLAG, "idle-active": MPV_FORMAT_FLAG,
-                          "media-title": MPV_FORMAT_STRING, "path": MPV_FORMAT_STRING])
+                          "media-title": MPV_FORMAT_STRING, "path": MPV_FORMAT_STRING,
+                          "paused-for-cache": MPV_FORMAT_FLAG, "video-params/h": MPV_FORMAT_DOUBLE])
         #expect(MPVProperty.allCases.allSatisfy { $0.rawValue != 0 }, "0 is mpv's 'no userdata'")
     }
 

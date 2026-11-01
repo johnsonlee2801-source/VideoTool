@@ -9,8 +9,9 @@ struct BilibiliCatalog {
     let parts: [BilibiliPart]
     static func decode(_ data: Data, request: NetworkVideo) throws -> Self {
         guard data.count <= 1024 * 1024,
-              let root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-              root["code"] as? Int == 0, let video = root["data"] as? [String: Any],
+              let root = try JSONSerialization.jsonObject(with: data) as? [String: Any] else { throw NetworkVideoFailure.invalidResponse }
+        if let code = root["code"] as? Int, [-101, -403, -10403, -404].contains(code) { throw NetworkVideoFailure.restricted }
+        guard root["code"] as? Int == 0, let video = root["data"] as? [String: Any],
               let bvid = video["bvid"] as? String, bvid.hasPrefix("BV"),
               let pages = video["pages"] as? [[String: Any]], !pages.isEmpty, pages.count <= 1000,
               request.site == .bilibili else { throw NetworkVideoFailure.invalidResponse }
@@ -114,7 +115,7 @@ private final class BilibiliTransfer: NSObject, URLSessionDataDelegate, @uncheck
                     completionHandler: @escaping (URLSession.ResponseDisposition) -> Void) {
         guard !shortLink, let http = response as? HTTPURLResponse, http.statusCode == 200,
               response.expectedContentLength <= 1024 * 1024 else {
-            completionHandler(.cancel); finish(.failure(.failed)); return
+            completionHandler(.cancel); finish(.failure(NetworkVideoFailure.classify("HTTP Error " + String((response as? HTTPURLResponse)?.statusCode ?? 0)))); return
         }
         completionHandler(.allow)
     }
@@ -124,7 +125,7 @@ private final class BilibiliTransfer: NSObject, URLSessionDataDelegate, @uncheck
     }
     func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
         guard completion != nil else { return }
-        if let error { finish(.failure((error as NSError).code == NSURLErrorTimedOut ? .timeout : .failed)) }
+        if let error { finish(.failure((error as NSError).code == NSURLErrorTimedOut ? .timeout : .network)) }
         else { finish(.success((data, url))) }
     }
 }

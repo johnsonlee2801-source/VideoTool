@@ -24,7 +24,7 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     private func makeResumeTracker() -> ResumeTracker {
         ResumeTracker(storedPosition: { [weak self] path in
             guard let self else { return nil }
-            if let start = self.networkMedia?.request.start { return start }
+            if let start = self.networkResumeAt ?? self.networkMedia?.request.start { return start }
             return self.resumeStore.position(for: self.resumeURL(for: path))
         })
     }
@@ -80,6 +80,10 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     private var currentURL: URL?
     private var networkMedia: ResolvedNetworkVideo?
     private var networkLoadDeadline: DispatchWorkItem?
+    let networkRetryButton = NSButton(title: L("从中断处重试"), target: nil, action: nil)
+    private var networkResumeAt: Double?
+    private var lastNetworkPosition = 0.0
+    private var networkFailed = false
     private let networkStatus = NSTextField(wrappingLabelWithString: "")
     private(set) var networkMessage: String? {
         didSet { networkStatus.stringValue = networkMessage ?? ""; networkStatus.isHidden = networkMessage == nil }
@@ -299,7 +303,9 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
                 playerView.bottomAnchor.constraint(equalTo: controlBar.topAnchor),
             ]
             playerView.onFilesDropped = { [weak self] urls in
-                if let first = urls.first { self?.open(first) }
+                if let first = urls.first {
+                    if first.isFileURL { self?.open(first) } else { self?.openNetworkLink(first.absoluteString) }
+                }
             }
             playerView.contextMenuProvider = { [weak self] in self?.playbackContextMenu() ?? NSMenu() }
             playerView.showsPlaceholder = true
@@ -325,6 +331,16 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         networkStatus.backgroundColor = Theme.bg1
         networkStatus.isHidden = true
         content.addSubview(networkStatus)
+        networkRetryButton.target = self; networkRetryButton.action = #selector(retryNetworkVideo(_:))
+        networkRetryButton.isHidden = true; networkRetryButton.isBordered = false
+        networkRetryButton.contentTintColor = Theme.accent
+        networkRetryButton.font = Theme.display(12, .semibold)
+        networkRetryButton.translatesAutoresizingMaskIntoConstraints = false
+        content.addSubview(networkRetryButton)
+        NSLayoutConstraint.activate([
+            networkRetryButton.leadingAnchor.constraint(equalTo: networkStatus.leadingAnchor),
+            networkRetryButton.topAnchor.constraint(equalTo: networkStatus.bottomAnchor, constant: 6),
+        ])
         constraints += [
             networkStatus.leadingAnchor.constraint(equalTo: content.leadingAnchor, constant: 16),
             networkStatus.topAnchor.constraint(equalTo: content.topAnchor, constant: 16),
@@ -470,6 +486,13 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         slider.isEnabled = state.duration > 0
         if markers.duration != state.duration { markers.duration = state.duration }
         showSpeed(state.speed)
+        if networkMedia != nil, state.path == currentTarget {
+            if state.timePos.isFinite, state.timePos > 0 { lastNetworkPosition = state.timePos }
+            if loadedPath != nil, !networkFailed {
+                let quality = state.videoHeight > 0 ? L("实际画质：%@p", String(Int(state.videoHeight))) : L("网络视频")
+                networkMessage = state.isBuffering ? L("正在缓冲…") + " · " + quality : quality
+            }
+        }
 
         let name = currentURL?.lastPathComponent ?? ""
         let title = state.mediaTitle.isEmpty ? name : state.mediaTitle
@@ -506,7 +529,7 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
             networkMessage = nil
             if let media = networkMedia {
                 resumeTracker.fileLoaded(path: path, duration: duration).forEach(apply)
-                if let start = media.request.start {
+                if let start = networkResumeAt ?? media.request.start {
                     engine.seek(to: duration > 0 ? min(start, max(0, duration - 0.1)) : start)
                 }
                 bookmarks?.openNetwork(media.request)
@@ -538,7 +561,8 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         case .playbackFailed(let path):
             if networkMedia != nil && path == currentTarget {
                 networkLoadDeadline?.cancel(); networkLoadDeadline = nil
-                networkMessage = L("网络视频加载失败，请重新打开链接以重试。")
+                networkMessage = L("网络视频加载失败，可从中断处重试。")
+                networkFailed = true; networkRetryButton.isHidden = false
             }
         case .log(let line):
             if networkMedia == nil { NSLog("%@", line) }
@@ -566,7 +590,26 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
 
     func openNetwork(_ media: ResolvedNetworkVideo) { open(media.request.url, media: media) }
 
-    private func open(_ url: URL, media: ResolvedNetworkVideo?) {
+    func openNetworkLink(_ text: String) {
+        guard (try? NetworkVideo(text)) != nil else { return }
+        presentNetworkVideo(text).submit(nil)
+    }
+    @objc func paste(_ sender: Any?) {
+        guard !(window?.firstResponder is NSText), let url = PlayerView.networkURL(on: pasteboard) else { return }
+        openNetworkLink(url.absoluteString)
+    }
+    @objc func retryNetworkVideo(_ sender: Any?) {
+        guard let media = networkMedia, !isShutDown else { return }
+        let position = lastNetworkPosition
+        networkSheet?.cancel()
+        let sheet = NetworkVideoSheet(resolver: networkResolverFactory()) { [weak self] updated in
+            self?.open(updated.request.url, media: updated, resumeAt: position)
+        }
+        networkSheet = sheet
+        if let window { sheet.present(on: window, text: media.request.url.absoluteString); sheet.submit(nil) }
+    }
+
+    private func open(_ url: URL, media: ResolvedNetworkVideo?, resumeAt: Double? = nil) {
         guard let engine, !isShutDown else { return }
         networkSheet?.cancel()
         networkLoadDeadline?.cancel(); networkLoadDeadline = nil
@@ -574,6 +617,9 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         flushPendingTrackMemory()
         saveResumeNow()
         networkMedia = media
+        networkResumeAt = resumeAt
+        lastNetworkPosition = 0
+        networkFailed = false; networkRetryButton.isHidden = true
         resumeTracker = makeResumeTracker()
         bookmarks?.fileClosed()
         preview.hide()
@@ -599,7 +645,8 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
             let deadline = DispatchWorkItem { [weak self] in
                 guard let self, self.networkMedia != nil, self.loadedPath == nil else { return }
                 self.engine?.stop()
-                self.networkMessage = L("网络视频加载失败，请重新打开链接以重试。")
+                self.networkMessage = L("网络视频加载失败，可从中断处重试。")
+                networkFailed = true; networkRetryButton.isHidden = false
             }
             networkLoadDeadline = deadline
             DispatchQueue.main.asyncAfter(deadline: .now() + 35, execute: deadline)
@@ -1459,6 +1506,10 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         // Any key press while the button is down ends the gesture without a tap.
         playerView?.gesture.cancel()         // discard tap undo when another command intervenes
         let editingText = window?.firstResponder is NSText      // typing a star note or search
+        if !gestureActive, !editingText, event.modifierFlags.intersection([.command, .control, .option]) == .command,
+           event.charactersIgnoringModifiers?.lowercased() == "v", PlayerView.networkURL(on: pasteboard) != nil {
+            paste(nil); return nil
+        }
         if !gestureActive, sidebar.containsFocus(window?.firstResponder),
            event.modifierFlags.intersection([.command, .control, .option]).isEmpty { return event }
         switch KeyRouter.decide(KeyRouter.input(from: event), gestureActive: gestureActive,

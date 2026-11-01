@@ -96,6 +96,8 @@ B 站支持完整链接、短链接及右侧手动选集，分 P 进度独立；
 直播、会员／需要登录的视频、番剧、弹幕、网络视频缩略图、AI 字幕及片段导出暂不支持。文件夹与“最近播放”仍用于本地文件。
 此功能的安装包发布状态见 [CHANGELOG](CHANGELOG.md)，源码更新不代表旧 DMG 已包含功能。
 
+You can also drop a supported link onto the picture or press `⌘V` outside a text field. Buffering and actual decoded quality are displayed; failures offer a fresh resolution and retry from the interruption point. Text fields keep normal paste.
+
 ## Install · 安装
 
 1. Download **VideoTool-x.y.z.dmg** from [Releases](https://github.com/johnsonlee2801-source/VideoTool/releases/latest) (Apple silicon and Intel, macOS 14+) and drag VideoTool to Applications.<br>

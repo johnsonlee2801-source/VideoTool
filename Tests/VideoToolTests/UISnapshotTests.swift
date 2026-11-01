@@ -64,6 +64,17 @@ enum Snapshot {
             try Snapshot.write(w.sidebar, "P9-bilibili-parts-\(Int(width))")
         }
     }
+    @Test("P10 network buffering and recovery controls stay compact")
+    func networkRecovery() throws {
+        let w = PlayerWindowController()
+        defer { w.shutdown() }
+        let fixture = try #require(Bundle(for: SnapshotFixtureMarker.self).url(forResource: "testsrc-20s", withExtension: "mp4"))
+        let media = ResolvedNetworkVideo(request: try NetworkVideo("https://youtu.be/M7lc1UVf-VE"), title: "Network", videoURL: fixture, audioURL: nil, headers: [:])
+        w.openNetwork(media)
+        w.engine?.onEvent?(.playbackFailed(path: fixture.path))
+        w.window?.setContentSize(NSSize(width: 800, height: 500))
+        try Snapshot.write(try #require(w.window?.contentView), "P10-network-retry")
+    }
     private func stars() -> [Bookmark] {
         [(62.0, "开场彩蛋"), (305, ""), (611, "这段笑死"), (1180, "名场面"), (1190, "")].map {
             Bookmark(id: UUID(), fileKey: "k", time: $0.0, endTime: nil, note: $0.1, createdAt: Date())
@@ -226,3 +237,5 @@ enum Snapshot {
         try Snapshot.write(try #require(w.window?.contentView), "P7c-player-small-folder")
     }
 }
+
+private final class SnapshotFixtureMarker {}

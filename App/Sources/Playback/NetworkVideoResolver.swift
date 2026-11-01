@@ -16,6 +16,7 @@ final class NetworkVideoProcess: NetworkVideoProcessRunning {
     private let lock = NSLock()
     private var process: Process?
     private var failure: NetworkVideoFailure?
+    private var diagnosticFailure: NetworkVideoFailure = .failed
     private let timeout: Double
     private let maxBytes: Int
     init(timeout: Double = 45, maxBytes: Int = 4 * 1024 * 1024) {
@@ -39,12 +40,26 @@ final class NetworkVideoProcess: NetworkVideoProcessRunning {
 
     func run(executable: URL, arguments: [String], completion: @escaping (Result<Data, NetworkVideoFailure>) -> Void) {
         DispatchQueue.global(qos: .userInitiated).async {
-            let child = Process(), pipe = Pipe()
+            let child = Process(), pipe = Pipe(), errors = Pipe(), diagnostics = DispatchGroup()
             child.executableURL = executable
             child.arguments = arguments
             child.standardInput = FileHandle.nullDevice
             child.standardOutput = pipe
-            child.standardError = FileHandle.nullDevice // never persist signed URLs or account diagnostics
+            child.standardError = errors
+            diagnostics.enter()
+            DispatchQueue.global(qos: .utility).async {
+                var tail = ""
+                while let bytes = try? errors.fileHandleForReading.read(upToCount: 4096), !bytes.isEmpty {
+                    let text = tail + String(decoding: bytes, as: UTF8.self)
+                    let category = NetworkVideoFailure.classify(text)
+                    self.lock.lock()
+                    if category != .failed { self.diagnosticFailure = category }
+                    self.lock.unlock()
+                    tail = String(text.suffix(256))
+                }
+                try? errors.fileHandleForReading.close()
+                diagnostics.leave()
+            }
             child.environment = ["PATH": "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin", "LANG": "en_US.UTF-8"]
             child.currentDirectoryURL = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
             self.lock.lock()
@@ -54,6 +69,9 @@ final class NetworkVideoProcess: NetworkVideoProcessRunning {
             } catch { self.failure = .failed }
             let started = child.isRunning || (self.failure == nil)
             self.lock.unlock()
+            // Close the parent's writer even if spawn failed, so the diagnostic
+            // reader always reaches EOF. The child has its own duplicated handle.
+            try? errors.fileHandleForWriting.close()
             var data = Data()
             let deadline = DispatchWorkItem { [weak self] in self?.stop(.timeout) }
             if started {
@@ -67,13 +85,15 @@ final class NetworkVideoProcess: NetworkVideoProcessRunning {
                 child.waitUntilExit()
             }
             deadline.cancel()
+            _ = diagnostics.wait(timeout: .now() + 1)
             self.lock.lock()
             let failure = self.failure
+            let diagnosticFailure = self.diagnosticFailure
             self.process = nil
             self.lock.unlock()
             let result: Result<Data, NetworkVideoFailure>
             if let failure { result = .failure(failure) }
-            else if child.terminationStatus != 0 { result = .failure(.failed) }
+            else if child.terminationStatus != 0 { result = .failure(diagnosticFailure) }
             else { result = .success(data) }
             DispatchQueue.main.async { completion(result) }
         }
@@ -117,7 +137,8 @@ final class NetworkVideoResolver: NetworkVideoResolving {
 
     func resolve(_ video: NetworkVideo, completion: @escaping (Result<ResolvedNetworkVideo, NetworkVideoFailure>) -> Void) {
         cancel()
-        guard let tools = tools(), video.site != .youtube || !tools.deno.isEmpty else { completion(.failure(.missingTools)); return }
+        guard let tools = tools() else { completion(.failure(.missingTools)); return }
+        guard video.site != .youtube || !tools.deno.isEmpty else { completion(.failure(.missingDeno)); return }
         let token = generation
         func extract(_ request: NetworkVideo, parts: [BilibiliPart]) {
             guard self.generation == token else { return }

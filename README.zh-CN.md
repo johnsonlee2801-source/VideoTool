@@ -80,6 +80,8 @@ B 站支持 BV／AV 完整链接及 b23.tv 短链接；多分 P 在右侧紧凑�
 直播、会员／登录受限视频、番剧、弹幕、网络视频缩略图、AI 字幕和片段导出暂不支持。文件夹与最近播放仍用于本地文件。
 网站变化或网络限制可能影响可播放性。源码更新与 DMG 发布状态分别见 [更新记录](CHANGELOG.md)。
 
+也可以把支持的链接拖到播放画面，或在非文字输入状态下按 `⌘V` 打开链接。播放时显示缓冲状态与实际画质；失败时可从中断处重试，重新解析播放地址。文字输入框保留正常粘贴。
+
 ## 安装
 
 1. 在 [Releases](https://github.com/johnsonlee2801-source/VideoTool/releases/latest) 下载 **VideoTool-x.y.z.dmg**（Apple 芯片和 Intel 都能用，需要 macOS 14 或更新版本），打开后把 VideoTool 拖进「应用程序」。

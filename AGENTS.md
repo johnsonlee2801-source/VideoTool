@@ -56,6 +56,11 @@ goals, layout, build and test commands. `CLAUDE.md` only imports this file.
   requests must not enter local folder history, hashing, AI or export pipelines.
   Resolve with isolated local yt-dlp/Deno, explicit cancellation and timeout,
   without browser credentials, user config, plugins or remote component downloads.
+  Explicit URL paste/drop opens supported links; text editing keeps normal paste.
+  Network UI shows observed buffering/quality; manual retry resolves fresh media
+  and restores interruption time, without reusing the original link timestamp.
+  Resolver stderr is drained in bounded chunks and reduced to fixed categories;
+  raw diagnostics never leave the process wrapper.
   Public VOD only for now; default <=1080p, no playlist auto-next. The opt-in
   `YouTubeLiveTests` requires `VIDEOTOOL_YOUTUBE_LIVE=1`; ordinary gates stay offline.
 - Library defaults to compact folder browsing: 80×45 pt previews, 62 pt video

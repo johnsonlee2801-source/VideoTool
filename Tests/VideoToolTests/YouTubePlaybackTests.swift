@@ -4,6 +4,29 @@ import Libmpv
 @testable import VideoTool
 
 @Suite(.serialized) @MainActor struct YouTubePlaybackTests {
+    @Test("NE6 retry resolves fresh media and restores interruption time instead of the original link start")
+    func networkRecovery() async throws {
+        let fixture = try #require(Bundle(for: NetworkFixtureMarker.self).url(forResource: "testsrc-20s", withExtension: "mp4"))
+        let request = try NetworkVideo("https://youtu.be/M7lc1UVf-VE?t=2")
+        let media = ResolvedNetworkVideo(request: request, title: "Recovery", videoURL: fixture, audioURL: nil, headers: [:])
+        let resolver = RecoveryResolver(), window = PlayerWindowController()
+        defer { window.shutdown() }
+        window.networkResolverFactory = { resolver }
+        let engine = try #require(window.engine)
+        window.openNetwork(media)
+        #expect(await wait { window.loadedPath != nil })
+        var state = engine.state
+        state.path = fixture.path; state.timePos = 9; state.isBuffering = true; state.videoHeight = 720
+        engine.onStateChange?(state)
+        #expect(window.networkMessage?.contains(L("正在缓冲…")) == true)
+        engine.onEvent?(.playbackFailed(path: fixture.path))
+        #expect(!window.networkRetryButton.isHidden)
+        window.networkRetryButton.performClick(nil)
+        #expect(resolver.requests.count == 1 && resolver.requests[0].start == nil)
+        resolver.completion?(.success(ResolvedNetworkVideo(request: resolver.requests[0], title: "Recovered", videoURL: fixture, audioURL: nil, headers: [:])))
+        #expect(await wait { window.loadedPath != nil && engine.state.timePos >= 8.5 })
+        #expect(window.networkRetryButton.isHidden)
+    }
     @Test("YP1 resume keys distinguish YouTube IDs and keep local paths unchanged")
     func resumeIdentity() throws {
         let name = "videotool-tests-youtube-resume-\(UUID().uuidString)"
@@ -107,7 +130,7 @@ import Libmpv
         let media = ResolvedNetworkVideo(request: try NetworkVideo("https://youtu.be/TESTnet0003"), title: "Missing",
             videoURL: TestTemp.directory.appendingPathComponent("missing-network-probe.mp4"), audioURL: nil, headers: [:])
         window.openNetwork(media)
-        #expect(await wait { window.networkMessage == L("网络视频加载失败，请重新打开链接以重试。") })
+        #expect(await wait { window.networkMessage == L("网络视频加载失败，可从中断处重试。") })
     }
 
     @Test("YP6 link times below five seconds survive initially unknown stream duration")
@@ -146,3 +169,10 @@ import Libmpv
 }
 
 private final class NetworkFixtureMarker {}
+
+private final class RecoveryResolver: NetworkVideoResolving {
+    var requests: [NetworkVideo] = []
+    var completion: ((Result<ResolvedNetworkVideo, NetworkVideoFailure>) -> Void)?
+    func resolve(_ video: NetworkVideo, completion: @escaping (Result<ResolvedNetworkVideo, NetworkVideoFailure>) -> Void) { requests.append(video); self.completion = completion }
+    func cancel() {}
+}

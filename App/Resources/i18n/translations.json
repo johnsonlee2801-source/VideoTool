@@ -1526,5 +1526,41 @@
  "（根目录）": {
   "en": "(Root Folder)",
   "ja": "（ルートフォルダ）"
+ },
+ "从中断处重试": {
+  "en": "Retry from here",
+  "ja": "中断位置から再試行"
+ },
+ "实际画质：%@p": {
+  "en": "Actual quality: %@p",
+  "ja": "実際の画質：%@p"
+ },
+ "正在缓冲…": {
+  "en": "Buffering…",
+  "ja": "バッファリング中…"
+ },
+ "网络视频": {
+  "en": "Online video",
+  "ja": "オンライン動画"
+ },
+ "YouTube 解析需要本机 Deno，请检查组件安装。": {
+  "en": "YouTube requires local Deno. Check the component installation.",
+  "ja": "YouTube の解析には Deno が必要です。インストールを確認してください。"
+ },
+ "视频访问受限或已失效，可在浏览器中检查是否需要登录。": {
+  "en": "This video is restricted or unavailable. Open it in a browser to check access.",
+  "ja": "動画にアクセスできません。ブラウザで公開状態やログインの必要性を確認してください。"
+ },
+ "无法连接视频网站，请检查网络后重试。": {
+  "en": "Cannot connect to the video site. Check your connection and retry.",
+  "ja": "動画サイトに接続できません。ネットワークを確認して再試行してください。"
+ },
+ "解析组件可能需要更新，请检查 yt-dlp 和 Deno 版本。": {
+  "en": "The resolver may need updating. Check your yt-dlp and Deno versions.",
+  "ja": "解析コンポーネントの更新が必要かもしれません。yt-dlp と Deno のバージョンを確認してください。"
+ },
+ "网络视频加载失败，可从中断处重试。": {
+  "en": "Online playback failed. Retry from the interruption point.",
+  "ja": "ネットワーク動画を読み込めませんでした。中断位置から再試行できます。"
  }
 }

@@ -25,6 +25,7 @@
 "B  打星标" = "B  Star";
 "C … C  截片段" = "C … C  cut a clip";
 "GIF" = "GIF";
+"YouTube 解析需要本机 Deno，请检查组件安装。" = "YouTube requires local Deno. Check the component installation.";
 "iCloud 未下载" = "Not Downloaded from iCloud";
 "⌘O 打开文件  ·  ⌘L 打开视频库" = "⌘O Open File  ·  ⌘L Open Video Library";
 "⌘T  AI 字幕" = "⌘T  AI Subtitles";
@@ -51,6 +52,7 @@
 "人物" = "People";
 "人群" = "Crowd";
 "今天 %@" = "Today %@";
+"从中断处重试" = "Retry from here";
 "从视频库移除（不删除文件）" = "Remove from Library (Keep File)";
 "体育场" = "Stadium";
 "保存" = "Save";
@@ -112,6 +114,7 @@
 "字幕提前 0.1 秒   Z" = "Subtitles 0.1 s Earlier   Z";
 "字幕生成中 · 已完成 %@（可以边看边等）" = "Making subtitles · %@ done (keep watching)";
 "定位当前视频所在文件夹" = "Show Current Video’s Folder";
+"实际画质：%@p" = "Actual quality: %@p";
 "室内" = "Indoors";
 "导出 AI 字幕…" = "Export AI Subtitles…";
 "导出…" = "Export…";
@@ -210,6 +213,7 @@
 "无法读取文件夹：%@" = "Cannot read folder: %@";
 "无法读取这个视频" = "This video can't be read";
 "无法读取这个视频的声音。" = "Can't read the audio in this video.";
+"无法连接视频网站，请检查网络后重试。" = "Cannot connect to the video site. Check your connection and retry.";
 "日出日落" = "Sunrise & Sunset";
 "日期未知" = "Unknown Date";
 "日语" = "Japanese";
@@ -249,6 +253,7 @@
 "正在扫描 %1$@… %2$@/%3$@" = "Scanning %1$@… %2$@/%3$@";
 "正在扫描…" = "Scanning…";
 "正在播放的位置会保存。" = "Your place in the video is saved.";
+"正在缓冲…" = "Buffering…";
 "正在翻译字幕…" = "Translating subtitles…";
 "正在解析视频，可随时取消…" = "Resolving video. You can cancel at any time…";
 "正在识别文件…" = "Identifying files…";
@@ -312,7 +317,8 @@
 "结束时间要晚于开始时间" = "The end must be after the start";
 "继续观看" = "Continue Watching";
 "编辑" = "Edit";
-"网络视频加载失败，请重新打开链接以重试。" = "Network video could not load. Open the link again to retry.";
+"网络视频" = "Online video";
+"网络视频加载失败，可从中断处重试。" = "Online playback failed. Retry from the interruption point.";
 "网络视频链接" = "Online video link";
 "美食" = "Food";
 "翻译成：" = "Translate to:";
@@ -333,8 +339,10 @@
 "视频库" = "Video Library";
 "视频库文件夹" = "Library Folders";
 "视频库（⌘L）" = "Library (⌘L)";
+"视频访问受限或已失效，可在浏览器中检查是否需要登录。" = "This video is restricted or unavailable. Open it in a browser to check access.";
 "视频里说的是：" = "Language spoken in the video:";
 "视频（MP4）" = "Video (MP4)";
+"解析组件可能需要更新，请检查 yt-dlp 和 Deno 版本。" = "The resolver may need updating. Check your yt-dlp and Deno versions.";
 "解析超时，请检查网络后重试。" = "Resolution timed out. Check your connection and try again.";
 "设为默认播放器" = "Set as Default Player";
 "设为默认视频播放器…" = "Set as Default Video Player…";
