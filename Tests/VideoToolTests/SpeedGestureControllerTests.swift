@@ -244,4 +244,31 @@ private final class Rig {
         #expect(r.engine.togglePauseCount == 1 && !r.scheduler.isRunning)
         #expect(!r.engine.state.isPaused, "the hold still resumes paused playback")
     }
+
+    @Test("A22 queued double-clicks use occurrence times even when both clicks are delivered late", arguments: [false, true])
+    func queuedDoubleClick(initiallyPaused: Bool) {
+        let r = Rig()
+        r.engine.state.isPaused = initiallyPaused
+        r.now = 100
+        r.controller.mouseDown(eventTime: 10)
+        r.advance(0.05); r.release()
+        #expect(r.engine.state.isPaused != initiallyPaused)
+        r.now = 200
+        r.controller.doubleClick(eventTime: 10.1)
+        #expect(r.engine.state.isPaused == initiallyPaused)
+        #expect(r.engine.togglePauseCount == 2 && !r.scheduler.isRunning)
+        r.release(); r.advance(1)
+        #expect(r.engine.togglePauseCount == 2)
+    }
+
+    @Test("A23 timestamps outside the first-down double-click interval never undo a tap", arguments: [-0.01, 0.501])
+    func unrelatedEventTime(interval: Double) {
+        let r = Rig()
+        r.now = 100
+        r.controller.mouseDown(eventTime: 10)
+        r.advance(0.1); r.release()
+        r.controller.doubleClick(eventTime: 10 + interval)
+        #expect(r.engine.togglePauseCount == 1 && r.engine.state.isPaused)
+        #expect(!r.controller.isActive && !r.scheduler.isRunning)
+    }
 }

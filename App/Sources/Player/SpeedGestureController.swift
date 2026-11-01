@@ -38,7 +38,8 @@ final class SpeedGestureController {
     private let clock: () -> Double
     private let mouseXProvider: () -> Double?
     private let doubleClickInterval: Double
-    private var tapUndoDeadline: Double?
+    private var pressEventTime = 0.0
+    private var tapEventTime: Double?
     private var machine: SpeedGestureMachine!
     private var lastSetSpeed: Double?
 
@@ -62,8 +63,9 @@ final class SpeedGestureController {
     /// Button down, before or during the hold. A key press now cancels the gesture.
     var isActive: Bool { machine.isPressed || machine.isHolding }
 
-    func mouseDown() {
-        tapUndoDeadline = nil
+    func mouseDown(eventTime: Double? = nil) {
+        tapEventTime = nil
+        pressEventTime = eventTime ?? clock()
         machine.mouseDown(at: clock())
         startPolling()
     }
@@ -85,8 +87,14 @@ final class SpeedGestureController {
     /// AppKit has recognized the second click. Undo only the completed first tap,
     /// using another cycle command so asynchronous state notifications cannot
     /// make a fast double-click restore the wrong pause state.
-    func doubleClick() {
-        let undoTap = tapUndoDeadline.map { clock() <= $0 } ?? false
+    func doubleClick(eventTime: Double? = nil) {
+        // Compare event occurrence times, never main-queue delivery times. A
+        // recognized second click can sit queued longer than the click interval.
+        let secondEventTime = eventTime ?? clock()
+        let undoTap = tapEventTime.map {
+            let interval = secondEventTime - $0
+            return interval >= 0 && interval <= doubleClickInterval
+        } ?? false
         cancel()
         if undoTap { engine.togglePause() }
     }
@@ -94,7 +102,7 @@ final class SpeedGestureController {
     /// Key press, focus loss, file end: end the hold without a tap.
     func cancel() {
         scheduler.stop()
-        tapUndoDeadline = nil
+        tapEventTime = nil
         machine.cancel()
     }
 }
@@ -105,7 +113,7 @@ extension SpeedGestureController: SpeedGestureHost {
     var isPaused: Bool { engine.state.isPaused }
     func setPaused(_ paused: Bool) { engine.setPaused(paused) }
     func togglePause() {
-        tapUndoDeadline = clock() + doubleClickInterval
+        tapEventTime = pressEventTime
         engine.togglePause()
     }
     func show(speed: Double, dx: Double) { hud.show(speed: speed, dx: dx) }

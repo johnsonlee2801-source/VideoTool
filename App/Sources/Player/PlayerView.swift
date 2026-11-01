@@ -91,11 +91,11 @@ final class PlayerView: FullscreenClickView {
     override func mouseDown(with event: NSEvent) {
         window?.makeFirstResponder(self)      // ends a note edit; keys go back to the player
         if Self.isFullscreenDoubleClick(event) {
-            gesture.doubleClick()
+            gesture.doubleClick(eventTime: event.timestamp)
             super.mouseDown(with: event)
             return
         }
-        gesture.mouseDown()
+        gesture.mouseDown(eventTime: event.timestamp)
     }
     override func mouseDragged(with event: NSEvent) { /* position is polled by the gesture tick */ }
     override func mouseUp(with event: NSEvent) { gesture.mouseUp() }

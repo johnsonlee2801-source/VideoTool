@@ -204,8 +204,9 @@ import Testing
         return (w, window, view)
     }
 
-    private func mouse(_ type: NSEvent.EventType, count: Int, in window: NSWindow) -> NSEvent {
-        NSEvent.mouseEvent(with: type, location: NSPoint(x: 100, y: 200), modifierFlags: [], timestamp: 0,
+    private func mouse(_ type: NSEvent.EventType, count: Int, in window: NSWindow,
+                       timestamp: Double = 0) -> NSEvent {
+        NSEvent.mouseEvent(with: type, location: NSPoint(x: 100, y: 200), modifierFlags: [], timestamp: timestamp,
             windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: count, pressure: 1)!
     }
 
@@ -277,6 +278,35 @@ import Testing
         #expect(try await wait { engine.property("pause") == original })
         try await Task.sleep(for: .seconds(NSEvent.doubleClickInterval + 0.1))
         #expect(engine.property("pause") == original)
+    }
+
+    @Test("DC8 a recognized picture double-click restores pause even when its second event is delivered late", arguments: [false, true])
+    func queuedDoubleClick(initiallyPaused: Bool) async throws {
+        let (w, window, view) = try player()
+        defer { w.shutdown() }
+        let engine = try #require(w.engine)
+        let original = initiallyPaused ? "yes" : "no"
+        let tapped = initiallyPaused ? "no" : "yes"
+        engine.setPaused(initiallyPaused)
+        #expect(try await wait { engine.property("pause") == original })
+
+        let start = ProcessInfo.processInfo.systemUptime
+        let gap = min(0.05, NSEvent.doubleClickInterval / 4)
+        let firstDown = mouse(.leftMouseDown, count: 1, in: window, timestamp: start)
+        let firstUp = mouse(.leftMouseUp, count: 1, in: window, timestamp: start + gap / 2)
+        let secondDown = mouse(.leftMouseDown, count: 2, in: window, timestamp: start + gap)
+        let secondUp = mouse(.leftMouseUp, count: 2, in: window, timestamp: start + gap * 1.5)
+        view.mouseDown(with: firstDown)
+        view.mouseUp(with: firstUp)
+        #expect(try await wait { engine.property("pause") == tapped })
+
+        // Preserve the already recognized pair's timestamps while delaying only
+        // delivery. This models a busy main queue without blocking the test host.
+        try await Task.sleep(for: .seconds(NSEvent.doubleClickInterval + 0.1))
+        view.mouseDown(with: secondDown)
+        view.mouseUp(with: secondUp)
+        #expect(window.fullscreenRequested && !view.gesture.isActive)
+        #expect(try await wait { engine.property("pause") == original })
     }
 
     @Test("DC3 double-clicking empty content or control-bar space toggles fullscreen")

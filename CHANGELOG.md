@@ -8,6 +8,13 @@
 Source updates are listed by commit date. Validation belongs to that update;
 installer releases are recorded separately.
 
+### 2026-11-01 — 修复界面忙碌时双击后的播放状态 / Queued double-click restoration
+
+- 修复：关闭复查发现的 F001。界面忙碌、第二次点击延后处理时，按事件发生时间匹配双击，避免切换全屏后仍停留在第一下点击的播放／暂停状态。
+- 兼容：单击仍在松开鼠标时立即响应，双击仍恢复这一对点击前的状态；真正超时或时间顺序异常的点击不撤销单击，长按调速和控件操作保持原行为。
+- 验证：新增真实视图与 mpv 回归用例，播放／暂停两种初态均先失败、修复后通过；定向 26 项通过。完整 TDD 门禁：应用 587 项通过、2 项文档截图测试按配置跳过，核心 68 项、Guardian 325 项及原型测试通过。Codex Suite 当前会话对 F001 的修复复核为 verified，未发现新增相关问题；非独立代理审查。
+- 本机与发布：Release 构建通过，已正常退出旧版、保留备份、更新并重启本机 `/Applications/VideoTool.app`；安装签名与构建二进制一致性核对通过。源码同步 GitHub，未发布新 DMG，版本仍为 0.3.8。自动化替换原生全屏切换边界，本次未新增安装后的人工鼠标验收。
+
 ### 2026-11-01 — 修复画面单击暂停延迟 / Immediate picture-click pause
 
 - 修复：单击播放画面后，松开鼠标即发出暂停／继续指令，取消原先等待系统双击间隔的延迟。
