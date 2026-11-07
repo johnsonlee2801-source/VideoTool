@@ -16,8 +16,10 @@ final class BookmarkStore {
     static var defaultPath: String { SQLiteDatabase.defaultPath }
 
     private let db: SQLiteDatabase
+    let path: String
 
     init(path: String = BookmarkStore.defaultPath) throws {
+        self.path = path
         db = try SQLiteDatabase(path: path)
     }
 

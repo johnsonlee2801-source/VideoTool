@@ -31,7 +31,31 @@ import Testing
     }
 }
 
+@Suite struct BilibiliMuxedTests {
+    @Test("BL4 a muxed stream whose codecs yt-dlp left unknown still plays; only an explicit none means no track")
+    func unknownCodecs() throws {
+        let request = try NetworkVideo("https://www.bilibili.com/video/BV1bK411W797")
+        let muxed = #"{"id":"BV1bK411W797","title":"Legacy","duration":90,"url":"https://upos-sz-mirrorcos.bilivideo.com/legacy.mp4"}"#
+        let media = try ResolvedNetworkVideo.decode(data: Data(muxed.utf8), request: request)
+        #expect(media.videoURL.lastPathComponent == "legacy.mp4" && media.audioURL == nil)
+        let nullCodecs = muxed.replacingOccurrences(of: #""duration":90"#, with: #""duration":90,"vcodec":null,"acodec":null"#)
+        #expect(try ResolvedNetworkVideo.decode(data: Data(nullCodecs.utf8), request: request).audioURL == nil)
+        for explicit in [#""vcodec":"none""#, #""acodec":"none""#] {
+            let bad = muxed.replacingOccurrences(of: #""duration":90"#, with: #""duration":90,"# + explicit)
+            #expect(throws: NetworkVideoFailure.invalidResponse) { try ResolvedNetworkVideo.decode(data: Data(bad.utf8), request: request) }
+        }
+    }
+}
+
 @Suite struct BilibiliCatalogTests {
+    @Test("BC3 an AV link with leading zeros matches the numeric aid of its catalog")
+    func leadingZeroAid() throws {
+        let data = Data(#"{"code":0,"data":{"bvid":"BV1bK411W797","aid":498159642,"pages":[{"page":1,"part":"one"}]}}"#.utf8)
+        let value = try BilibiliCatalog.decode(data, request: NetworkVideo("https://bilibili.com/video/av0498159642"))
+        #expect(value.request.key == "bilibili:BV1bK411W797:p1")
+        #expect(throws: Error.self) { try BilibiliCatalog.decode(data, request: NetworkVideo("https://bilibili.com/video/av4981596420")) }
+    }
+
     @Test("BC2 API errors, paid previews and malformed page catalogs are rejected")
     func invalidCatalogs() throws {
         let request = try NetworkVideo("https://bilibili.com/video/BV1bK411W797")
@@ -77,5 +101,69 @@ import Testing
         controller.jumpToNext()
         #expect(engine.seeks.last == 6)
         controller.fileClosed()
+    }
+}
+
+@Suite @MainActor struct BilibiliTransferTests {
+    private let api = URL(string: "https://api.bilibili.com/x/web-interface/view?bvid=BV1bK411W797")!
+    private let short = URL(string: "https://b23.tv/Ab123xy")!
+    private func redirect(_ transfer: BilibiliTransfer, from: URL, to: String, session: URLSession) -> Bool {
+        var allowed = false
+        let response = HTTPURLResponse(url: from, statusCode: 302, httpVersion: nil, headerFields: nil)!
+        transfer.urlSession(session, task: session.dataTask(with: from), willPerformHTTPRedirection: response,
+                            newRequest: URLRequest(url: URL(string: to)!)) { allowed = $0 != nil }
+        return allowed
+    }
+    @Test("BT1 short links follow only bounded HTTPS b23.tv hops and stop at the first Bilibili video")
+    func shortLinkRedirects() {
+        let session = URLSession(configuration: .ephemeral); defer { session.invalidateAndCancel() }
+        var results: [Result<(Data, URL), NetworkVideoFailure>] = []
+        let video = BilibiliTransfer(url: short, shortLink: true) { results.append($0) }
+        #expect(redirect(video, from: short, to: "https://b23.tv/Next12", session: session))
+        #expect(!redirect(video, from: short, to: "https://www.bilibili.com/video/BV1bK411W797?p=2", session: session))
+        if case .success(let pair) = results.last { #expect(pair.0.isEmpty && pair.1.absoluteString.hasSuffix("BV1bK411W797?p=2")) } else { Issue.record("expected the video URL") }
+        for target in ["https://evil.test/video", "http://b23.tv/x", "https://user@b23.tv/x", "https://b23.tv:8443/x"] {
+            let transfer = BilibiliTransfer(url: short, shortLink: true) { results.append($0) }
+            #expect(!redirect(transfer, from: short, to: target, session: session))
+            if case .failure(let error) = results.last { #expect(error == .invalidLink) } else { Issue.record("expected invalidLink for \(target)") }
+        }
+        let looping = BilibiliTransfer(url: short, shortLink: true) { results.append($0) }
+        for hop in 1...5 { #expect(redirect(looping, from: short, to: "https://b23.tv/Hop\(hop)", session: session)) }
+        #expect(!redirect(looping, from: short, to: "https://b23.tv/Hop6", session: session))
+        let api = BilibiliTransfer(url: api, shortLink: false) { results.append($0) }
+        #expect(!redirect(api, from: self.api, to: "https://api.bilibili.com/elsewhere", session: session))
+        if case .failure(let error) = results.last { #expect(error == .invalidLink) } else { Issue.record("API redirects must fail") }
+    }
+    @Test("BT2 catalog responses are bounded, classified once, and cancellation discards delivery")
+    func responses() throws {
+        let session = URLSession(configuration: .ephemeral); defer { session.invalidateAndCancel() }
+        let task = session.dataTask(with: api)
+        var results: [Result<(Data, URL), NetworkVideoFailure>] = []
+        let ok = BilibiliTransfer(url: api, shortLink: false) { results.append($0) }
+        var disposition: URLSession.ResponseDisposition?
+        ok.urlSession(session, dataTask: task, didReceive: try #require(HTTPURLResponse(url: api, statusCode: 200, httpVersion: nil, headerFields: nil))) { disposition = $0 }
+        #expect(disposition == .allow)
+        ok.urlSession(session, dataTask: task, didReceive: Data("{}".utf8))
+        ok.urlSession(session, task: task, didCompleteWithError: nil)
+        if case .success(let pair) = results.last { #expect(pair.0 == Data("{}".utf8) && pair.1 == api) } else { Issue.record("expected data") }
+        let denied = BilibiliTransfer(url: api, shortLink: false) { results.append($0) }
+        denied.urlSession(session, dataTask: task, didReceive: try #require(HTTPURLResponse(url: api, statusCode: 404, httpVersion: nil, headerFields: nil))) { disposition = $0 }
+        #expect(disposition == .cancel)
+        if case .failure(let error) = results.last { #expect(error == .restricted) } else { Issue.record("expected restricted") }
+        let huge = BilibiliTransfer(url: api, shortLink: false) { results.append($0) }
+        huge.urlSession(session, dataTask: task, didReceive: Data(count: 1024 * 1024 + 1))
+        if case .failure(let error) = results.last { #expect(error == .invalidResponse) } else { Issue.record("expected invalidResponse") }
+        let count = results.count
+        huge.urlSession(session, task: task, didCompleteWithError: nil)
+        #expect(results.count == count)
+        for (error, expected) in [(NSError(domain: NSURLErrorDomain, code: NSURLErrorTimedOut), NetworkVideoFailure.timeout), (NSError(domain: NSURLErrorDomain, code: NSURLErrorNotConnectedToInternet), .network)] {
+            let failing = BilibiliTransfer(url: api, shortLink: false) { results.append($0) }
+            failing.urlSession(session, task: task, didCompleteWithError: error)
+            if case .failure(let value) = results.last { #expect(value == expected) } else { Issue.record("expected \(expected)") }
+        }
+        let cancelled = BilibiliTransfer(url: api, shortLink: false) { results.append($0) }
+        let before = results.count
+        cancelled.cancel(); cancelled.urlSession(session, task: task, didCompleteWithError: nil)
+        #expect(results.count == before)
     }
 }

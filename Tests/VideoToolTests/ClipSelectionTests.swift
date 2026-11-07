@@ -146,6 +146,26 @@ struct ClipSelectionTests {
         #expect(w.adjustClip(.start, to: 0) == nil)
     }
 
+    @Test("A22 while a clip exports, C and clear leave the selection being exported alone")
+    func selectionFrozenDuringExport() async throws {
+        let (w, engine, _, _) = try await player()
+        defer { w.shutdown() }
+        await markClip(w, engine, at: 2); await markClip(w, engine, at: 4)
+        var files: [URL] = []
+        w.revealExported = { files = $0 }
+        w.clipBar.press(.gif)
+        #expect(w.isExportingClip)
+        w.perform(.markClip)
+        w.clearClip(NSMenuItem())
+        w.clipBar.press(.close)
+        #expect(w.markersForTesting.clipRange == ClipRange(start: 2, end: 4), "the selection changed under a running export")
+        let item = NSMenuItem(title: "", action: #selector(PlayerWindowController.markClip(_:)), keyEquivalent: "")
+        #expect(!w.validateMenuItem(item))
+        #expect(await waitUntil(20) { !files.isEmpty && !w.isExportingClip })
+        w.clipBar.press(.close)
+        #expect(w.markersForTesting.clipRange == nil)
+    }
+
     @Test("CP1 C at 2 s and C at 4 s: the bar appears; GIF saves a file there and shows it in Finder")
     func quickGIF() async throws {
         let (w, engine, _, out) = try await player()

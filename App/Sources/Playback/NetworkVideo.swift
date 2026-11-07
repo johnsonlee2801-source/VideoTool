@@ -128,10 +128,11 @@ struct ResolvedNetworkVideo {
         guard let duration = object["duration"] as? Double, duration.isFinite, duration > 0 else { throw NetworkVideoFailure.unsupported }
         let formats = object["requested_formats"] as? [[String: Any]] ?? [object]
         guard formats.count == 1 || formats.count == 2,
-              let video = formats.first(where: { ($0["vcodec"] as? String ?? "none") != "none" })
+              // Only an explicit "none" means no track; Bilibili's legacy muxed formats omit codecs.
+              let video = formats.first(where: { ($0["vcodec"] as? String) != "none" })
         else { throw NetworkVideoFailure.invalidResponse }
         let audio = formats.count == 2 ? formats.first(where: { ($0["vcodec"] as? String) == "none" && ($0["acodec"] as? String ?? "none") != "none" }) : nil
-        guard formats.count == 1 ? (video["acodec"] as? String ?? "none") != "none" : audio != nil
+        guard formats.count == 1 ? (video["acodec"] as? String) != "none" : audio != nil
         else { throw NetworkVideoFailure.invalidResponse }
         func url(_ object: [String: Any]) throws -> URL {
             guard let raw = object["url"] as? String, let url = URL(string: raw),

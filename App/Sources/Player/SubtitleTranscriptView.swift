@@ -64,7 +64,12 @@ final class SubtitleTranscriptView: NSView, NSTableViewDataSource, NSTableViewDe
     var selectedSourceID: String? { sourcePopup.selectedItem?.representedObject as? String }
     func setSources(_ sources: [SubtitleSourceOption], selected: String? = nil) {
         sourcePopup.removeAllItems()
-        for source in sources { sourcePopup.addItem(withTitle: source.title); sourcePopup.lastItem?.representedObject = source.id }
+        // addItem(withTitle:) replaces an item with the same title; two tracks may share one.
+        for source in sources {
+            let item = NSMenuItem(title: source.title, action: nil, keyEquivalent: "")
+            item.representedObject = source.id
+            sourcePopup.menu?.addItem(item)
+        }
         if let selected, let item = sourcePopup.itemArray.first(where: { $0.representedObject as? String == selected }) { sourcePopup.select(item) }
         sourcePopup.isEnabled = !sources.isEmpty
     }

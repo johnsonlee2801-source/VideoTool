@@ -52,13 +52,13 @@ final class FolderBrowserViewController: NSViewController, NSTableViewDataSource
     let table: NSTableView = FolderVideoTable()
     let searchField = NSSearchField()
     private let scroll = NSScrollView()
-    private let pathPicker = NSPopUpButton()
+    let pathPicker = NSPopUpButton()
     private let filterButton = NSButton()
     private let status = NSTextField(labelWithString: "")
     private let empty = NSTextField(wrappingLabelWithString: "")
     private let locateButton = NSButton()
     var onShowAdvanced: (() -> Void)?
-    var currentPath: String? { didSet { if currentPath != oldValue { refresh() } } }
+    var currentPath: String? { didSet { if currentPath != oldValue { refreshWhenVisible() } } }
 
     init(controller: LibraryController, defaults: UserDefaults = AppData.defaults,
          loader: FolderDirectoryLoader = FolderDirectoryLoader(), onOpen: @escaping (URL) -> Void) {
@@ -192,7 +192,11 @@ final class FolderBrowserViewController: NSViewController, NSTableViewDataSource
             }
         }
         pathPicker.removeAllItems()
-        for path in pathOptions { pathPicker.addItem(withTitle: path.map { ($0 as NSString).lastPathComponent.isEmpty ? "/" : ($0 as NSString).lastPathComponent } ?? L("视频库文件夹")) }
+        // addItem(withTitle:) would merge repeated names such as /Movies/Movies and shift the indices.
+        for path in pathOptions {
+            let title = path.map { ($0 as NSString).lastPathComponent.isEmpty ? "/" : ($0 as NSString).lastPathComponent } ?? L("视频库文件夹")
+            pathPicker.menu?.addItem(NSMenuItem(title: title, action: nil, keyEquivalent: ""))
+        }
         pathPicker.selectItem(at: pathOptions.count - 1); pathPicker.toolTip = directory ?? L("视频库文件夹")
         locateButton.isEnabled = currentPath != nil
     }
@@ -229,6 +233,7 @@ final class FolderBrowserViewController: NSViewController, NSTableViewDataSource
     /// selection and scroll and repaint only visible rows.
     func refreshWatchHistory(_ watched: [String: WatchEntry]) {
         guard !stopped else { return }
+        if view.isHiddenOrHasHiddenAncestor { deferredRefresh = true; return }
         if watch != .all { refresh(); return }
         for index in visibleVideos.indices {
             let path = visibleVideos[index].path
@@ -274,10 +279,20 @@ final class FolderBrowserViewController: NSViewController, NSTableViewDataSource
             if let row = rows.firstIndex(where: { $0.path == path }) { table.selectRowIndexes([row], byExtendingSelection: false); table.scrollRowToVisible(row) }
         }
     }
+    /// Playback changes arrive while the browser may be hidden (advanced view, collapsed
+    /// sidebar, transcript). Hidden, they only mark it stale; showing it refreshes once.
+    private var deferredRefresh = false
+    private func refreshWhenVisible() {
+        if view.isHiddenOrHasHiddenAncestor { deferredRefresh = true } else { refresh() }
+    }
+    func refreshIfNeeded() {
+        guard deferredRefresh, !view.isHiddenOrHasHiddenAncestor else { return }
+        deferredRefresh = false; refresh()
+    }
     func controlTextDidChange(_ obj: Notification) { refresh() }
     func setPlaybackNavigation(next: String?, ended: Bool) {
         guard next != nextVideoPath || ended != videoEnded else { return }
-        nextVideoPath = next; videoEnded = ended; refresh()
+        nextVideoPath = next; videoEnded = ended; refreshWhenVisible()
     }
     func numberOfRows(in tableView: NSTableView) -> Int { rows.count }
     func tableView(_ tableView: NSTableView, heightOfRow row: Int) -> CGFloat {
@@ -314,7 +329,11 @@ final class FolderBrowserViewController: NSViewController, NSTableViewDataSource
         }
     }
     func tableViewSelectionDidChange(_ notification: Notification) {
-        for row in 0..<table.numberOfRows { (table.view(atColumn: 0, row: row, makeIfNecessary: false) as? SidebarMediaRow)?.isSelected = row == table.selectedRow }
+        // Only rows on screen have views; rows scrolled in later are styled in viewFor.
+        let visible = table.rows(in: table.visibleRect)
+        for row in visible.location..<(visible.location + visible.length) {
+            (table.view(atColumn: 0, row: row, makeIfNecessary: false) as? SidebarMediaRow)?.isSelected = row == table.selectedRow
+        }
     }
     @objc private func openSelection(_ sender: Any?) {
         let index = table.selectedRow

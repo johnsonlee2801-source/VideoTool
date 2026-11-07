@@ -230,6 +230,17 @@ class LibraryBrowserViewController: NSViewController,
         foldersVisible = visible
         view.window?.makeFirstResponder(nil)
         applyBrowsingVisibility()
+        if visible { folderBrowser?.refreshIfNeeded() }
+        else if let selection = gridStale { gridStale = nil; reloadVisibleCards(keeping: selection) }
+    }
+    /// The grid's structure changed while folder browsing hid it; the paths
+    /// selected before the first such change, restored when it is shown.
+    private var gridStale: Set<String>?
+    private func visibleSections() -> [LibrarySection] {
+        controller.sections.compactMap { section in
+            let items = selectedRoot.map { root in section.items.filter { $0.record.root == root } } ?? section.items
+            return items.isEmpty ? nil : LibrarySection(title: section.title, items: items)
+        }
     }
     @objc private func showFolders(_ sender: Any?) { showFolderBrowsing(true) }
     private func applyBrowsingVisibility() {
@@ -281,14 +292,24 @@ class LibraryBrowserViewController: NSViewController,
     func refreshFromStore() { controller.reload() }
     func refreshWatchHistory() {
         let watched = controller.refreshWatchHistory()
+        // Progress decides Continue Watching membership and order; regroup when that changed.
+        let regrouped = visibleSections()
+        if regrouped.map({ $0.items.map(\.record.path) }) != sections.map({ $0.items.map(\.record.path) }) {
+            let selection = selectedPaths()          // by path, before the indices change meaning
+            sections = regrouped
+            folderBrowser?.refreshWatchHistory(watched)
+            if foldersVisible { gridStale = gridStale ?? selection } else { reloadVisibleCards(keeping: selection) }
+            return
+        }
         for section in sections.indices {
             for row in sections[section].items.indices {
                 let path = sections[section].items[row].record.path
                 sections[section].items[row].watch = watched[path]
             }
         }
-        if foldersVisible { folderBrowser?.refreshWatchHistory(watched) }
-        else { grid.reloadItems(at: grid.indexPathsForVisibleItems()) }
+        // A hidden folder browser only marks itself stale and catches up when shown.
+        folderBrowser?.refreshWatchHistory(watched)
+        if !foldersVisible { grid.reloadItems(at: grid.indexPathsForVisibleItems()) }
     }
     func shutdown() { folderBrowser?.shutdown(); controller.onChange = nil; controller.onProgress = nil }
 
@@ -330,10 +351,7 @@ class LibraryBrowserViewController: NSViewController,
         folderPicker.removeAllItems()
         folderPicker.addItems(withTitles: [L("所有文件夹")] + controller.roots.map { ($0 as NSString).lastPathComponent })
         folderPicker.selectItem(at: selectedRoot.flatMap { controller.roots.firstIndex(of: $0).map { $0 + 1 } } ?? 0)
-        sections = controller.sections.compactMap { section in
-            let items = selectedRoot.map { root in section.items.filter { $0.record.root == root } } ?? section.items
-            return items.isEmpty ? nil : LibrarySection(title: section.title, items: items)
-        }
+        sections = visibleSections()
         reloadVisibleCards(keeping: selection)
         refreshStatus()
         rescanButton.isEnabled = !controller.roots.isEmpty && !controller.isIndexing

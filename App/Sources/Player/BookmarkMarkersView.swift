@@ -31,6 +31,7 @@ final class BookmarkMarkersView: NSView {
     var onClick: ((Bookmark) -> Void)?
 
     private var hovered: UUID?
+    private var dragOffset = 0.0
     private var tracking: NSTrackingArea?
 
     override var isFlipped: Bool { true }
@@ -51,7 +52,13 @@ final class BookmarkMarkersView: NSView {
         let p = convert(event.locationInWindow, from: nil)
         if abs(p.y - starCenterY) <= Self.starLift - 1, let b = star(atX: p.x)?.bookmark { onClick?(b); return }
         draggedEndpoint = clipEndpoint(at: p)
-        if draggedEndpoint != nil { onHover?(nil, 0); onHoverTime?(nil, 0) }
+        guard let endpoint = draggedEndpoint, let range = clipRange,
+              let handle = x(at: endpoint == .start ? range.start : range.end) else { return }
+        // Grabbing a handle off-centre must not move it; the drag follows the pointer's travel.
+        dragOffset = Double(p.x - handle)
+        // Drop the hover too, or the star under the handle would not preview again.
+        hovered = nil; needsDisplay = true
+        onHover?(nil, 0); onHoverTime?(nil, 0)
     }
 
     private func clipEndpoint(at point: NSPoint) -> ClipSelection.Endpoint? {
@@ -61,7 +68,7 @@ final class BookmarkMarkersView: NSView {
     }
     override func mouseDragged(with event: NSEvent) {
         guard let endpoint = draggedEndpoint, clipRange != nil, duration > 0 else { return }
-        let x = Double(convert(event.locationInWindow, from: nil).x), track = track()
+        let x = Double(convert(event.locationInWindow, from: nil).x) - dragOffset, track = track()
         let time = duration * max(0, min(1, (x - track.minX) / max(1, track.width)))
         let current = endpoint == .start ? clipRange?.start : clipRange?.end
         if let current, abs(current - time) < 0.000000001 { return }

@@ -60,13 +60,16 @@ struct SubtitleTranscript: Equatable {
     /// Replay the phrase just heard. Close to a cue's start, step back one more.
     func replayIndex(at time: Double) -> Int? {
         guard time.isFinite else { return nil }
-        let target = time - 0.4
         var low = 0, high = cues.count
         while low < high {
             let mid = (low + high) / 2
-            if cues[mid].start <= target { low = mid + 1 } else { high = mid }
+            if cues[mid].start <= time { low = mid + 1 } else { high = mid }
         }
-        return low > 0 ? low - 1 : nil
+        guard low > 0 else { return nil }
+        let current = low - 1
+        // Exactly one phrase back, however densely the cues are spaced.
+        if time - cues[current].start < 0.4 { return current > 0 ? current - 1 : nil }
+        return current
     }
     static func decode(_ data: Data, format: String, bilingual: Bool = false) throws -> Self {
         guard data.count <= maxBytes else { throw SubtitleLoadFailure.tooLarge }

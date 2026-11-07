@@ -386,6 +386,7 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
             self?.sidebar.refreshMetadata()
         }
         bookmarks.onError = { error in NSLog("bookmarks: %@", "\(error)") }
+        bookmarks.onStored = { [weak self] in self?.sidebar.refreshMetadata() }
         listPanel.onJump = { [weak bookmarks] b in bookmarks?.jump(to: b) }
         listPanel.onNoteChange = { [weak bookmarks] id, note in bookmarks?.updateNote(id, note) }
         listPanel.onDelete = { [weak bookmarks] id in bookmarks?.delete(id) }
@@ -557,7 +558,8 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
             }
             // Read before the tracker acts: with the duration not known yet, its resume
             // seek comes later, and the intro must not be skipped in the meantime.
-            let resumeAt = ResumePositionStore.resumeTarget(position: resumeStore.position(for: URL(fileURLWithPath: path)),
+            // A Continue position counts as the resume point too, or the intro skip would override it.
+            let resumeAt = ResumePositionStore.resumeTarget(position: playbackStartOverride ?? resumeStore.position(for: URL(fileURLWithPath: path)),
                                                             duration: duration)
             resumeTracker.fileLoaded(path: path, duration: duration).forEach(apply)
             outroDone = false
@@ -619,16 +621,18 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         if item.url.isFileURL { open(item.url, media: nil, resumeAt: position); return }
         guard (try? NetworkVideo(item.url.absoluteString)) != nil else { return }
         networkSheet?.cancel()
-        let sheet = NetworkVideoSheet(resolver: networkResolverFactory()) { [weak self] in self?.open($0.request.url, media: $0, resumeAt: position) }
+        let key = (try? NetworkVideo(item.url.absoluteString))?.key
+        // The sheet stays editable after a failure; another video must not inherit this position.
+        let sheet = NetworkVideoSheet(resolver: networkResolverFactory()) { [weak self] in self?.open($0.request.url, media: $0, resumeAt: $0.request.key == key ? position : nil) }
         networkSheet = sheet
         if let window { sheet.present(on: window, text: item.url.absoluteString); sheet.submit(nil) }
     }
     @objc func retryNetworkVideo(_ sender: Any?) {
         guard let media = networkMedia, !isShutDown else { return }
-        let position = lastNetworkPosition
+        let position = lastNetworkPosition, key = media.request.key
         networkSheet?.cancel()
         let sheet = NetworkVideoSheet(resolver: networkResolverFactory()) { [weak self] updated in
-            self?.open(updated.request.url, media: updated, resumeAt: position)
+            self?.open(updated.request.url, media: updated, resumeAt: updated.request.key == key ? position : nil)
         }
         networkSheet = sheet
         if let window { sheet.present(on: window, text: media.request.url.absoluteString); sheet.submit(nil) }
@@ -643,8 +647,10 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         saveResumeNow()
         transcriptCoordinator.reset()
         networkMedia = media
+        neighborGeneration += 1                // a pending next/previous check is now obsolete
         playbackStartOverride = resumeAt
-        lastNetworkPosition = 0
+        // Until mpv reports a position, a retry restarts from where this attempt was asked to start.
+        lastNetworkPosition = media == nil ? 0 : resumeAt ?? 0
         networkFailed = false; networkRetryButton.isHidden = true
         resumeTracker = makeResumeTracker()
         bookmarks?.fileClosed()
@@ -656,7 +662,7 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         currentURL = url
         folderQueue.load(url.isFileURL ? url.path : nil)
         loadedPath = nil
-        clearClip()
+        resetClip()
         defer { updateAIButton() }
         sidebar.currentPath = nil
         sidebar.setNetworkParts(media?.parts ?? [], current: media?.request.page ?? 0) { [weak self] page in
@@ -714,15 +720,27 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     @objc func togglePause(_ sender: Any?) { engine?.togglePause() }
     @objc func nextVideo(_ sender: Any?) { openNeighbor(folderQueue.next) }
     @objc func previousVideo(_ sender: Any?) { openNeighbor(folderQueue.previous) }
+    /// Runs the neighbour's file check; a stalled network volume must not block the window.
+    var neighborCheck: (@escaping () -> Void) -> Void = { DispatchQueue.global(qos: .userInitiated).async(execute: $0) }
+    private var neighborGeneration = 0
     private func openNeighbor(_ path: String?) {
         guard let path, !isShutDown else { return }
-        var directory: ObjCBool = false
-        guard FileManager.default.fileExists(atPath: path, isDirectory: &directory), !directory.boolValue else {
-            playerView?.hud.flash(text: L("文件已不可用：%@", (path as NSString).lastPathComponent))
-            folderQueue.load(currentURL?.isFileURL == true ? currentURL?.path : nil)
-            return
+        neighborGeneration += 1
+        let token = neighborGeneration
+        neighborCheck { [weak self] in
+            var directory: ObjCBool = false
+            let exists = FileManager.default.fileExists(atPath: path, isDirectory: &directory) && !directory.boolValue
+            DispatchQueue.main.async {
+                // Only the latest click counts, and only while the same file is still playing.
+                guard let self, !self.isShutDown, token == self.neighborGeneration else { return }
+                guard exists else {
+                    self.playerView?.hud.flash(text: L("文件已不可用：%@", (path as NSString).lastPathComponent))
+                    self.folderQueue.load(self.currentURL?.isFileURL == true ? self.currentURL?.path : nil)
+                    return
+                }
+                self.open(URL(fileURLWithPath: path))
+            }
         }
-        open(URL(fileURLWithPath: path))
     }
     private func updateVideoNavigation() {
         previousVideoButton.isEnabled = folderQueue.previous != nil
@@ -889,6 +907,8 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     /// Play › 标记片段起点 / 终点 (C).
     @objc func markClip(_ sender: Any?) {
         guard let engine, currentURL?.isFileURL == true, loadedPath != nil else { return }
+        // The running export reads this selection; it stays frozen until the export ends.
+        guard !isExportingClip else { playerView?.hud.flash(text: L("已有片段正在导出")); return }
         let t = engine.state.timePos
         switch clipSelection.mark(t) {
         case .started(let start):
@@ -910,6 +930,11 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
 
     /// Play › 清除片段选择, or × on the clip bar.
     @objc func clearClip(_ sender: Any? = nil) {
+        guard !isExportingClip else { playerView?.hud.flash(text: L("已有片段正在导出")); return }
+        resetClip()
+    }
+    /// Another file or shutdown: the selection goes whatever is exporting.
+    private func resetClip() {
         dismissClipAdjustment()
         setLooping(false)
         clipSelection.clear()
@@ -1369,10 +1394,12 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, NSMenu
                 return true
             case .close: return false
             }
-        case #selector(markClip(_:)), #selector(copy(_:)):
+        case #selector(markClip(_:)):
+            return currentURL?.isFileURL == true && loadedPath != nil && !isExportingClip
+        case #selector(copy(_:)):
             return currentURL?.isFileURL == true && loadedPath != nil
         case #selector(clearClip(_:)):
-            return clipSelection.start != nil
+            return clipSelection.start != nil && !isExportingClip
         case #selector(exportClip(_:)):
             return currentURL?.isFileURL == true && loadedPath != nil
         case #selector(toggleNightMode(_:)):

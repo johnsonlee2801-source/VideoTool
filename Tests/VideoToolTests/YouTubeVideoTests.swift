@@ -55,4 +55,15 @@ import Testing
         let json = #"{"id":"BaW_jenozKc","duration":30,"title":"A\u0000,title=bad","vcodec":"avc1","acodec":"aac","url":"https://r.googlevideo.com/v","http_headers":{"User-Agent":"x\u0000suffix"}}"#
         #expect(throws: Error.self) { try ResolvedNetworkVideo.decode(data: Data(json.utf8), request: request) }
     }
+
+    @Test("YT7 each unsafe stream URL is rejected starting from an otherwise valid response")
+    func unsafeURLsFromValidBase() throws {
+        let request = try NetworkVideo("https://youtu.be/BaW_jenozKc")
+        let valid = #"{"id":"BaW_jenozKc","duration":30,"vcodec":"avc1","acodec":"aac","url":"https://r1.googlevideo.com/v"}"#
+        #expect(try ResolvedNetworkVideo.decode(data: Data(valid.utf8), request: request).videoURL.host == "r1.googlevideo.com")
+        for unsafe in ["file:///tmp/private", "http://r1.googlevideo.com/v", "https://googlevideo.com.evil.test/v", "https://evil.test/r1.googlevideo.com", "https://user@r1.googlevideo.com/v", "https://r1.googlevideo.com:8443/v", "https://upos.bilivideo.com/v"] {
+            let json = valid.replacingOccurrences(of: "https://r1.googlevideo.com/v", with: unsafe)
+            #expect(throws: NetworkVideoFailure.invalidResponse) { try ResolvedNetworkVideo.decode(data: Data(json.utf8), request: request) }
+        }
+    }
 }

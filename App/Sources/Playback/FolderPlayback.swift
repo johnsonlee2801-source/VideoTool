@@ -13,12 +13,15 @@ struct FolderDirectory {
         }
     }
 
-    static func read(_ path: String) throws -> FolderDirectory {
+    typealias Values = (URL) throws -> URLResourceValues
+    static func read(_ path: String) throws -> FolderDirectory { try read(path) { try $0.resourceValues(forKeys: [.isDirectoryKey, .isRegularFileKey]) } }
+    static func read(_ path: String, values readValues: Values) throws -> FolderDirectory {
         let urls = try FileManager.default.contentsOfDirectory(at: URL(fileURLWithPath: path),
             includingPropertiesForKeys: [.isDirectoryKey, .isRegularFileKey], options: [.skipsHiddenFiles])
         var folders: [String] = [], videos: [String] = []
         for url in urls {
-            let values = try url.resourceValues(forKeys: [.isDirectoryKey, .isRegularFileKey])
+            // A child that vanished or cannot be read is skipped, not the whole directory.
+            guard let values = try? readValues(url) else { continue }
             // Foundation can canonicalize /var into /private/var during a read.
             // Preserve the caller's spelling so selection and currentPath match.
             let child = (path as NSString).appendingPathComponent(url.lastPathComponent)

@@ -16,7 +16,7 @@ struct BilibiliCatalog {
               let pages = video["pages"] as? [[String: Any]], !pages.isEmpty, pages.count <= 1000,
               request.site == .bilibili else { throw NetworkVideoFailure.invalidResponse }
         if request.id.hasPrefix("BV"), bvid != request.id { throw NetworkVideoFailure.invalidResponse }
-        if request.id.hasPrefix("av"), String(video["aid"] as? Int ?? -1) != String(request.id.dropFirst(2)) { throw NetworkVideoFailure.invalidResponse }
+        if request.id.hasPrefix("av"), video["aid"] as? Int == nil || video["aid"] as? Int != Int(request.id.dropFirst(2)) { throw NetworkVideoFailure.invalidResponse }
         if video["is_upower_exclusive"] as? Bool == true || (video["rights"] as? [String: Any])?["pay"] as? Int == 1 {
             throw NetworkVideoFailure.unsupported
         }
@@ -70,7 +70,7 @@ final class BilibiliCatalogFetcher: BilibiliCatalogFetching {
     deinit { transfer?.cancel() }
 }
 
-private final class BilibiliTransfer: NSObject, URLSessionDataDelegate, @unchecked Sendable {
+final class BilibiliTransfer: NSObject, URLSessionDataDelegate, @unchecked Sendable {
     private let url: URL
     private let shortLink: Bool
     private var completion: ((Result<(Data, URL), NetworkVideoFailure>) -> Void)?

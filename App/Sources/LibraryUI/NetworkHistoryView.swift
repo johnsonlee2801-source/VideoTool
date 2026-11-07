@@ -25,6 +25,10 @@ final class NetworkHistoryView: NSView {
     required init?(coder: NSCoder) { fatalError("not supported") }
     func refresh(search: String) {
         let origin = scroll.contentView.bounds.origin
+        // Rebuilding detaches the focused button; give focus back to the same record's same action,
+        // or Space would fall through to the player and pause instead of pressing it.
+        let focused = window?.firstResponder as? NSButton
+        let refocus = focused.flatMap { $0.isDescendant(of: self) ? ($0.identifier, $0.action) : nil }
         entries = store.entries.filter { search.isEmpty || $0.title.localizedCaseInsensitiveContains(search) || $0.video.id.localizedCaseInsensitiveContains(search) }
         for row in rows.arrangedSubviews { rows.removeArrangedSubview(row); row.removeFromSuperview() }
         playButtons = []
@@ -51,6 +55,10 @@ final class NetworkHistoryView: NSView {
             label.widthAnchor.constraint(equalTo: rows.widthAnchor).isActive = true
         }
         rows.layoutSubtreeIfNeeded()
+        if let (identifier, action) = refocus, let window {
+            func buttons(_ view: NSView) -> [NSButton] { (view as? NSButton).map { [$0] } ?? view.subviews.flatMap(buttons) }
+            if let match = buttons(rows).first(where: { $0.identifier == identifier && $0.action == action }) { window.makeFirstResponder(match) }
+        }
         scroll.contentView.scroll(to: origin); scroll.reflectScrolledClipView(scroll.contentView)
     }
     private func entry(_ sender: NSButton) -> NetworkWatchEntry? { entries.first { $0.video.key == sender.identifier?.rawValue } }

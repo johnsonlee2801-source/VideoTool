@@ -43,6 +43,54 @@ import Libmpv
         resolver.completion?(.success(ResolvedNetworkVideo(request: request, title: "Lecture restart", videoURL: fixture, audioURL: nil, headers: [:])))
         #expect(await wait { window.loadedPath != nil && engine.state.timePos < 2 })
     }
+    @Test("A6 a continue or retry position belongs to its own video; a different resolved video starts by its own rules")
+    func positionStaysWithItsVideo() async throws {
+        let fixture = try #require(Bundle(for: NetworkFixtureMarker.self).url(forResource: "testsrc-20s", withExtension: "mp4"))
+        let original = try NetworkVideo("https://youtu.be/M7lc1UVf-VE"), replacement = try NetworkVideo("https://youtu.be/BaW_jenozKc")
+        let name = "videotool-tests-continue-other-" + UUID().uuidString
+        let defaults = try #require(UserDefaults(suiteName: name))
+        defer { defaults.removePersistentDomain(forName: name) }
+        let resolver = RecoveryResolver()
+        let window = PlayerWindowController(history: WatchHistoryStore(defaults: defaults), resumeStore: ResumePositionStore(defaults: defaults), networkHistory: NetworkWatchHistoryStore(defaults: defaults))
+        defer { window.shutdown() }
+        window.networkResolverFactory = { resolver }
+        let engine = try #require(window.engine)
+        // The first resolution failed, the viewer edited the link in the sheet, and it resolved to another video.
+        window.openContinue(ContinueWatchingItem(url: original.url, title: "A", position: 12, watchedAt: Date()), fromBeginning: false)
+        resolver.completion?(.success(ResolvedNetworkVideo(request: replacement, title: "B", videoURL: fixture, audioURL: nil, headers: [:])))
+        #expect(await wait { window.loadedPath != nil })
+        try await Task.sleep(for: .milliseconds(300))
+        #expect(engine.state.timePos < 3, "B inherited A's position: \(engine.state.timePos)")
+        window.openNetwork(ResolvedNetworkVideo(request: original, title: "A", videoURL: fixture, audioURL: nil, headers: [:]))
+        #expect(await wait { window.loadedPath != nil })
+        var state = engine.state; state.path = fixture.path; state.timePos = 12; engine.onStateChange?(state)
+        engine.onEvent?(.playbackFailed(path: fixture.path))
+        window.networkRetryButton.performClick(nil)
+        resolver.completion?(.success(ResolvedNetworkVideo(request: replacement, title: "B", videoURL: fixture, audioURL: nil, headers: [:])))
+        #expect(await wait { window.loadedPath != nil })
+        try await Task.sleep(for: .milliseconds(300))
+        #expect(engine.state.timePos < 3, "retry into B inherited A's interruption: \(engine.state.timePos)")
+    }
+    @Test("A21 a retry that fails before playing keeps the interruption time for the next retry")
+    func repeatedRetryKeepsPosition() async throws {
+        let fixture = try #require(Bundle(for: NetworkFixtureMarker.self).url(forResource: "testsrc-20s", withExtension: "mp4"))
+        let request = try NetworkVideo("https://youtu.be/M7lc1UVf-VE")
+        let resolver = RecoveryResolver(), window = PlayerWindowController()
+        defer { window.shutdown() }
+        window.networkResolverFactory = { resolver }
+        let engine = try #require(window.engine)
+        window.openNetwork(ResolvedNetworkVideo(request: request, title: "R", videoURL: fixture, audioURL: nil, headers: [:]))
+        #expect(await wait { window.loadedPath != nil })
+        var state = engine.state; state.path = fixture.path; state.timePos = 9; engine.onStateChange?(state)
+        engine.onEvent?(.playbackFailed(path: fixture.path))
+        window.networkRetryButton.performClick(nil)
+        resolver.completion?(.success(ResolvedNetworkVideo(request: request, title: "R", videoURL: fixture, audioURL: nil, headers: [:])))
+        // This attempt fails at once, before mpv reports any position.
+        engine.onEvent?(.playbackFailed(path: fixture.path))
+        window.networkRetryButton.performClick(nil)
+        resolver.completion?(.success(ResolvedNetworkVideo(request: request, title: "R", videoURL: fixture, audioURL: nil, headers: [:])))
+        #expect(await wait { window.loadedPath != nil && engine.state.timePos >= 8.5 }, "second retry: loaded=\(String(describing: window.loadedPath)) pos=\(engine.state.timePos) path=\(String(describing: engine.state.path)) requests=\(resolver.requests.count) msg=\(String(describing: window.networkMessage)) retryHidden=\(window.networkRetryButton.isHidden)")
+    }
     @Test("CW6 local continue and from-start use the selected position without affecting network history")
     func continueLocal() async throws {
         let fixture = try #require(Bundle(for: NetworkFixtureMarker.self).url(forResource: "testsrc-20s", withExtension: "mp4"))

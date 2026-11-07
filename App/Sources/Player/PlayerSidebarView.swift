@@ -258,6 +258,7 @@ final class PlayerSidebarView: NSView {
         if isTranscriptOpen { partHeight?.constant = 0 }
         bookmarks.isHidden = isTranscriptOpen || !state.isExpanded || state.tab != .stars
         libraryBrowser?.view.isHidden = isTranscriptOpen || state.tab != .library
+        if state.isExpanded && !isTranscriptOpen && state.tab == .library { libraryBrowser?.folderBrowser?.refreshIfNeeded() }
         recent.view.isHidden = isTranscriptOpen || state.tab != .recent
         retry.isHidden = isTranscriptOpen || state.tab != .library || libraryBrowser != nil || !state.isExpanded
         message.isHidden = isTranscriptOpen || message.stringValue.isEmpty

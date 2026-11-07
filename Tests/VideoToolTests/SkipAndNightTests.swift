@@ -126,6 +126,23 @@ struct SkipRuleTests {
         #expect(w.playerView?.hud.text != L("已跳过片头"))
     }
 
+    @Test("A20 continuing past the intro from history keeps that position even without a saved resume")
+    func continueBeyondIntro() async throws {
+        let (e1, _) = try series()
+        let key = SkipStore.key(for: e1.path)
+        SkipStore().update(key) { $0.introEnd = 3 }
+        defer { SkipStore().clear(key) }
+        #expect(ResumePositionStore().position(for: e1) == nil)
+        let w = PlayerWindowController()
+        defer { w.shutdown() }
+        w.openContinue(ContinueWatchingItem(url: e1, title: "Edge", position: 7, watchedAt: Date()), fromBeginning: false)
+        let engine = try #require(w.engine)
+        #expect(await waitUntil { w.loadedPath == e1.path })
+        #expect(await waitUntil { abs(engine.state.timePos - 7) < 1 }, "continued at \(engine.state.timePos)")
+        try await Task.sleep(for: .milliseconds(400))
+        #expect(engine.state.timePos > 6.5, "intro skip overrode the continue position: \(engine.state.timePos)")
+    }
+
     @Test("SK6 pausing inside the credits does not skip to the next episode")
     func pausedInOutro() async throws {
         let (e1, e2) = try series()

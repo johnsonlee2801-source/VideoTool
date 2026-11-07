@@ -63,6 +63,8 @@ final class ClipAdjustmentView: NSView, NSTextFieldDelegate {
         range = updated; status.stringValue = defaultStatus; sync()
     }
     @objc func commit(_ sender: NSTextField) {
+        // The field shows milliseconds; re-reading unchanged text would round a frame-stepped endpoint.
+        if sender.stringValue == ClipAdjustment.text(sender.tag == 1 ? range.end : range.start) { status.stringValue = defaultStatus; return }
         guard let time = TimeFormatting.parse(sender.stringValue) else { status.stringValue = L("请输入有效时间，例如 1:05.250"); return }
         apply(time, endpoint: sender.tag == 1 ? .end : .start)
     }

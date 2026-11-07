@@ -23,6 +23,24 @@ final class BookmarkController {
     private let fingerprint: (String) -> String?
     private let background: Executor
     private let main: Executor
+    /// Serial: writes land in the order they were made.
+    private let persist: Executor
+    /// Writes use their own connection: in WAL mode the main thread's reads never wait
+    /// behind a write that is itself waiting for the indexer's lock.
+    private let writer: BookmarkStore
+    /// While writes for a file are queued, its latest star list lives here so a reopen
+    /// shows it without waiting for the database. Guarded by `pendingLock`.
+    private let pendingLock = NSLock()
+    private var pending: [String: Pending] = [:]
+    /// Edits made per file key, and keys whose correction waits for their queued writes.
+    private var versions: [String: Int] = [:]
+    private var unreconciled: Set<String> = []
+    private struct Pending {
+        var count: Int
+        var stars: [Bookmark]      // the list as shown, including queued changes
+        let base: [Bookmark]       // the list before the first queued change: last known stored
+        var failed = false
+    }
 
     private(set) var fileKey: String?
     private(set) var bookmarks: [Bookmark] = []
@@ -38,13 +56,21 @@ final class BookmarkController {
     /// A star's thumbnail finished; only the preview needs refreshing (not the list).
     var onThumbnailReady: ((UUID) -> Void)?
     var onError: ((Error) -> Void)?
+    /// Queued writes for a file reached the database (star counts elsewhere may change).
+    var onStored: (() -> Void)?
 
     init(store: BookmarkStore, engine: PlayerEngine, now: @escaping () -> Date = Date.init,
          thumbnailDirectory: URL? = BookmarkController.defaultThumbnailDirectory,
          thumbnails: ThumbnailMaker? = MPVThumbnailMaker(),
          fingerprint: @escaping (String) -> String? = FileFingerprint.key(forTarget:),
          background: @escaping Executor = { DispatchQueue.global(qos: .userInitiated).async(execute: $0) },
-         main: @escaping Executor = { DispatchQueue.main.async(execute: $0) }) {
+         main: @escaping Executor = { DispatchQueue.main.async(execute: $0) },
+         persist: Executor? = nil) {
+        let writes = DispatchQueue(label: "VideoTool.bookmarks.persist", qos: .utility)
+        self.persist = persist ?? { writes.async(execute: $0) }
+        // Degraded mode: if a second connection cannot be opened, writes share the reader's
+        // connection; they are still off the main thread, but a read can then wait behind one.
+        self.writer = (try? BookmarkStore(path: store.path)) ?? store
         self.store = store
         self.engine = engine
         self.now = now
@@ -93,7 +119,12 @@ final class BookmarkController {
         identifying = false
         unidentifiable = false
         landed = nil
-        attempt { try store.rememberFile(key: key, path: path) }
+        // Every load writes this; under an indexing writer it can wait on the busy timeout.
+        let writer = self.writer
+        persist { [weak self] in
+            do { try writer.rememberFile(key: key, path: path) }
+            catch { self?.main { self?.onError?(error) } }
+        }
         reload()
     }
 
@@ -120,15 +151,14 @@ final class BookmarkController {
         let time = engine.state.timePos
         switch BookmarkNavigator.toggle(at: time, now: now(), existing: bookmarks, speed: engine.state.speed) {
         case .undo(let id):
-            // A failed delete leaves the star (and its picture) and says nothing was undone.
-            guard attempt({ try store.delete(id: id) }) else { return nil }
-            removeThumbnail(id)
-            reload()
+            guard remove(id) else { return nil }
             return .undone
         case .add:
+            // Shown at once; stored by the queue. A failed insert takes the star back off.
             let b = Bookmark(id: UUID(), fileKey: fileKey, time: time, endTime: nil, note: "", createdAt: now())
-            guard attempt({ try store.insert(b) }) else { return nil }
-            reload()
+            let before = bookmarks
+            publish(bookmarks + [b])
+            write(fileKey, before: before) { try $0.insert(b) }
             requestThumbnail(for: b)
             return .added(b)
         }
@@ -191,14 +221,85 @@ final class BookmarkController {
     // MARK: editing
 
     func updateNote(_ id: UUID, _ note: String) {
-        attempt { try store.updateNote(id: id, note: note) }
-        reload()
+        guard let fileKey, let index = bookmarks.firstIndex(where: { $0.id == id }) else { return }
+        let before = bookmarks
+        var stars = bookmarks; stars[index].note = note
+        publish(stars)
+        write(fileKey, before: before) { try $0.updateNote(id: id, note: note) }
     }
 
-    func delete(_ id: UUID) {
-        guard attempt({ try store.delete(id: id) }) else { return }
-        removeThumbnail(id)
-        reload()
+    func delete(_ id: UUID) { remove(id) }
+
+    /// Off the list at once; the picture goes only once the row is really deleted,
+    /// and a failed delete puts the star back (audit 2026-10-20 / 2026-11-07).
+    @discardableResult
+    private func remove(_ id: UUID) -> Bool {
+        guard let fileKey, bookmarks.contains(where: { $0.id == id }) else { return false }
+        let before = bookmarks
+        publish(bookmarks.filter { $0.id != id })
+        let directory = thumbnailDirectory
+        write(fileKey, before: before) { store in
+            try store.delete(id: id)
+            if let directory { try? FileManager.default.removeItem(at: directory.appendingPathComponent("\(id.uuidString).jpg")) }
+        }
+        return true
+    }
+
+    private func publish(_ stars: [Bookmark]) {
+        bookmarks = stars.sorted { ($0.time, $0.createdAt) < ($1.time, $1.createdAt) }
+        onChange?(bookmarks)
+    }
+
+    /// Queues one write for `key`; `before` is the list as it was before this change.
+    /// When the last queued write for the key finishes and something failed, the list is
+    /// reconciled with the database (or, if that cannot be read, the list before the batch).
+    private func write(_ key: String, before: [Bookmark], _ body: @escaping (BookmarkStore) throws -> Void) {
+        pendingLock.lock()
+        var entry = pending[key] ?? Pending(count: 0, stars: before, base: before)
+        entry.count += 1; entry.stars = bookmarks
+        pending[key] = entry
+        versions[key, default: 0] += 1
+        pendingLock.unlock()
+        let writer = self.writer
+        persist { [weak self] in
+            var failure: Error?
+            do { try body(writer) } catch { failure = error }
+            guard let self else { return }
+            self.pendingLock.lock()
+            var finished: Pending?
+            if var entry = self.pending[key] {
+                entry.count -= 1
+                if failure != nil { entry.failed = true }
+                if entry.count > 0 { self.pending[key] = entry } else { self.pending[key] = nil; finished = entry }
+            }
+            let reconcile = finished != nil && (finished!.failed || self.unreconciled.remove(key) != nil)
+            self.pendingLock.unlock()
+            if let failure { self.main { self.onError?(failure) } }
+            if reconcile { self.reconcile(key, fallback: finished!.base) }
+            if finished != nil { self.main { self.onStored?() } }
+        }
+    }
+
+    /// Runs on the writer queue: read what is stored, then show it unless the viewer has
+    /// edited this file since the read. Then the newer edits are shown and the check is
+    /// repeated after them, so a skipped correction is never lost.
+    private func reconcile(_ key: String, fallback: [Bookmark]) {
+        pendingLock.lock()
+        // Writes still queued behind this check would make the read stale: their own
+        // batch end repeats the check once they are stored.
+        if pending[key] != nil { unreconciled.insert(key); pendingLock.unlock(); return }
+        let version = versions[key, default: 0]
+        pendingLock.unlock()
+        let stored = (try? writer.bookmarks(for: key)) ?? fallback
+        main {
+            self.pendingLock.lock()
+            let current = self.versions[key, default: 0] == version
+            let busy = self.pending[key] != nil
+            if !current && busy { self.unreconciled.insert(key) }
+            self.pendingLock.unlock()
+            if current { if self.fileKey == key { self.publish(stored) } }
+            else if !busy { self.persist { [weak self] in self?.reconcile(key, fallback: stored) } }
+        }
     }
 
     func thumbnailURL(for b: Bookmark) -> URL? {
@@ -214,8 +315,20 @@ final class BookmarkController {
         thumbnails.makeThumbnail(source: path, at: b.time, to: url) { [weak self] ok in
             guard let self else { return }
             // Undone or deleted while the image was being made: don't leave it behind. A
-            // failing query is not "deleted": keep the picture (audit 2026-10-20).
-            switch Result(catching: { try self.store.exists(id: b.id) }) {
+            // failing query is not "deleted": keep the picture (audit 2026-10-20). Queued
+            // writes are not in the database yet, so their list is the truth meanwhile.
+            self.pendingLock.lock(); let queued = self.pending[b.fileKey]?.stars; self.pendingLock.unlock()
+            if let queued, !queued.contains(where: { $0.id == b.id }) {
+                // Undone or deleted, but not stored yet: decide after the queued writes, so a
+                // delete that fails keeps its picture and a late image is never orphaned.
+                let writer = self.writer
+                self.persist {
+                    if (try? writer.exists(id: b.id)) == false { try? FileManager.default.removeItem(at: url) }
+                }
+                return
+            }
+            let alive: Result<Bool, Error> = queued != nil ? .success(true) : Result(catching: { try self.store.exists(id: b.id) })
+            switch alive {
             case .success(false):
                 try? FileManager.default.removeItem(at: url)
                 return
@@ -233,18 +346,10 @@ final class BookmarkController {
 
     private func reload() {
         guard let fileKey else { return }
+        pendingLock.lock(); let queued = pending[fileKey]?.stars; pendingLock.unlock()
+        if let queued { bookmarks = queued; onChange?(bookmarks); return }
         // A read error keeps the stars on screen (and reports it) rather than showing none.
         do { bookmarks = try store.bookmarks(for: fileKey) } catch { onError?(error); return }
         onChange?(bookmarks)
-    }
-
-    private func removeThumbnail(_ id: UUID) {
-        guard let dir = thumbnailDirectory else { return }
-        try? FileManager.default.removeItem(at: dir.appendingPathComponent("\(id.uuidString).jpg"))
-    }
-
-    @discardableResult
-    private func attempt(_ body: () throws -> Void) -> Bool {
-        do { try body(); return true } catch { onError?(error); return false }
     }
 }

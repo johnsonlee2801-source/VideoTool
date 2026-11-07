@@ -27,4 +27,13 @@ import Testing
         let document = SubtitleTranscript(cues: [cue, cue, SubtitleCue(start: .nan, end: 3, text: "bad"), SubtitleCue(start: 5, end: 4, text: "reversed")])
         #expect(document.cues == [cue])
     }
+    @Test("ST4 replay near a cue start steps back exactly one phrase, even with dense cues")
+    func denseReplay() {
+        let document = SubtitleTranscript(cues: [1.0, 1.2, 1.4, 3.0].map { SubtitleCue(start: $0, end: $0 + 0.15, text: "c\($0)") })
+        #expect(document.replayIndex(at: 1.5) == 1)
+        #expect(document.replayIndex(at: 1.25) == 0)
+        #expect(document.replayIndex(at: 2.0) == 2)
+        #expect(document.replayIndex(at: 1.1) == nil)
+        #expect(document.replayIndex(at: 0.5) == nil)
+    }
 }

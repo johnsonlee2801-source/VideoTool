@@ -22,6 +22,16 @@ final class MPVEngine: PlayerEngine {
     /// Once network media has played, also suppress late log events after a
     /// switch to local media. Raw libmpv logs can contain signed stream URLs.
     private var redactMediaLogs = false
+    /// Playlist entry of the last START_FILE drained (read and written under `lock`).
+    private var startedEntry: Int64?
+    /// Bumped by every load request (under `lock`). A FILE_LOADED read before a newer
+    /// request is delivered to the main thread after it, and must not count for it.
+    private var loadGeneration = 0
+    /// The playlist entry the latest load request created, from loadfile's reply (under `lock`).
+    /// Until that reply arrives, any FILE_LOADED is from an older request.
+    private enum LoadEntry { case awaitingReply, entry(Int64), failed, unknown }
+    private var loadEntry = LoadEntry.unknown
+    private static let loadReplyBase: UInt64 = 1 << 40
 
     private(set) var state = PlayerState() {
         didSet { if state != oldValue { onStateChange?(state) } }
@@ -95,11 +105,10 @@ final class MPVEngine: PlayerEngine {
 
     func load(_ url: URL) { loadTarget(url.isFileURL ? url.path : url.absoluteString) }
     func loadNetwork(_ media: ResolvedNetworkVideo) {
-        lock.lock(); redactMediaLogs = true; lock.unlock()
-        command(media.loadCommand)
+        command(media.loadCommand, loadRequest: true, redact: true)
     }
     /// Anything mpv accepts: a path, a URL string, or an `av://lavfi:` source.
-    func loadTarget(_ target: String) { command(["loadfile", target, "replace"]) }
+    func loadTarget(_ target: String) { command(["loadfile", target, "replace"], loadRequest: true) }
     func stop() { command(["stop"]) }
     func setPaused(_ paused: Bool) { setFlag("pause", paused) }
     func togglePause() { command(["cycle", "pause"]) }
@@ -177,12 +186,23 @@ final class MPVEngine: PlayerEngine {
 
     // MARK: commands & properties
 
-    func command(_ args: [String]) {
+    func command(_ args: [String]) { command(args, loadRequest: false) }
+
+    /// A load request is numbered and sent under the same lock, so the reply and every
+    /// event read afterwards can be matched to the request that is really the latest.
+    private func command(_ args: [String], loadRequest: Bool, redact: Bool = false) {
         var cargs: [UnsafePointer<CChar>?] = args.map { UnsafePointer(strdup($0)) }
         cargs.append(nil)
         defer { cargs.forEach { free(UnsafeMutablePointer(mutating: $0)) } }
         withLiveHandle { h in
-            let r = cargs.withUnsafeMutableBufferPointer { mpv_command_async(h, 0, $0.baseAddress) }
+            var userdata: UInt64 = 0
+            if loadRequest {
+                if redact { redactMediaLogs = true }
+                loadGeneration += 1; loadEntry = .awaitingReply
+                userdata = Self.loadReplyBase + UInt64(loadGeneration)
+            }
+            let r = cargs.withUnsafeMutableBufferPointer { mpv_command_async(h, userdata, $0.baseAddress) }
+            if r < 0 && loadRequest { loadEntry = .failed }
             report(r, "command \(args.first ?? "")")
         }
     }
@@ -270,13 +290,39 @@ final class MPVEngine: PlayerEngine {
             guard let data = e.data, let prop = MPVProperty(rawValue: e.reply_userdata) else { return }
             let p = data.assumingMemoryBound(to: mpv_event_property.self).pointee
             applyProperty(prop, p)
+        case MPV_EVENT_START_FILE:
+            if let data = e.data { startedEntry = data.assumingMemoryBound(to: mpv_event_start_file.self).pointee.playlist_entry_id }
         case MPV_EVENT_FILE_LOADED:
+            // Events are read after the fact: if mpv already moved on to another entry,
+            // its live path/duration belong to that entry, not to this event.
+            // mpv's playback thread runs on, so check the entry before and after the reads.
+            func playingEntry() -> Int64? {
+                var position: Int64 = -1, id: Int64 = -1
+                guard mpv_get_property(h, "playlist-playing-pos", MPV_FORMAT_INT64, &position) >= 0, position >= 0,
+                      mpv_get_property(h, "playlist/\(position)/id", MPV_FORMAT_INT64, &id) >= 0 else { return nil }
+                return id
+            }
+            switch loadEntry {
+            case .awaitingReply, .failed: return              // from a request older than the latest
+            case .entry(let id): guard startedEntry == id else { return }
+            case .unknown: break
+            }
+            // Once START_FILE named the entry, an unreadable identity is not proof either.
+            if let started = startedEntry, playingEntry() != started { return }
             var path = ""
             if let c = mpv_get_property_string(h, "path") { path = String(cString: c); mpv_free(c) }
             var duration = 0.0
             if mpv_get_property(h, "duration", MPV_FORMAT_DOUBLE, &duration) < 0 { duration = 0 }
-            post(.fileLoaded(path: path, duration: duration))
+            if let started = startedEntry, playingEntry() != started { return }
+            post(.fileLoaded(path: path, duration: duration), ifStillGeneration: loadGeneration)
         case MPV_EVENT_COMMAND_REPLY, MPV_EVENT_SET_PROPERTY_REPLY:
+            if e.event_id == MPV_EVENT_COMMAND_REPLY, e.reply_userdata > Self.loadReplyBase,
+               e.reply_userdata - Self.loadReplyBase == UInt64(loadGeneration) {
+                // The latest load's reply names the entry it created; older replies are ignored.
+                if e.error < 0 { loadEntry = .failed }
+                else if let data = e.data, let id = Self.playlistEntryID(data.assumingMemoryBound(to: mpv_event_command.self).pointee.result) { loadEntry = .entry(id) }
+                else { loadEntry = .unknown }
+            }
             if e.error < 0 { post(.log("mpv async request failed: \(String(cString: mpv_error_string(e.error)))")) }
         case MPV_EVENT_END_FILE:
             guard let data = e.data else { return }
@@ -326,7 +372,24 @@ final class MPVEngine: PlayerEngine {
         }
     }
 
+    /// `playlist_entry_id` from loadfile's result map (mpv 0.33+); nil if absent.
+    private static func playlistEntryID(_ node: mpv_node) -> Int64? {
+        guard node.format == MPV_FORMAT_NODE_MAP, let list = node.u.list?.pointee, let keys = list.keys, let values = list.values else { return nil }
+        for i in 0..<Int(list.num) where String(cString: keys[i]!) == "playlist_entry_id" && values[i].format == MPV_FORMAT_INT64 {
+            return values[i].u.int64
+        }
+        return nil
+    }
     private func post(_ event: PlayerEvent) {
         DispatchQueue.main.async { [weak self] in self?.onEvent?(event) }
+    }
+    /// Delivered only if no newer load was requested since the event was read.
+    private func post(_ event: PlayerEvent, ifStillGeneration generation: Int) {
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            self.lock.lock(); let current = self.loadGeneration; self.lock.unlock()
+            guard current == generation else { return }
+            self.onEvent?(event)
+        }
     }
 }

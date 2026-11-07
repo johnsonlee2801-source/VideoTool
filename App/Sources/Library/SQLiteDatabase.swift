@@ -18,7 +18,11 @@ final class SQLiteDatabase {
     /// Read-only view of the current result row.
     struct Row {
         fileprivate let stmt: OpaquePointer
-        func text(_ i: Int32) -> String { sqlite3_column_text(stmt, i).map { String(cString: $0) } ?? "" }
+        /// Reads the full byte length, so text containing NUL is not cut short.
+        func text(_ i: Int32) -> String {
+            guard let bytes = sqlite3_column_text(stmt, i) else { return "" }
+            return String(decoding: UnsafeBufferPointer(start: bytes, count: Int(sqlite3_column_bytes(stmt, i))), as: UTF8.self)
+        }
         func double(_ i: Int32) -> Double { sqlite3_column_double(stmt, i) }
         func int(_ i: Int32) -> Int64 { sqlite3_column_int64(stmt, i) }
         func isNull(_ i: Int32) -> Bool { sqlite3_column_type(stmt, i) == SQLITE_NULL }
@@ -210,7 +214,7 @@ final class SQLiteDatabase {
         for (i, v) in values.enumerated() {
             let idx = Int32(i + 1)
             switch v {
-            case .text(let s): sqlite3_bind_text(stmt, idx, s, -1, Self.transient)
+            case .text(let s): sqlite3_bind_text(stmt, idx, s, Int32(s.utf8.count), Self.transient)
             case .real(let d): sqlite3_bind_double(stmt, idx, d)
             case .int(let n): sqlite3_bind_int64(stmt, idx, n)
             case .null: sqlite3_bind_null(stmt, idx)

@@ -303,3 +303,30 @@ private func waitUntil(_ timeout: Double = 5, _ condition: () -> Bool) async -> 
         #expect(indexer.index(root: root.path, progress: { _ in }, isCancelled: { false }).unchanged == 2)
     }
 }
+
+extension MPVIntegrationTests {
+    @Test("A24 a replaced file's late FILE_LOADED is never reported as the new file (rapid replacement stress)")
+    func staleFileLoadedIsDropped() async throws {
+        let dir = TestTemp.directory.appendingPathComponent("replace-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let a = dir.appendingPathComponent("a.mp4").path, b = dir.appendingPathComponent("b.mp4").path
+        try FileManager.default.copyItem(atPath: sample, toPath: a)
+        try FileManager.default.copyItem(atPath: sample, toPath: b)
+        let engine = try MPVEngine()
+        let layer = MPVRenderLayer(engine: engine)
+        defer { layer.teardown(); engine.shutdown() }
+        var loads: [(String, Double)] = []
+        engine.onEvent = { if case .fileLoaded(let path, let duration) = $0 { loads.append((path, duration)) } }
+        for round in 0..<12 {
+            loads.removeAll()
+            engine.loadTarget(a)
+            if round % 2 == 1 { try await Task.sleep(for: .milliseconds(5)) }
+            engine.loadTarget(b)
+            #expect(await waitUntil { loads.contains { $0.0 == b } }, "round \(round): b never loaded: \(loads)")
+            try await Task.sleep(for: .milliseconds(150))
+            let reports = loads.filter { $0.0 == b }
+            #expect(reports.count == 1, "round \(round): b reported \(reports.count) times")
+            #expect(reports.allSatisfy { $0.1 > 19 }, "round \(round): b reported with an incomplete duration \(reports)")
+        }
+    }
+}

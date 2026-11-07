@@ -52,6 +52,51 @@ extension PlayerWiringTests {
         w.previousVideo(nil)
         #expect(await waitUntil { w.loadedPath == first.path })
     }
+    @Test("A23 next/previous check the file off the main thread, and only the latest click opens")
+    func neighborCheckOffMain() async throws {
+        let dir = TestTemp.directory.appendingPathComponent("neighbor-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let first = dir.appendingPathComponent("1.mp4"), second = dir.appendingPathComponent("2.mp4"), third = dir.appendingPathComponent("3.mp4")
+        for url in [first, second, third] { try FileManager.default.copyItem(at: sample, to: url) }
+        let w = PlayerWindowController()
+        defer { w.shutdown() }
+        var checks: [() -> Void] = []
+        w.neighborCheck = { checks.append($0) }
+        var opened: [String] = []
+        w.onFileOpened = { opened.append($0.lastPathComponent) }
+        w.open(second)
+        #expect(await waitUntil { w.loadedPath == second.path && w.nextVideoPath == third.path && w.previousVideoPath == first.path })
+        opened.removeAll()
+        w.nextVideo(nil)
+        w.previousVideo(nil)
+        #expect(opened.isEmpty, "the file check must not run on the main thread")
+        #expect(checks.count == 2)
+        checks[1](); checks[0]()
+        #expect(await waitUntil { opened == ["1.mp4"] })
+        try await Task.sleep(for: .milliseconds(200))
+        #expect(opened == ["1.mp4"], "an older click opened after a newer one: \(opened)")
+    }
+    @Test("A23b a pending next/previous check is dropped once any other file opens, even if the same file is reopened")
+    func neighborCheckDroppedAfterReopen() async throws {
+        let dir = TestTemp.directory.appendingPathComponent("neighbor-reopen-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let first = dir.appendingPathComponent("1.mp4"), second = dir.appendingPathComponent("2.mp4"), third = dir.appendingPathComponent("3.mp4")
+        for url in [first, second, third] { try FileManager.default.copyItem(at: sample, to: url) }
+        let w = PlayerWindowController()
+        defer { w.shutdown() }
+        var checks: [() -> Void] = []
+        w.neighborCheck = { checks.append($0) }
+        var opened: [String] = []
+        w.onFileOpened = { opened.append($0.lastPathComponent) }
+        w.open(second)
+        #expect(await waitUntil { w.loadedPath == second.path && w.nextVideoPath == third.path })
+        w.nextVideo(nil)
+        w.open(first); w.open(second)
+        opened.removeAll()
+        checks[0]()
+        try await Task.sleep(for: .milliseconds(300))
+        #expect(opened.isEmpty, "a check from before the reopen opened \(opened)")
+    }
     @Test("SBP1 successful file loading appears in recent playback before progress tracking is due")
     func fileLoadRecordsRecentPlayback() async throws {
         let suite = "videotool-tests-recent-load-\(UUID().uuidString)"

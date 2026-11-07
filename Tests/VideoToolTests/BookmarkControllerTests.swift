@@ -45,8 +45,10 @@ private final class Rig {
                                              thumbnailDirectory: thumbDir, thumbnails: thumbs,
                                              fingerprint: { [unowned self] in self.fingerprints[$0] },
                                              background: { [unowned self] in self.background.submit($0) },
-                                             main: { [unowned self] in self.main.submit($0) })
-    func settle() { background.runAll(); main.runAll() }
+                                             main: { [unowned self] in self.main.submit($0) },
+                                             persist: { [unowned self] in self.background.submit($0) })
+    /// Runs both queues until neither has work left (a main job may queue more background work).
+    func settle() { while !background.jobs.isEmpty || !main.jobs.isEmpty { background.runAll(); main.runAll() } }
     init(storePath: String? = nil) throws {
         store = try BookmarkStore(path: storePath ?? TestTemp.directory
             .appendingPathComponent("bmc-\(UUID().uuidString).sqlite").path)
@@ -65,6 +67,7 @@ private final class Rig {
         guard case .added(let b)? = feedback else { Issue.record("\(String(describing: feedback))"); return }
         #expect(b.time == 123.4)
         #expect(r.engine.togglePauseCount == 0 && r.engine.setPausedCalls.isEmpty)
+        r.settle()       // stored off the main thread (audit 2026-11-07 #25)
         #expect(try r.store.bookmarks(for: "osh:abc").map(\.time) == [123.4])
         #expect(r.controller.bookmarks.map(\.time) == [123.4])
     }
@@ -86,6 +89,7 @@ private final class Rig {
         _ = r.controller.toggleAtCurrentTime()
         r.now += 1; r.engine.state.timePos = 40.5
         #expect(r.controller.toggleAtCurrentTime() == .undone)
+        r.settle()
         #expect(try r.store.bookmarks(for: "osh:abc").isEmpty)
         #expect(r.controller.bookmarks.isEmpty)
     }
@@ -125,6 +129,7 @@ private final class Rig {
         #expect(r.controller.bookmarks.isEmpty)
         r.open("osh:A", path: "/m/renamed.mkv")
         #expect(r.controller.bookmarks.map(\.time) == [12])
+        r.settle()       // the path is remembered off the main thread (audit 2026-11-07 #25)
         #expect(try r.store.lastPath(for: "osh:A") == "/m/renamed.mkv")
     }
 
@@ -138,6 +143,7 @@ private final class Rig {
         #expect(r.controller.bookmarks.first?.note == "精彩")
         r.controller.delete(b.id)
         #expect(r.controller.bookmarks.isEmpty)
+        r.settle()
         #expect(try r.store.bookmarks(for: "osh:abc").isEmpty)
         #expect(changes == 3, "add, note edit, delete (thumbnail readiness goes to onThumbnailReady)")
     }
@@ -170,6 +176,7 @@ private final class Rig {
         r.now += 0.5
         #expect(r.controller.toggleAtCurrentTime() == .undone)
         r.thumbs.finishAll()
+        r.settle()       // the picture goes once the queued writes say the star is gone (2026-11-07 #25)
         #expect(!FileManager.default.fileExists(atPath: r.controller.thumbnailURL(for: b)!.path))
     }
 
@@ -186,6 +193,7 @@ private final class Rig {
         #expect(r.controller.bookmarks.isEmpty, "A's stars must not appear for B")
         r.engine.state.timePos = 30
         _ = r.controller.toggleAtCurrentTime()
+        r.settle()
         #expect(try r.store.bookmarks(for: "osh:B").map(\.time) == [30])
         #expect(try r.store.bookmarks(for: "osh:A").map(\.time) == [5])
     }
@@ -259,7 +267,7 @@ private func breakStore(_ path: String) {
         return (try Rig(storePath: path), path)
     }
 
-    @Test("BC20 when the database fails, undo reports nothing, keeps the star's picture, and the list keeps showing it")
+    @Test("BC20 when the database fails, undo answers at once, then puts the star back with its picture and reports the error")
     func failedUndo() throws {
         let (r, path) = try rig()
         var errors = 0
@@ -267,14 +275,18 @@ private func breakStore(_ path: String) {
         r.open()
         r.engine.state.timePos = 30
         guard case .added(let b)? = r.controller.toggleAtCurrentTime() else { Issue.record("not added"); return }
+        r.settle()
         let thumb = try #require(r.controller.thumbnailURL(for: b))
         #expect(FileManager.default.fileExists(atPath: thumb.path))
         breakStore(path)
-        #expect(r.controller.toggleAtCurrentTime() == nil, "not .undone: nothing was undone")
-        #expect(FileManager.default.fileExists(atPath: thumb.path))
-        #expect(r.controller.bookmarks.map(\.id) == [b.id], "a failed read does not empty the list")
+        #expect(r.controller.toggleAtCurrentTime() == .undone)
+        #expect(r.controller.bookmarks.isEmpty)
+        r.settle()                                            // the delete fails in the background
         #expect(errors >= 1)
-        r.controller.delete(b.id)
+        #expect(r.controller.bookmarks.map(\.id) == [b.id], "a star that is still stored comes back")
+        #expect(FileManager.default.fileExists(atPath: thumb.path), "failed delete keeps the picture")
+        r.controller.delete(b.id); r.settle()
+        #expect(r.controller.bookmarks.map(\.id) == [b.id])
         #expect(FileManager.default.fileExists(atPath: thumb.path), "failed delete keeps the picture")
     }
 
@@ -332,3 +344,160 @@ struct BookmarkNavigatorAuditTests {
         #expect(BookmarkNavigator.toggle(at: 30, now: Date(timeIntervalSince1970: 10_000), existing: [old]) == .add)
     }
 }
+
+@Suite @MainActor struct BookmarkAsyncPersistenceTests {
+    @Test("A25c B, undo and note edits answer at once; the database is written by the background queue")
+    func instantFeedbackAsyncWrites() throws {
+        let r = try Rig(); r.open(); r.settle()
+        r.engine.state.timePos = 10
+        guard case .added(let b)? = r.controller.toggleAtCurrentTime() else { Issue.record("not added"); return }
+        #expect(r.controller.bookmarks.map(\.time) == [10])
+        #expect(try r.store.bookmarks(for: "osh:abc").isEmpty, "the insert ran on the main thread")
+        r.controller.updateNote(b.id, "好")
+        #expect(r.controller.bookmarks.first?.note == "好")
+        r.settle()
+        #expect(try r.store.bookmarks(for: "osh:abc").map(\.note) == ["好"])
+        r.now += 0.5
+        #expect(r.controller.toggleAtCurrentTime() == .undone)
+        #expect(r.controller.bookmarks.isEmpty)
+        #expect(try r.store.bookmarks(for: "osh:abc").count == 1, "the delete ran on the main thread")
+        r.settle()
+        #expect(try r.store.bookmarks(for: "osh:abc").isEmpty)
+    }
+
+    @Test("A25d reopening a file before its writes finish still shows its latest stars")
+    func reopenWithPendingWrites() throws {
+        let r = try Rig(); r.open(); r.settle()
+        r.engine.state.timePos = 10; _ = r.controller.toggleAtCurrentTime()
+        r.open("osh:B", path: "/m/other.mp4")
+        r.open()
+        #expect(r.controller.bookmarks.map(\.time) == [10])
+        r.settle()
+        r.open("osh:B", path: "/m/other.mp4"); r.open()
+        #expect(r.controller.bookmarks.map(\.time) == [10])
+    }
+
+    @Test("A25e a write that fails rolls the star back and reports the error")
+    func failedWriteRollsBack() throws {
+        let path = TestTemp.directory.appendingPathComponent("bm-fail-\(UUID().uuidString).sqlite").path
+        let r = try Rig(storePath: path); r.open(); r.settle()
+        var errors = 0
+        r.controller.onError = { _ in errors += 1 }
+        try SQLiteDatabase(path: path).exec("DROP TABLE bookmarks")
+        r.engine.state.timePos = 10
+        guard case .added? = r.controller.toggleAtCurrentTime() else { Issue.record("not added"); return }
+        r.settle()
+        #expect(errors == 1 && r.controller.bookmarks.isEmpty, "a star that was never stored must not stay on screen")
+    }
+
+    @Test("A25f several failed edits roll back to what is actually stored, not to an intermediate edit")
+    func failedEditsRollBackToStored() throws {
+        let path = TestTemp.directory.appendingPathComponent("bm-notes-\(UUID().uuidString).sqlite").path
+        let r = try Rig(storePath: path); r.open()
+        r.engine.state.timePos = 10
+        guard case .added(let b)? = r.controller.toggleAtCurrentTime() else { Issue.record("not added"); return }
+        r.controller.updateNote(b.id, "N0"); r.settle()
+        breakStore(path)
+        r.controller.updateNote(b.id, "N1"); r.controller.updateNote(b.id, "N2")
+        #expect(r.controller.bookmarks.first?.note == "N2")
+        r.settle()
+        #expect(r.controller.bookmarks.map(\.note) == ["N0"])
+    }
+
+    @Test("A25g a finished thumbnail of a star awaiting deletion is removed only after the deletion is stored")
+    func thumbnailWaitsForQueuedDelete() throws {
+        let r = try Rig(); r.thumbs.deferred = true; r.open()
+        r.engine.state.timePos = 10
+        guard case .added(let b)? = r.controller.toggleAtCurrentTime() else { Issue.record("not added"); return }
+        r.settle()
+        r.controller.delete(b.id)
+        r.thumbs.finishAll()
+        let thumb = try #require(r.controller.thumbnailURL(for: b))
+        #expect(FileManager.default.fileExists(atPath: thumb.path), "deleted before the database delete ran")
+        r.settle()
+        #expect(!FileManager.default.fileExists(atPath: thumb.path))
+    }
+
+    @Test("A25h stored changes are announced, so star counts elsewhere refresh after the write lands")
+    func storedNotification() throws {
+        let r = try Rig(); r.open(); r.settle()
+        var stored = 0
+        r.controller.onStored = { stored += 1 }
+        r.engine.state.timePos = 10; _ = r.controller.toggleAtCurrentTime()
+        #expect(stored == 0)
+        r.settle()
+        #expect(stored == 1)
+    }
+
+    @Test("A25i a late rollback for a failed edit does not overwrite a newer edit made meanwhile")
+    func lateRollbackKeepsNewerEdit() throws {
+        let path = TestTemp.directory.appendingPathComponent("bm-late-\(UUID().uuidString).sqlite").path
+        let r = try Rig(storePath: path); r.open()
+        r.engine.state.timePos = 10
+        guard case .added(let b)? = r.controller.toggleAtCurrentTime() else { Issue.record("not added"); return }
+        r.controller.updateNote(b.id, "N0"); r.settle()
+        // Only the edit to "N1" fails.
+        try SQLiteDatabase(path: path).exec("CREATE TRIGGER no_n1 BEFORE UPDATE ON bookmarks WHEN NEW.note = 'N1' BEGIN SELECT RAISE(ABORT, 'refused'); END")
+        r.controller.updateNote(b.id, "N1")
+        r.background.runAll()                 // N1 fails; its rollback waits for the main thread
+        r.controller.updateNote(b.id, "N2")  // the viewer edits again before that runs
+        r.main.runAll()
+        r.settle()
+        #expect(try r.store.bookmarks(for: "osh:abc").map(\.note) == ["N2"])
+        #expect(r.controller.bookmarks.map(\.note) == ["N2"], "the screen went back to an older note")
+    }
+
+    @Test("A25j a newer edit already stored before a late rollback still wins")
+    func newerEditStoredBeforeRollback() throws {
+        let path = TestTemp.directory.appendingPathComponent("bm-late2-\(UUID().uuidString).sqlite").path
+        let r = try Rig(storePath: path); r.open()
+        r.engine.state.timePos = 10
+        guard case .added(let b)? = r.controller.toggleAtCurrentTime() else { Issue.record("not added"); return }
+        r.controller.updateNote(b.id, "N0"); r.settle()
+        try SQLiteDatabase(path: path).exec("CREATE TRIGGER no_n1 BEFORE UPDATE ON bookmarks WHEN NEW.note = 'N1' BEGIN SELECT RAISE(ABORT, 'refused'); END")
+        r.controller.updateNote(b.id, "N1")
+        r.background.runAll()                 // N1 fails
+        r.controller.updateNote(b.id, "N2")
+        r.background.runAll()                 // N2 is stored before N1's rollback reaches the main thread
+        r.settle()
+        #expect(r.controller.bookmarks.map(\.note) == ["N2"], "the late rollback put back an older note")
+    }
+
+    @Test("A25k a rollback skipped because another star was being edited is applied afterwards")
+    func skippedRollbackCatchesUp() throws {
+        let path = TestTemp.directory.appendingPathComponent("bm-skip-\(UUID().uuidString).sqlite").path
+        let r = try Rig(storePath: path); r.open()
+        r.engine.state.timePos = 10
+        guard case .added(let a)? = r.controller.toggleAtCurrentTime() else { Issue.record("not added"); return }
+        r.now += 10; r.engine.state.timePos = 50
+        guard case .added(let b)? = r.controller.toggleAtCurrentTime() else { Issue.record("not added"); return }
+        r.settle()
+        try SQLiteDatabase(path: path).exec("CREATE TRIGGER keep_a BEFORE DELETE ON bookmarks WHEN OLD.id = '\(a.id.uuidString)' BEGIN SELECT RAISE(ABORT, 'refused'); END")
+        r.controller.delete(a.id)
+        r.background.runAll()                 // the delete of A fails
+        r.controller.updateNote(b.id, "B")    // B is edited before A's rollback runs
+        r.settle()
+        #expect(r.controller.bookmarks.map(\.id) == [a.id, b.id], "A is still stored but vanished from the list")
+        #expect(r.controller.bookmarks.last?.note == "B")
+    }
+
+    @Test("A25l a correction queued ahead of a newer edit's write does not show the older stored note")
+    func correctionAheadOfNewerWrite() throws {
+        let path = TestTemp.directory.appendingPathComponent("bm-late3-\(UUID().uuidString).sqlite").path
+        let r = try Rig(storePath: path); r.open()
+        r.engine.state.timePos = 10
+        guard case .added(let b)? = r.controller.toggleAtCurrentTime() else { Issue.record("not added"); return }
+        r.controller.updateNote(b.id, "N0"); r.settle()
+        try SQLiteDatabase(path: path).exec("CREATE TRIGGER no_n1 BEFORE UPDATE ON bookmarks WHEN NEW.note = 'N1' BEGIN SELECT RAISE(ABORT, 'refused'); END")
+        r.controller.updateNote(b.id, "N1")
+        r.background.runAll()                 // N1 fails
+        r.controller.updateNote(b.id, "N2")
+        r.background.runAll()                 // N2 stored
+        r.main.runAll()                       // N1's correction sees N2 and queues another check
+        r.controller.updateNote(b.id, "N3")  // N3's write is queued behind that check
+        r.settle()
+        #expect(try r.store.bookmarks(for: "osh:abc").map(\.note) == ["N3"])
+        #expect(r.controller.bookmarks.map(\.note) == ["N3"], "the screen shows an older stored note")
+    }
+}
+
